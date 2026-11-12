@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: lowticket-whatsapp-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: META_PHONE_NUMBER_ID
+        sync: false
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_VERIFY_TOKEN
+        value: lowticket_verify_token_2026
+      - key: NEQUI_NUMERO
+        sync: false
+      - key: NEQUI_TITULAR
+        sync: false
+      - key: PRECIO_OFERTA_COP
+        value: 10000
+      - key: GOOGLE_DRIVE_LINK
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

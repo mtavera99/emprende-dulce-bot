@@ -1,26 +1,44 @@
 services:
   - type: web
-    name: lowticket-whatsapp-bot
+    name: emprende-dulce-bot
     env: node
-    plan: free
+    plan: starter
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
     buildCommand: npm install
     startCommand: node src/server.js
     envVars:
       - key: PORT
         value: 3000
+      - key: DATA_DIR
+        value: /var/data
+      - key: BOT_WHATSAPP
+        sync: false
       - key: META_PHONE_NUMBER_ID
         sync: false
       - key: META_ACCESS_TOKEN
         sync: false
       - key: META_VERIFY_TOKEN
         value: lowticket_verify_token_2026
+      - key: PANEL_TOKEN
+        sync: false
       - key: NEQUI_NUMERO
         sync: false
       - key: NEQUI_TITULAR
+        sync: false
+      - key: DAVIPLATA_NUMERO
+        sync: false
+      - key: LLAVE_NUMERO
         sync: false
       - key: PRECIO_OFERTA_COP
         value: 10000
       - key: GOOGLE_DRIVE_LINK
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: SEGUIMIENTO_ACTIVO
+        value: "1"

@@ -1,0 +1,476 @@
+SESIONES
+Ver todo >
+Nuevo
+Sin agrupar
+4
+
+Producto Digital
+
+Hace 1 día
+
+NOVIKA
+
+Hace 2 días
+mtavera99/Novika
+
+LUMINA
+
+Hace 4 días
+mtavera99/Lumina
+
+BikerPro
+
+Hace 1 semana
+mtavera99/impermeables
+Qué hay de nuevo
+1
+Cronograma
+Configuración del agente
+Ajustes
+
+METRO
+
+mtavera99@gmail.com
+
+Producto Digital
+
+1 herramienta
+
+No hay archivos de dirección
+
+ayer
+
+01_Helados_Artesanales_Guia_Maestra.pdf
+
+01_Helados_Artesanales_Guia_Maestra.pdf
+
+02_Postres_en_Vaso_Para_Emprender.pdf
+
+03_Remedios_Naturales_Ancestrales_Salud.pdf
+
+Bono_01_Calculadora_Costos_y_Precios.html
+
+# CONTEXTO INTEGRAL: LANZAMIENTO MODELO LOW-TICKET DIGITAL (INFOPRODUCTOS & WHATSAPP)
+
+Hola Kiro (Claude Opus 5.5). Eres el Director Creativo y Estratega de Producto Digital de esta operación. 
+
+Hemos completado una investigación forense exhaustiva sobre el modelo de negocio digital de venta masiva de infoproductos de bajo costo (Low Ticket) en Colombia y Latinoamérica (el mismo modelo que operan figuras como @soykevinuv_ y marcas con anuncios perennes en Meta Ads Library como Formativa360). 
+
+A continuación tienes todo el contexto de lo descubierto, los activos técnicos que ya dejamos construidos y las tareas prioritarias en las que necesitamos tu máxima capacidad analítica y creativa.
+
+---
+
+## 1. El Diagnóstico del Modelo de Negocio (Forensic Analysis)
+
+1. **La Falla de Hotmart en Low-Ticket:**
+   - En Hotmart, para un producto de $10.000 COP (~$2.50 USD), la pasarela retiene entre 35% y 40% en comisiones fijas y porcentuales, los retiros tienen costos adicionales y el checkout con tarjeta/efecty tiene una tasa de abandono del 70%.
+2. **El "Método Secreto" de Alta Rentabilidad (WhatsApp + Nequi Directo):**
+   - Tráfico pagado desde Meta Ads (Click-to-WhatsApp) segmentado en Colombia.
+   - Las personas escriben a un WhatsApp comercial con un mensaje predeterminado: *"Hola, quiero la oferta del Pack Emprende Dulce por $10.000 COP"*.
+   - Un bot automatizado presenta la oferta irresistible, responde dudas y envía el QR / número de Nequi y Daviplata.
+   - **Comisión de pasarela:** 0%.
+   - **Liquidez:** Instantánea al celular.
+   - **Tasa de conversión en chat:** 25% a 40% (4x a 6x mayor que una página web tradicional).
+3. **Automatización con Visión Artificial (OCR):**
+   - El cliente envía la captura de pantalla de su transferencia por Nequi.
+   - Una IA de visión (OpenAI GPT-4o-mini o Gemini Flash) audita la imagen en segundos: extrae valor transferido ($10.000), número de cuenta destino, fecha y número de referencia.
+   - Si es válido, el bot entrega inmediatamente el enlace de descarga de los PDFs y bonos.
+4. **Order Bump Inmediato (Incremento del Ticket Promedio):**
+   - Exactamente 3 segundos después de entregar el pack principal, el bot envía una oferta relámpago complementaria por $5.000 COP (ej. *Recetario Navideño de Postres o Guía de Salsas Gourmet*). 
+   - Entre 20% y 35% de los compradores transfieren los $5.000 adicionales, elevando el ticket promedio a $15.000 COP con **0 costo marginal**.
+
+---
+
+## 2. Lo que ya Construimos y dejamos Listo en Código e Infraestructura
+
+Hemos preparado toda la base técnica y operativa en el entorno local (`/Users/santiagotavera/Desktop/Trabajos/lowticket-bot/`):
+
+1. **Infoproductos y Bonos Compilados (Adjuntos en esta sesión):**
+   - `01_Helados_Artesanales_Guia_Maestra.pdf`: Fórmulas base cremosas sin máquina heladera, 5 sabores comerciales y paletas rellenas.
+   - `02_Postres_en_Vaso_Para_Emprender.pdf`: Postres individuales en domo PET de 7 oz (3 Leches tradicional, Pie de limón sin horno, Tiramisú exprés, Fresas con crema gourmet).
+   - `03_Remedios_Naturales_Ancestrales_Salud.pdf`: Fórmulas alternativas para regulación de glucosa, digestión y presión arterial.
+   - `Bono_01_Calculadora_Costos_y_Precios.html`: Calculadora interactiva en JavaScript para celular y PC que calcula costo unitario de ingredientes y precio de venta con 70% de margen neto.
+   - `Bono_02_Directorio_Proveedores_Colombia.pdf`: Directorio mayorista de envases e insumos en Medellín, Bogotá y Cali.
+   - `Bono_03_Guia_Ventas_WhatsApp_Postres.pdf`: Guía de comercialización por estados de WhatsApp y cajas mixtas.
+   - `Emprende_Dulce_Pack_Completo_2026.zip`: Bundle listo para alojamiento y descarga.
+2. **Página de Facebook Creada con Branding Profesional:**
+   - **Nombre:** `Emprende Dulce Colombia` (ID: `61596126466400`).
+   - Foto de portada y avatar de heladería artesanal boutique generados en alta resolución y publicados.
+3. **Cuenta Publicitaria Meta Creada y Blindada:**
+   - **Nombre:** `Emprende Dulce Ads` (ID: `1136356202211956`).
+   - Moneda: **COP (Pesos Colombianos)** | Zona Horaria: **America/Bogota (GMT-05:00)**.
+   - Totalmente desacoplada de la cuenta de e-commerce físico de contraentrega (`Novika`) para evitar contaminación de píxeles o contingencias.
+4. **Bot de WhatsApp Independiente (`lowticket-bot`):**
+   - Servidor Node.js / Express con Webhook de Meta Cloud API (`lowticket_verify_token_2026`).
+   - Pipeline de visión artificial con prompt para OCR de recibos bancarios.
+   - Máquina de estados de conversación con entrega automática y order bump retardado.
+
+---
+
+## 3. Tus Objetivos y Misión como Claude Opus 5.5 en Kiro
+
+Queremos que tomes el control de la calidad de producto, la persuasión comercial y la escalabilidad de este ecosistema:
+
+### Objetivo 1: Elevar los PDFs a Nivel Editorial Premium
+- Revisa los PDFs adjuntos. Queremos enriquecerlos a fondo:
+  - Añadir paso a paso detallado, secretos de reposteros para evitar cristalización en frío, tablas de rendimiento exacto por porción y costeo comercial en pesos colombianos.
+  - Generar versiones en código (HTML/CSS o Markdown estructurado) que podamos compilar a PDF con diseño digno de una editorial gourmet de $50 USD, pero vendido a $10.000 COP para generar un efecto *WOW* que elimine cualquier reembolso y genere recompra.
+
+### Objetivo 2: Creativos y Estrategia Publicitaria Ganadora (Meta Ads)
+- Diseñar 5 guiones de video en formato UGC (User Generated Content) de 30-45 segundos para Reels/TikTok, diseñados para Click-to-WhatsApp:
+  - Gancho disruptivo (0-3 segundos).
+  - Problema/Empatía (3-15 segundos).
+  - Demostración visual del producto y facilidad de emprender desde casa (15-30 segundos).
+  - Llamado a la acción irresistible: *"Escribe por WhatsApp y recibe el pack completo + 3 bonos por solo $10.000 COP hoy"* (30-45 segundos).
+- Redactar los Copies definitivos para Meta Ads con ángulos emocionales probados (madres cabeza de hogar, ingresos extra de fin de semana, desempleados o amantes de la repostería).
+
+### Objetivo 3: Optimización del Funnel de WhatsApp y Order Bumps
+- Pulir los copys de venta del bot para que el cierre sea 100% natural, amigable y transmita máxima confianza.
+- Definir 2 nuevos Order Bumps y Upsells de $5.000 COP y $15.000 COP para testear.
+- Diseñar la secuencia de seguimiento (retargeting en frío por chat) para las personas que piden información pero no transfieren en las primeras 2 horas.
+
+Por favor, confirma que has recibido todo el contexto y los archivos adjuntos, y preséntame tu análisis inicial y tu propuesta de trabajo paso a paso para arrancar.
+
+yesterday
+
+1 tool
+
+Thought (11)
+
+Análisis inicial y plan de trabajo: Emprende Dulce
+Qué recibí
+
+Llegaron 4 archivos:
+
+Archivo	Estado
+01_Helados_Artesanales_Guia_Maestra.pdf	Recibido (3 páginas)
+02_Postres_en_Vaso_Para_Emprender.pdf	Recibido (3 páginas)
+03_Remedios_Naturales_Ancestrales_Salud.pdf	Recibido (2 páginas)
+Bono_01_Calculadora_Costos_y_Precios.html	Recibido
+Bono_02_Directorio_Proveedores, Bono_03_Guia_Ventas, el .zip	No llegaron
+Código del bot lowticket-bot	No llegó
+
+La ruta /Users/santiagotavera/Desktop/... está en tu Mac. Yo trabajo en un sandbox en la nube y no tengo acceso a ella, y mi espacio de trabajo está vacío. Para revisar el bot necesito que subas los archivos aquí o me des un repositorio de GitHub.
+
+Riesgos graves que veo antes de escalar
+
+1. Las capturas de pantalla no prueban que entró el dinero. En Colombia circulan generadores de comprobantes falsos de Nequi y Daviplata, y un modelo de visión no distingue una captura real de una editada. Si el bot entrega el pack solo por la imagen, vas a regalar producto en cuanto el método se conozca. La solución es usar el OCR solo para extraer datos y confirmar el pago contra lo que de verdad recibiste:
+
+Cruzar contra las notificaciones reales de la cuenta, como el correo o el push de Nequi, o un webhook si usas Nequi Negocios o una pasarela.
+Rechazar números de referencia ya usados.
+Validar el monto exacto y la fecha.
+
+También conviene evaluar Bre-B, el sistema de pagos inmediatos del Banco de la República con llaves. Funciona entre Nequi, Daviplata y los bancos, y te deja recibir en una sola llave. Ojo: recibir ventas comerciales en una cuenta personal choca con los límites transaccionales y los términos de uso. Lo verifico en detalle en la fase del bot.
+
+2. El PDF de Remedios Naturales es un riesgo legal, publicitario y de salud.
+
+Hace afirmaciones terapéuticas: "regular glucosa y diabetes", presión arterial, gastritis. También cita un "30% según estudios clínicos" sin fuente.
+La canela y el vinagre combinados con medicamentos para la diabetes pueden causar hipoglucemia. La jamaica y el ajo pueden sumarse a los antihipertensivos. Tu público incluye personas mayores que ya toman estos medicamentos.
+Meta rechaza anuncios con afirmaciones de salud. Si alguien lo reporta, puede afectar la cuenta publicitaria que acabas de crear.
+Además no encaja con la marca. Dice "Uso: Emprendimiento desde Casa" en un libro de remedios dentro de un pack de postres.
+
+Mi recomendación es sacarlo del pack. En su lugar entraría un Recetario Navideño para Vender: natilla, buñuelos, postres para novenas y cajas regalo. Hoy es 12 de noviembre, así que tienes la temporada de prima y novenas encima, y ese ángulo encaja con los anuncios.
+
+3. Las políticas de Meta Ads condicionan los copies que pediste.
+
+No se puede afirmar atributos personales del espectador. "¿Eres madre cabeza de hogar desempleada?" se rechaza. Sí se puede hablar de la situación sin señalar a la persona: "Muchas mamás en Colombia están vendiendo postres desde su cocina".
+Las promesas de ingreso, como "$1.850.000 al mes", caen en prácticas engañosas o de enriquecimiento rápido. Escribiré los copies dentro de esas reglas.
+
+4. Ventana de WhatsApp. Los anuncios Click-to-WhatsApp abren una ventana gratuita de 72 horas. Tu seguimiento de 2 horas cabe ahí. Cualquier mensaje después de esa ventana exige una plantilla de marketing aprobada y pagada. Diseñaré la secuencia según eso.
+
+5. Alimentos. Quien venda comida hecha en casa en Colombia necesita el curso de manipulación de alimentos (Resolución 2674 de 2013). Incluirlo en los PDFs suma credibilidad y protege a tus compradoras.
+
+Problemas de calidad en los PDFs actuales
+
+Por qué hoy no se ven como un producto de $50 USD:
+
+Tienen entre 2 y 3 páginas y mucho espacio en blanco.
+No tienen fotos.
+La portada dice "más de 40 sabores" y el libro trae 5.
+
+Errores técnicos:
+
+La base de helado no rinde 1 litro. Con la crema montada sale cerca de 1,3 litros.
+"La sal relaja la red molecular del frío" es pseudociencia. Un repostero lo detecta.
+Falta lo que de verdad evita la cristalización, como la relación de sólidos o el uso de glucosa o miel. Esto lo voy a escribir yo.
+
+El costeo no cuadra:
+
+El PDF dice que el costo por vaso es $1.850 y la calculadora dice $1.875.
+La calculadora omite la leche evaporada, la crema del chantilly y el azúcar de la receta tres leches, así que el costo real es mayor.
+Llama "ganancia neta" a lo que es margen bruto. No descuenta gas, domicilio, mermas ni tiempo de trabajo.
+
+Rendimiento: un bizcocho de 4 huevos difícilmente alcanza para 12 vasos de 7 oz con dos capas. Voy a recalcular rendimientos y costos con precios actuales de supermercado.
+
+Calculadora: el comentario del código dice que redondea a cientos, pero redondea a $500. También fuerza la unidad "g" en todos los ingredientes.
+
+Propuesta de trabajo por fases
+
+Fase 1. Producto (Objetivo 1)
+
+Reescribo Helados y Postres en HTML/CSS con diseño editorial e imprimibles a PDF. Pasarían de 2-3 páginas a unas 25-35 cada uno.
+Cada receta llevaría ficha técnica, paso a paso, errores comunes, tabla de rendimiento, costeo en COP y vida útil y conservación.
+Agrego una sección legal y sanitaria.
+Escribo el Recetario Navideño.
+Corrijo la calculadora.
+Te entrego un script que compila todo a PDF.
+
+Fase 2. Funnel de WhatsApp (Objetivo 3)
+
+Escribo los copies del bot.
+Rediseño la verificación de pago antifraude.
+Propongo dos pruebas A/B:
+Un order bump real antes del primer pago: "agrega el recetario por +$5.000, total $15.000", con una sola transferencia.
+El upsell después de la entrega que tienes hoy, que obliga a hacer una segunda transferencia.
+Propongo upsells de $5.000 y $15.000.
+Diseño la secuencia de seguimiento a las 2, 24 y 60 horas.
+
+Fase 3. Anuncios (Objetivo 2)
+
+Escribo 5 guiones UGC de 30 a 45 segundos y los copies por ángulo, dentro de las políticas de Meta.
+Armo una matriz de pruebas de ganchos y ángulos.
+
+Propongo este orden porque los anuncios deben prometer exactamente lo que el producto entrega. Así bajan los reembolsos y las quejas.
+
+Lo que necesito que decidas
+Remedios: ¿lo sacamos y lo reemplazamos por el Recetario Navideño, como recomiendo?
+Archivos faltantes: ¿puedes subir el código del bot, los Bonos 02 y 03, o darme el repositorio?
+Fotos: ¿tienes fotos reales de las recetas preparadas? Sin fotos el efecto "WOW" depende solo del diseño. Si no las tienes, dejo espacios marcados para ellas.
+Cuenta de cobro: ¿qué cuenta recibe los pagos: Nequi personal, Nequi Negocios u otra?
+
+Si confirmas el punto 1, arranco ya con la Fase 1 y el libro de Helados.
+
+Est. Credits Used: 1.01
+
+Elapsed Time: 1m 9s
+
+Bono_02_Directorio_Proveedores_Colombia.pdf
+
+Bono_03_Guia_Ventas_WhatsApp_Postres.pdf
+
+server.js
+
+conversationFlow.js
+
+ocrValidator.js
+
+Excelente análisis, Kiro. Totalmente de acuerdo con todas tus observaciones forenses:
+
+1. **Renombrar Sesión:** Por favor ten en cuenta que el nombre oficial de esta sesión de trabajo es **"Producto Digital"**.
+2. **Decisión Remedios Naturales -> Recetario Navideño:** Aprobado al 100%. Sacamos completamente Remedios Naturales para blindar la cuenta publicitaria contra rechazos de salud y aprovechamos de lleno la temporada de prima y novenas de diciembre en Colombia con el **"Recetario Navideño de Postres y Cajas Regalo para Vender"**.
+3. **Archivos Faltantes Adjuntos:** Te acabo de adjuntar los Bonos 02 y 03, más el código fuente completo del bot (`server.js`, `conversationFlow.js`, `ocrValidator.js`, `whatsappService.js`).
+4. **Antifraude y Cuenta Nequi:** Manejamos Nequi/Daviplata y nos aseguraremos de auditar referencias únicas para evitar recapturas falsas.
+5. **Luz Verde para Arrancar:** Arranca de inmediato con la **Fase 1** (diseñar y expandir el libro maestro de Helados Artesanales y el de Postres en Vaso a 25-35 páginas con diseño editorial impecable, costos exactos en COP y tablas de rendimiento, más la redacción del Recetario Navideño).
+
+¡Adelante con toda!
+
+yesterday
+
+Thought (113) + Tools (21)
+
+Ahora escribo el primer libro (Helados). Es el archivo más grande; lo divido en partes.
+
+1 tool
+
+Thought (54) + Tools (37)
+
+Libro 1 listo (32 páginas, todas las recetas caben en una página salvo la base, que ocupa dos a propósito). Ahora el libro de Postres en Vaso.
+
+2 tools
+
+Thought (31) + Tools (16)
+
+Hay un pequeño retraso en la sincronización de archivos; reintento la lectura.
+
+3 tools
+
+Thought (3)
+
+Los tres libros compilan. Ajusto el color de las cajas de totales para que siga el color de cada libro, corrijo la calculadora (Bono 01) y compilo todo.
+
+2 tools
+
+Thought (11) + Tools (18)
+
+Terminé la Fase 1. Los tres libros están compilados a PDF, todos dentro del rango de 25 a 35 páginas, y corregí la calculadora (Bono 01).
+
+Libro	Páginas	Contenido
+Helados Artesanales Sin Máquina	32	12 sabores, 4 paletas y una base cocida para paletas cremosas
+Postres en Vaso para Emprender	34	2 bases, 10 postres (incluido el Mousse de Maracuyá que el bot ya promete) y una caja mixta costeada
+Recetario Navideño de Postres y Cajas Regalo	30	9 recetas, 3 cajas regalo, un plan de 5 semanas y un guion para vender a empresas
+
+Qué trae cada receta: ficha técnica, ingredientes en gramos, paso a paso con puntos de control, un secreto de repostero, una tabla de problemas y soluciones, y costeo en COP con 10% de costos indirectos, empaque, precio sugerido y margen. En Postres y Navidad cada receta tiene además una segunda página de producción con las cantidades para el doble y el triple.
+
+Lo que comprobé:
+
+Ninguna receta se parte entre páginas. Lo revisa automáticamente un script (src/verificar.js).
+La calculadora da el mismo resultado que el libro para el Tres Leches: costo de $3.831 por vaso y 62% de margen.
+Una conclusión que afecta los anuncios
+
+Con precios reales, la promesa de "70% de margen en todo" no se cumple:
+
+Producto	Margen bruto
+Helado cremoso (vaso de 5 oz)	49% a 54%
+Postres en vaso	54% a 67% (arroz con leche: 75%)
+Paletas	68% a 84%
+Cajas regalo	49% a 56%
+
+La crema de leche para batir es el ingrediente más caro. Los libros lo dicen tal cual y enseñan a subir el margen: base mixta de crema láctea y vegetal, compras al por mayor, combos y paletas. Los anuncios y el bot no deberían prometer 70% en todo. Además, Meta suele rechazar las promesas de ingreso.
+
+Lo que aún no está verificado
+Precios. Son estimaciones de noviembre de 2026 a partir de pocos datos reales: crema de leche Alpina 1.100 ml a $25.200 en Éxito, leche condensada de 420 g entre $10.000 y $13.700 en Rappi, y cubeta de 30 huevos a $14.500 en Corabastos en octubre. Si cambias datos/precios.js y vuelves a compilar, todas las tablas se recalculan solas.
+Recetas. Están escritas con técnicas estándar de repostería, pero yo no las cociné. Antes de grabar los anuncios, haz una tanda de prueba de cada una.
+Fotos. Los libros no tienen fotos. Si guardas una foto con el nombre de la receta en fotos/ (por ejemplo tres-leches.jpg), aparece sola. Sin fotos reales, el "efecto WOW" depende solo del diseño.
+Fuentes. Este entorno solo tiene la fuente Noto Sans, así que los PDF salieron con ella. Si los compilas en tu Mac con Playfair Display e Inter instaladas (gratis), quedan con la tipografía editorial que diseñé.
+Problema grave en el bot
+
+Encontré esto al leer el código; lo arreglo en la Fase 2. Si en el servidor falta la clave OPENAI_API_KEY o GEMINI_API_KEY, ocrValidator.js entra en modo simulación y aprueba cualquier imagen, así que el bot entrega el pack gratis. Además:
+
+Las sesiones se guardan solo en memoria, y la oferta de 3 segundos depende de un temporizador. Ambas se pierden cuando Render reinicia el servidor.
+El texto de venta del bot promete una calculadora "en Excel", y no existe.
+Archivos
+
+Todo está en /projects/sandbox/emprende-dulce/:
+
+dist/pdf/: los tres PDF
+bonos/Bono_01_Calculadora_Costos_y_Precios.html: la calculadora corregida
+datos/precios.js: el único lugar donde se editan los precios
+libros/: el contenido de cada libro
+README.md: cómo compilar
+
+Lo puedes ver en el explorador de archivos.
+
+Lo que necesito de ti para seguir
+¿Subo esto a un repositorio de GitHub? Así lo compilas en tu Mac y lo revisas más fácil.
+¿Me confirmas los precios de venta? Por ejemplo, el vaso de 7 oz a $10.000 y el helado de 5 oz a $7.000.
+¿Arranco con la Fase 2 (antifraude y textos del bot)? Ahí también ajustaría los Bonos 02 y 03 a estas cifras. Hoy el Bono 03 usa $7.000 por vaso y $22.000 por la caja de 4.
+
+Est. Credits Used: 43.61
+
+Elapsed Time: 32m 37s
+
+dame los links para descargar todo 
+
+yesterday
+
+Thought (3) + Tools (2)
+
+No puedo darte links de descarga directa. Intenté crear un repositorio privado en tu cuenta de GitHub (mtavera99) para que tuvieras links, pero GitHub rechazó la creación (error 403) desde este entorno.
+
+Dejé todo empaquetado en la carpeta descargas/ del espacio de trabajo. Ábrela en el explorador de archivos con el ícono de arriba a la derecha:
+
+Archivo	Tamaño
+01_Helados_Artesanales_Guia_Maestra.pdf	1,1 MB
+02_Postres_en_Vaso_Para_Emprender.pdf	1,1 MB
+03_Recetario_Navideno_Postres_y_Cajas_Regalo.pdf	1,0 MB
+Bono_01_Calculadora_Costos_y_Precios.html	12 KB
+Emprende_Dulce_Fase1_Completo.zip	3,4 MB
+
+El .zip incluye el proyecto completo: los PDF, la calculadora y el código fuente para volver a compilar en tu Mac.
+
+Si quieres links de GitHub, crea un repositorio vacío (por ejemplo emprende-dulce-producto, privado) y pásame el nombre. Subo todo ahí y te doy el link de cada archivo.
+
+Est. Credits Used: 2.91
+
+Elapsed Time: 36s
+
+Me gustaron los PDF pero me gustaría que fueran muchísimo más interactivos que tuvieran como imágenes o sea que se siga viendo igual de profesional porque se ve muy bien pero que tuviera como más cosas gráficas para que las personas también pudieran tener como esa ayuda visual y se viera muy muy muy pro como un PDF Cocina profesional entonces todo el contenido está muy bien pero siento que podemos mejorar todavía muchísimo más el diseño
+
+yesterday
+
+Kiro
+
+Thought (45)
+
+Entendido. Antes de rediseñar reviso qué herramientas gráficas tengo disponibles en este entorno.
+
+1 tool
+
+Thought (21) + Tools (28)
+
+Hay un retraso de sincronización; reintento en un momento.
+
+6 tools
+
+Thought (5) + Tools (15)
+
+Rediseñé los tres libros con ilustraciones, diagramas, gráficos y navegación por clic. El contenido sigue igual y las cifras de costeo no cambiaron. Ya están en la carpeta descargas/.
+
+Lo nuevo
+
+Ilustraciones en cada receta. Cada receta abre con una cabecera a color y su propio dibujo:
+
+Postres en vaso: el vaso dibujado con sus capas reales. Por ejemplo, el tres leches muestra bizcocho, chantilly y bizcocho, con copo y canela encima.
+Helados: dos bolas del color de cada sabor, con vetas y toppings (arequipe, chispas, fresa, granos de café, maní, coco).
+Paletas: se ve cada paleta mordida, la bicolor y la que tiene el relleno por dentro.
+Navidad: natilla, buñuelos, brevas con arequipe, trufas en tres coberturas, galletas decoradas, cocadas, torta negra y el frasco de chocolate.
+Cajas de regalo: la caja con visor y el contenido real adentro.
+
+Las portadas y los capítulos también llevan ilustraciones.
+
+Diagramas que enseñan visualmente:
+
+Los puntos de la crema: líquida, picos suaves, picos firmes y cortada, cada uno marcado con ✓ o ✗.
+Los cuatro pilares del helado, con un ícono para cada uno.
+Termómetro de temperaturas clave: congelador, nevera, chocolate, base cocida, aceite y horno.
+Anatomía del vaso: cada capa señalada con su cantidad en gramos.
+Los tres momentos para agregar sabor a un helado.
+Calendario de diciembre 2026 con velitas, plazo de la prima, novenas y Nochebuena marcadas.
+
+Gráficos de negocio:
+
+En cada receta, una barra muestra en qué se va el costo de cada unidad y otra muestra cuánto es costo y cuánto ganancia de cada venta.
+En el resumen, barras de margen por producto.
+
+Ayudas de lectura:
+
+Íconos en la ficha de cada receta (rinde, tiempo, frío, dificultad, conservación) y puntos para mostrar la dificultad.
+Los pasos de "punto de control" están resaltados en dorado.
+
+Navegación por clic:
+
+El índice lleva a cada receta.
+Cada receta tiene un botón "Contenido" para volver al índice.
+Las sub-recetas, como "Base Universal (receta 01)", llevan a esa receta.
+Las ilustraciones de los capítulos llevan a su receta.
+Lo que cambió en la extensión
+
+Ahora cada receta ocupa dos páginas: la receta ilustrada y una ficha de producción. La ficha trae cantidades para el doble y el triple, costo por ingrediente, gráficos y márgenes.
+
+Libro	Antes	Ahora
+Helados	32	51 páginas
+Postres en Vaso	34	39 páginas
+Recetario Navideño	30	32 páginas
+
+Helados pasa de 35 páginas, el límite que definimos al principio, porque tiene 17 recetas. Ninguna página quedó cortada; lo verificará automáticamente un script ( src/verificar.js).
+
+Dos limitaciones
+Fotos. Las ilustraciones son dibujos vectoriales hechos en código, sin fotos. En este entorno no tengo cómo generar ni conseguir fotografías. Si me pasan fotos reales o generadas con IA, nombradas como la receta (por ejemplo tres-leches.jpg), reemplazarán la ilustración automáticamente.
+Interactividad. Los PDF tienen navegación por clic, pero no admiten campos para escribir ni cálculos. La parte interactiva de verdad es la calculadora (Bono 01).
+
+Archivos en descargas/: los tres PDF, Bono_01_Calculadora_Costos_y_Precios.htmly Emprende_Dulce_v2_Completo.zip(proyecto completo).
+
+2 herramientas
+
+Configuración de la sesión
+
+2
+
+Créditos estimados utilizados: 21,68
+
+Tiempo transcurrido: 14 min 9 s
+
+Despertando el arenero
+
+Las respuestas pueden tardar un momento.
+
+Haz una pregunta o describe una tarea...
+Agregar al grupo
+
+Claude Opus 5.5
+
+Autónomo
+
+Seleccionar repositorio
+Todo lo importante en materia legal : privacidad , responsabilidad , licencia.Galletas,
+Activando el entorno de pruebas. Las respuestas pueden tardar un momento.

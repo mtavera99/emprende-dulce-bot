@@ -1,80 +1,216 @@
-const axios = require('axios');
-
 class WhatsAppService {
-  constructor() {
-    this.phoneNumberId = process.env.META_PHONE_NUMBER_ID;
-    this.accessToken = process.env.META_ACCESS_TOKEN;
-    this.apiUrl = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
+  getPhoneNumberId() {
+    return process.env.META_PHONE_NUMBER_ID || '';
+  }
+
+  getAccessToken() {
+    return process.env.META_ACCESS_TOKEN || '';
+  }
+
+  getApiUrl() {
+    return `https://graph.facebook.com/v21.0/${this.getPhoneNumberId()}/messages`;
+  }
+
+  getConfigured() {
+    return !!(this.getPhoneNumberId() && this.getAccessToken());
   }
 
   async sendTextMessage(to, text) {
+    if (!this.getConfigured()) {
+      console.warn(`[WA DEV] Simulación envío texto a ${to} (sin META_ACCESS_TOKEN): ${text.slice(0, 80)}...`);
+      return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
+    }
+
     try {
-      const response = await axios.post(
-        this.apiUrl,
-        {
+      const res = await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: to,
+          to: String(to).replace(/\D/g, ''),
           type: 'text',
           text: { body: text, preview_url: true }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
+        })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Meta HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      }
+      return await res.json();
     } catch (error) {
-      console.error(`[WA ERROR] No se pudo enviar mensaje a ${to}:`, error.response?.data || error.message);
+      console.error(`[WA ERROR] No se pudo enviar texto a ${to}:`, error.message);
       throw error;
     }
   }
 
-  async markAsRead(messageId) {
+  async sendImage(to, imageUrl, caption = '') {
+    if (!this.getConfigured()) {
+      console.warn(`[WA DEV] Simulación envío imagen a ${to}: ${imageUrl}`);
+      return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
+    }
+
     try {
-      await axios.post(
-        this.apiUrl,
-        {
-          messaging_product: 'whatsapp',
-          status: 'read',
-          message_id: messageId
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: String(to).replace(/\D/g, ''),
+        type: 'image',
+        image: { link: imageUrl }
+      };
+      if (caption) payload.image.caption = caption;
+
+      const res = await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    } catch (e) {
-      // Ignorar errores al marcar leído
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Meta HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      }
+      return await res.json();
+    } catch (error) {
+      console.error(`[WA ERROR] No se pudo enviar imagen a ${to}:`, error.message);
+      throw error;
     }
   }
 
-  /**
-   * Descarga una imagen recibida en WhatsApp usando su mediaId
-   * Devuelve un Buffer con los datos binarios de la imagen.
-   */
-  async downloadMedia(mediaId) {
+  async sendDocument(to, documentUrl, filename, caption = '') {
+    if (!this.getConfigured()) {
+      console.warn(`[WA DEV] Simulación envío documento a ${to}: ${filename}`);
+      return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
+    }
+
     try {
-      // 1. Obtener la URL temporal del media
-      const mediaInfoUrl = `https://graph.facebook.com/v21.0/${mediaId}`;
-      const infoRes = await axios.get(mediaInfoUrl, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-      });
-      const downloadUrl = infoRes.data.url;
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: String(to).replace(/\D/g, ''),
+        type: 'document',
+        document: {
+          link: documentUrl,
+          filename: filename
+        }
+      };
+      if (caption) payload.document.caption = caption;
 
-      // 2. Descargar el binario usando la URL obtenida
-      const fileRes = await axios.get(downloadUrl, {
-        headers: { 'Authorization': `Bearer ${this.accessToken}` },
-        responseType: 'arraybuffer'
+      const res = await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
-
-      return Buffer.from(fileRes.data);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Meta HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      }
+      return await res.json();
     } catch (error) {
-      console.error(`[MEDIA ERROR] Error descargando mediaId ${mediaId}:`, error.response?.data || error.message);
+      console.error(`[WA ERROR] No se pudo enviar documento a ${to}:`, error.message);
+      throw error;
+    }
+  }
+
+  async sendButtons(to, bodyText, buttons = []) {
+    if (!this.getConfigured()) {
+      console.warn(`[WA DEV] Simulación botones a ${to}: ${buttons.map(b => b.title).join(', ')}`);
+      return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
+    }
+
+    try {
+      const formattedButtons = buttons.slice(0, 3).map((b, idx) => ({
+        type: 'reply',
+        reply: {
+          id: b.id || `btn_${idx}_${Date.now()}`,
+          title: b.title.slice(0, 20)
+        }
+      }));
+
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: String(to).replace(/\D/g, ''),
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: bodyText },
+          action: { buttons: formattedButtons }
+        }
+      };
+
+      const res = await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        return await this.sendTextMessage(to, bodyText);
+      }
+      return await res.json();
+    } catch (error) {
+      return await this.sendTextMessage(to, bodyText);
+    }
+  }
+
+  async markAsRead(messageId) {
+    if (!this.getConfigured() || !messageId) return;
+    try {
+      await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId
+        })
+      });
+    } catch (e) {}
+  }
+
+  async downloadMedia(mediaId) {
+    if (!this.getConfigured()) {
+      throw new Error('Falta META_ACCESS_TOKEN para descargar medios de WhatsApp');
+    }
+
+    try {
+      const mediaInfoUrl = `https://graph.facebook.com/v21.0/${mediaId}`;
+      const infoRes = await fetch(mediaInfoUrl, {
+        headers: { 'Authorization': `Bearer ${this.getAccessToken()}` }
+      });
+      if (!infoRes.ok) throw new Error(`Meta Media Info Error ${infoRes.status}`);
+      const infoData = await infoRes.json();
+      const downloadUrl = infoData.url;
+      const mimeType = infoData.mime_type;
+
+      const fileRes = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${this.getAccessToken()}` }
+      });
+      if (!fileRes.ok) throw new Error(`Meta Media Download Error ${fileRes.status}`);
+      const arrayBuf = await fileRes.arrayBuffer();
+
+      return {
+        buffer: Buffer.from(arrayBuf),
+        mimeType
+      };
+    } catch (error) {
+      console.error(`[MEDIA ERROR] Error descargando mediaId ${mediaId}:`, error.message);
       throw error;
     }
   }

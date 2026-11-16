@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+libros-pdf/node_modules/
+
+# Entorno y credenciales
+.env
+*.local
+
+# Datos dinámicos y base de datos local
+data/
+*.tmp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Temporales de builds grandes
+dist_pdfs/*.zip
+libros-pdf/dist/html/

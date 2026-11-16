@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Costos y Rentabilidad - Emprende Dulce</title>
+  <style>
+    :root { --primary: #f43f5e; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; --accent: #10b981; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 820px; background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid var(--border); }
+    h1 { font-size: 1.6rem; color: var(--primary); margin-bottom: 6px; }
+    p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+    .section-title { font-size: 1.1rem; margin-top: 20px; margin-bottom: 12px; color: #38bdf8; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.85rem; color: var(--text-muted); }
+    input, select { background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 9px 10px; border-radius: 8px; font-size: 0.95rem; width: 100%; }
+    input:focus, select:focus { border-color: var(--primary); outline: none; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; min-width: 640px; }
+    th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
+    td.row-cost { white-space: nowrap; text-align: right; }
+    .btn-add { background: #334155; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+    .btn-add:hover { background: #475569; }
+    .btn-del { color: #f87171; background: transparent; border: none; cursor: pointer; font-size: 1rem; }
+    .results-box { background: #090d16; border: 1px solid #10b981; border-radius: 12px; padding: 20px; margin-top: 24px; }
+    .result-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 1rem; }
+    .result-row.highlight { font-size: 1.25rem; font-weight: bold; color: #10b981; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 8px; }
+    .badge { background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
+    .note { color: var(--text-muted); font-size: 0.8rem; margin-top: 12px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧁 Calculadora de Costos y Rentabilidad</h1>
+    <p class="subtitle">Herramienta de Emprende Dulce para calcular el costo exacto por porción y tu margen. Viene cargada con el Tres Leches en Vaso del recetario (12 vasos de 7 oz) con precios de referencia de noviembre de 2026: cámbialos por los de tu ciudad.</p>
+
+    <div class="grid">
+      <div class="form-group">
+        <label for="recipeName">Nombre de la receta</label>
+        <input type="text" id="recipeName" value="Tres Leches en Vaso 7 oz">
+      </div>
+      <div class="form-group">
+        <label for="yieldCount">Unidades que rinde la tanda</label>
+        <input type="number" id="yieldCount" value="12" min="1" oninput="calculate()">
+      </div>
+    </div>
+
+    <div class="section-title">1. Ingredientes de la receta</div>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Ingrediente</th><th>Precio del paquete ($)</th><th>Contenido del paquete</th><th>Usado en la receta</th><th>Unidad</th><th>Costo</th><th></th></tr>
+      </thead>
+      <tbody id="ingredientsBody"></tbody>
+    </table>
+    </div>
+    <button class="btn-add" onclick="addRow()">+ Agregar ingrediente</button>
+
+    <div class="section-title">2. Empaque y costos indirectos</div>
+    <div class="grid">
+      <div class="form-group">
+        <label for="packagingCost">Vaso + tapa domo, por unidad ($)</label>
+        <input type="number" id="packagingCost" value="320" min="0" oninput="calculate()">
+      </div>
+      <div class="form-group">
+        <label for="extraCost">Cuchara + sticker, por unidad ($)</label>
+        <input type="number" id="extraCost" value="180" min="0" oninput="calculate()">
+      </div>
+      <div class="form-group">
+        <label for="indirectPct">Costos indirectos sobre ingredientes (%): gas, energía, agua, mermas</label>
+        <input type="number" id="indirectPct" value="10" min="0" max="100" oninput="calculate()">
+      </div>
+      <div class="form-group">
+        <label for="weeklyUnits">Unidades que planeas vender por semana</label>
+        <input type="number" id="weeklyUnits" value="50" min="0" oninput="calculate()">
+      </div>
+    </div>
+
+    <div class="section-title">3. Precio</div>
+    <div class="grid">
+      <div class="form-group">
+        <label for="targetMargin">Margen bruto objetivo</label>
+        <select id="targetMargin" onchange="calculate()">
+          <option value="0.50">50% (competitivo)</option>
+          <option value="0.60" selected>60% (recomendado)</option>
+          <option value="0.70">70% (premium)</option>
+          <option value="0.80">80% (eventos y regalos)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="manualPrice">O escribe tu precio de venta ($, opcional)</label>
+        <input type="number" id="manualPrice" placeholder="Ej: 10000" min="0" oninput="calculate()">
+      </div>
+    </div>
+
+    <div class="results-box">
+      <div class="result-row"><span>Ingredientes de la tanda</span><strong id="totalBatchCost"></strong></div>
+      <div class="result-row"><span>Costos indirectos de la tanda</span><strong id="indirectCost"></strong></div>
+      <div class="result-row"><span>Producto por unidad</span><strong id="costPerUnitIngredients"></strong></div>
+      <div class="result-row"><span>Empaque por unidad</span><strong id="costPerUnitPackaging"></strong></div>
+      <div class="result-row" style="border-top: 1px solid var(--border); padding-top: 8px;"><span>COSTO TOTAL POR UNIDAD</span><strong id="totalUnitCost" style="color:#38bdf8;"></strong></div>
+      <div class="result-row highlight"><span id="priceLabel">PRECIO DE VENTA SUGERIDO</span><span id="suggestedPrice"></span></div>
+      <div class="result-row"><span>Ganancia bruta por unidad</span><strong id="netProfitPerCup" style="color:#10b981;"></strong></div>
+      <div class="result-row"><span>Ganancia bruta con tus ventas semanales</span><strong id="weeklyProfit" style="color:#f59e0b;"></strong></div>
+      <p class="note">El precio sugerido se redondea hacia arriba al múltiplo de $500 más cercano. La ganancia es <b>bruta</b>: todavía falta descontar tu tiempo, los domicilios y la publicidad.</p>
+    </div>
+  </div>
+
+  <script>
+    // Tres Leches en Vaso (12 vasos) del recetario, con precios de referencia nov. 2026.
+    const DEFAULT_ROWS = [
+      ["Huevos (bizcocho)", 18000, 30, 4, "un"],
+      ["Azúcar", 4800, 1000, 120, "g"],
+      ["Harina de trigo", 4900, 1000, 120, "g"],
+      ["Leche condensada", 11500, 420, 420, "g"],
+      ["Leche evaporada", 7500, 400, 400, "g"],
+      ["Crema de leche 35% (mezcla + chantilly)", 27000, 1000, 370, "ml"],
+      ["Crema vegetal para batir (chantilly)", 17000, 1000, 180, "ml"],
+      ["Azúcar glass", 6000, 500, 24, "g"],
+      ["Esencia de vainilla", 4500, 250, 13, "ml"],
+      ["Canela molida", 5000, 50, 2, "g"],
+    ];
+    const UNITS = ["g", "ml", "un"];
+    const fmt = (v) => "$" + Math.round(v).toLocaleString("es-CO");
+    const num = (el, def = 0) => { const v = parseFloat(el.value); return Number.isFinite(v) && v >= 0 ? v : def; };
+
+    function makeRow([name, price, pack, used, unit]) {
+      const tr = document.createElement("tr");
+      const cells = [
+        Object.assign(document.createElement("input"), { type: "text", value: name, className: "name" }),
+        Object.assign(document.createElement("input"), { type: "number", value: price, min: 0, className: "price" }),
+        Object.assign(document.createElement("input"), { type: "number", value: pack, min: 0, className: "pack" }),
+        Object.assign(document.createElement("input"), { type: "number", value: used, min: 0, className: "used" }),
+      ];
+      const sel = document.createElement("select");
+      sel.className = "unit";
+      for (const u of UNITS) sel.add(new Option(u, u, false, u === unit));
+      cells.push(sel);
+      for (const c of cells) { const td = document.createElement("td"); td.appendChild(c); c.addEventListener("input", calculate); tr.appendChild(td); }
+      const cost = document.createElement("td"); cost.className = "row-cost"; tr.appendChild(cost);
+      const del = document.createElement("td");
+      const btn = Object.assign(document.createElement("button"), { className: "btn-del", textContent: "✕", title: "Eliminar" });
+      btn.addEventListener("click", () => { tr.remove(); calculate(); });
+      del.appendChild(btn); tr.appendChild(del);
+      return tr;
+    }
+
+    function addRow() {
+      document.getElementById("ingredientsBody").appendChild(makeRow(["Nuevo ingrediente", 5000, 500, 100, "g"]));
+      calculate();
+    }
+
+    function calculate() {
+      let batchCost = 0;
+      document.querySelectorAll("#ingredientsBody tr").forEach((r) => {
+        const pack = num(r.querySelector(".pack"));
+        const itemCost = pack > 0 ? (num(r.querySelector(".price")) / pack) * num(r.querySelector(".used")) : 0;
+        r.querySelector(".row-cost").textContent = fmt(itemCost);
+        batchCost += itemCost;
+      });
+
+      const yieldCount = Math.max(1, num(document.getElementById("yieldCount"), 1));
+      const pkg = num(document.getElementById("packagingCost")) + num(document.getElementById("extraCost"));
+      const indirect = batchCost * num(document.getElementById("indirectPct")) / 100;
+      const margin = parseFloat(document.getElementById("targetMargin").value);
+      const manual = num(document.getElementById("manualPrice"));
+
+      const perUnit = (batchCost + indirect) / yieldCount;
+      const unitCost = perUnit + pkg;
+      // Precio que da el margen objetivo, redondeado hacia arriba a múltiplos de $500.
+      const suggested = Math.ceil(unitCost / (1 - margin) / 500) * 500;
+      const price = manual > 0 ? manual : suggested;
+      const profit = price - unitCost;
+      const pct = price > 0 ? Math.round((profit / price) * 100) : 0;
+      const weekly = num(document.getElementById("weeklyUnits"));
+
+      document.getElementById("totalBatchCost").textContent = fmt(batchCost);
+      document.getElementById("indirectCost").textContent = fmt(indirect);
+      document.getElementById("costPerUnitIngredients").textContent = fmt(perUnit);
+      document.getElementById("costPerUnitPackaging").textContent = fmt(pkg);
+      document.getElementById("totalUnitCost").textContent = fmt(unitCost);
+      document.getElementById("priceLabel").textContent = manual > 0 ? "TU PRECIO DE VENTA" : "PRECIO DE VENTA SUGERIDO";
+      document.getElementById("suggestedPrice").textContent = fmt(price);
+      const np = document.getElementById("netProfitPerCup");
+      np.textContent = (profit >= 0 ? "+" : "") + fmt(profit) + " ";
+      const badge = Object.assign(document.createElement("span"), { className: "badge", textContent: pct + "% margen" });
+      np.appendChild(badge);
+      document.getElementById("weeklyProfit").textContent = fmt(profit * weekly) + " por semana (" + fmt(profit * weekly * 4) + " al mes)";
+    }
+
+    window.addEventListener("load", () => {
+      const body = document.getElementById("ingredientsBody");
+      DEFAULT_ROWS.forEach((r) => body.appendChild(makeRow(r)));
+      calculate();
+    });
+  </script>
+</body>
+</html>

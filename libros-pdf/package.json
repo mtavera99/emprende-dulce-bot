@@ -1,0 +1,15 @@
+{
+  "name": "emprende-dulce-libros",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Libros editoriales de Emprende Dulce: fuente en JS, compilación a HTML y PDF con Chromium.",
+  "scripts": {
+    "build": "node src/build.js",
+    "build:helados": "node src/build.js helados",
+    "build:postres": "node src/build.js postres",
+    "build:navidad": "node src/build.js navidad"
+  },
+  "dependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}

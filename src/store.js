@@ -56,7 +56,7 @@ let conversations = loadJSON(CONVS_FILE, {});
 let settings = loadJSON(SETTINGS_FILE, {
   precioOferta: 10000,
   nequiNumero: process.env.NEQUI_NUMERO || '3058742138',
-  nequiTitular: process.env.NEQUI_TITULAR || 'Santiago Tavera',
+  nequiTitular: process.env.NEQUI_TITULAR || 'Manuel Tavera',
   daviplataNumero: process.env.DAVIPLATA_NUMERO || '3058742138',
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
   driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/emprende-dulce-pack-completo',

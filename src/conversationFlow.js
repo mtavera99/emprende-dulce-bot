@@ -142,7 +142,7 @@ class ConversationFlow {
 
   async sendPaymentDetails(phone, settings, precioCOP) {
     const num = settings.nequiNumero || '3058742138';
-    const titular = settings.nequiTitular || 'Santiago Tavera';
+    const titular = settings.nequiTitular || 'Manuel Tavera';
     const reply =
       `¡Excelente decisión! 🚀 Aquí tienes las cuentas oficiales para tu transferencia de *${precioCOP} COP*:\n\n` +
       `💚 *Nequi / Llave / Bre-B:* \`${num}\`\n` +

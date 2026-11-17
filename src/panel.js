@@ -507,17 +507,19 @@ function render(aviso = '') {
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; font-size: 0.82rem; color: var(--muted);">
           <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
-            <b style="color: #fff;">Opción 1: App Gratuita MacroDroid (Android)</b><br>
-            1. Instala MacroDroid en el celular que tiene Nequi/Daviplata.<br>
-            2. Disparador: Notificación recibida de Nequi o Daviplata.<br>
-            3. Acción: Solicitud HTTP (POST) a la URL de arriba con el contenido de la notificación en el body.<br>
-            4. ¡Listo! Cada vez que alguien transfiere, el bot recibe la alerta en 1 segundo.
+            <b style="color: #fff;">Opción 1: App Gratuita MacroDroid (Android) · MÉTODO PRINCIPAL</b><br>
+            Nequi y Daviplata <b>no envían correos</b> por transferencias comunes; únicamente envían <b>notificación Push a la pantalla del celular</b>.<br><br>
+            1. Instala MacroDroid en el celular que tiene la cuenta Nequi/Daviplata.<br>
+            2. Disparador: Notificación recibida de la app Nequi o Daviplata.<br>
+            3. Acción: Solicitud HTTP (POST) a la URL de arriba con el texto de la notificación.<br>
+            4. ¡Listo! Cada vez que alguien te transfiere, el bot recibe la alerta en 1 segundo y auto-entrega.
           </div>
           <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
-            <b style="color: #fff;">Opción 2: Correo Gmail (mtavera99@gmail.com)</b><br>
-            1. Nequi envía un correo cada vez que entra dinero ("Te transfirieron plata").<br>
-            2. Con un Google Apps Script o filtro de reenvío, el correo hace un POST a la URL de arriba.<br>
-            3. El bot extrae automáticamente la referencia (Ref: M...) y el monto ($10.000).
+            <b style="color: #fff;">Opción 2: Bancolombia / Pasarelas (Si recibes alertas al correo)</b><br>
+            Si recibes transferencias vía Bancolombia / PSE / QR de Negocio donde sí llega comprobante a tu Gmail:<br><br>
+            1. Puedes usar Google Apps Script para escuchar correos con asunto de transferencia.<br>
+            2. Hace un POST a la URL de arriba con el cuerpo del correo.<br>
+            3. O simplemente valida en 1 clic desde la pestaña <b>💸 Pagos por Verificar</b>.
           </div>
         </div>
       </div>

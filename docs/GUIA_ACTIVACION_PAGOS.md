@@ -8,11 +8,14 @@ El bot ya tiene listo el receptor seguro en Render:
 
 Tienes **3 formas** de ponerlo a funcionar. Elige la que prefieras:
 
+## ¿Por qué el correo no sirve para Nequi personal?
+Nequi **NUNCA envía correos electrónicos** por transferencias ordinarias entre cuentas (P2P de celular a celular). Nequi únicamente emite **notificaciones Push en la pantalla de tu celular** y en la campanita de la app. Por esta razón, el método 100% automatizado en Colombia para cuentas personales de Nequi y Daviplata es reenviar las notificaciones Push mediante **MacroDroid**.
+
 ---
 
-## OPCIÓN 1: App Gratuita MacroDroid (Recomendada en Android - Lista en 3 minutos)
+## MÉTODO 1: App Gratuita MacroDroid (El método 100% automático para Nequi y Daviplata)
 
-Si tienes un celular Android donde está instalado Nequi o Daviplata:
+Si tienes un celular Android donde está instalado Nequi o Daviplata (incluso un celular secundario que dejes conectado al Wi-Fi):
 
 1. Instala la app gratuita **MacroDroid** desde Google Play Store.
 2. Abre MacroDroid y toca en **"Añadir macro"**.

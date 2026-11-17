@@ -1,6 +1,7 @@
 const store = require('./store');
 const waService = require('./whatsappService');
 const ocrValidator = require('./ocrValidator');
+const paymentVerifier = require('./paymentVerifier');
 
 class ConversationFlow {
   constructor() {
@@ -185,27 +186,64 @@ class ConversationFlow {
         });
       }
 
-      // 3. Evaluar resultado del OCR
-      if (ocrResult.isValid) {
-        // Auto-aprobación automática
+      // 3. Evaluar resultado del OCR y cruzar contra el Libro Mayor Bancario (Antifraude)
+      const cleanRef = ocrResult.reference || null;
+      const cleanAmount = ocrResult.amount || settings.precioOferta || this.defaultPrice;
+      const bankName = ocrResult.bank || 'NEQUI';
+
+      console.log(`[FLOW VERIFY] Evaluando comprobante de +${phone}: Ref=${cleanRef}, Monto=${cleanAmount}, Banco=${bankName}`);
+      const verification = paymentVerifier.verifyPayment({
+        reference: cleanRef,
+        amount: cleanAmount,
+        bank: bankName
+      }, phone);
+
+      // CASO A: DETECCIÓN DE FRAUDE (Comprobante ya utilizado en otra compra)
+      if (verification.fraud) {
+        console.warn(`[FLOW ALERT] 🚨 Fraude detectado para +${phone}: ${verification.message}`);
         const pedido = store.crearPedido(phone, {
-          amount: ocrResult.amount || settings.precioOferta || this.defaultPrice,
-          reference: ocrResult.reference || 'OCR-AUTO',
+          amount: cleanAmount,
+          reference: cleanRef,
+          status: 'RECHAZADO',
+          ocrData: ocrResult,
+          motivoRechazo: verification.message
+        });
+
+        const fraudMsg =
+          `⚠️ *Aviso de Seguridad Bancaria*\n\n` +
+          `Hemos detectado que el número de comprobante *${cleanRef}* ya fue registrado anteriormente en nuestro sistema.\n\n` +
+          `Para proteger a nuestra comunidad, no se permite el reuso de comprobantes. Si consideras que se trata de un error de tu banco, por favor escribe un mensaje para que un asesor humano lo valide manualmente 🙌`;
+
+        await waService.sendTextMessage(phone, fraudMsg);
+        store.agregarMensaje(phone, { from: 'bot', text: fraudMsg, type: 'text' });
+        return;
+      }
+
+      // CASO B: ACREDITADO Y VERIFICADO EN EL LIBRO MAYOR BANCARIO
+      if (verification.verified) {
+        console.log(`[FLOW SUCCESS] ✅ Pago verificado contra banco (${verification.method}) para +${phone}`);
+        const pedido = store.crearPedido(phone, {
+          amount: verification.amount || cleanAmount,
+          reference: verification.reference || cleanRef || 'BANCO-OK',
           status: 'VERIFICADO',
           ocrData: ocrResult,
-          aprobadoPor: 'bot_ocr'
+          bankTxId: verification.transaction?.id,
+          aprobadoPor: `banco_${verification.bank.toLowerCase()}`
         });
-        store.aprobarPedido(pedido.id, { reference: ocrResult.reference, aprobadoPor: 'bot_ocr' });
+        store.aprobarPedido(pedido.id, {
+          reference: verification.reference || cleanRef,
+          aprobadoPor: `banco_${verification.bank.toLowerCase()}`
+        });
 
         const confirmMsg =
-          `¡Pago verificado con éxito! 🎉🍰\n\n` +
+          `¡Pago verificado con éxito en nuestra cuenta! 🎉🍰\n\n` +
           `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
           `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
           `${settings.driveLink}\n\n` +
           `📁 *Tu pack incluye:*\n` +
-          `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
-          `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
-          `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
+          `✓ Guía Maestra de Helados Artesanales (42 págs PDF)\n` +
+          `✓ Postres en Vaso para Emprender (39 págs PDF)\n` +
+          `✓ Recetario Navideño y Cajas de Regalo (30 págs PDF)\n` +
           `✓ Bono 1: Plantilla de Costeo en Excel\n` +
           `✓ Bono 2: Guía de Conservación y Empaques\n` +
           `✓ Bono 3: Diseños de Etiquetas en Canva\n\n` +
@@ -214,31 +252,61 @@ class ConversationFlow {
         await waService.sendTextMessage(phone, confirmMsg);
         store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
         store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
-      } else {
-        // Validación con dudas o manual
-        const pedido = store.crearPedido(phone, {
-          amount: settings.precioOferta || this.defaultPrice,
-          status: 'PENDIENTE',
-          ocrData: ocrResult,
-          notas: 'Comprobante recibido por el bot, pendiente de revisión visual en panel.'
-        });
-
-        const pendingMsg =
-          `¡Comprobante recibido! 🙌 Nuestro equipo está confirmando la transferencia en la cuenta bancaria.\n\n` +
-          `En un par de minutos te enviamos la confirmación con tu enlace de descarga a todos los libros y bonos 🍰`;
-
-        await waService.sendTextMessage(phone, pendingMsg);
-        store.agregarMensaje(phone, { from: 'bot', text: pendingMsg, type: 'text' });
+        return;
       }
+
+      // CASO C: PENDIENTE DE NOTIFICACIÓN BANCARIA (En espera de la alerta de Nequi/Daviplata)
+      console.log(`[FLOW PENDING] Comprobante recibido, esperando notificación bancaria para +${phone}...`);
+      const pedido = store.crearPedido(phone, {
+        amount: cleanAmount,
+        reference: cleanRef,
+        status: 'PENDIENTE',
+        ocrData: ocrResult,
+        notas: `Comprobante recibido por bot. Ref=${cleanRef || 'S/R'}. Esperando confirmación de Nequi/Daviplata.`
+      });
+
+      const waitMsg =
+        `🔍 ¡Recibí tu comprobante! Nuestro sistema está esperando la acreditación automática en nuestra cuenta bancaria.\n\n` +
+        `Si realizaste la transferencia hace un momento, en unos segundos tu acceso se activará automáticamente ✨`;
+
+      await waService.sendTextMessage(phone, waitMsg);
+      store.agregarMensaje(phone, { from: 'bot', text: waitMsg, type: 'text' });
+
+      // Iniciar escuchador activo de 90 segundos: si la alerta bancaria llega en este lapso, auto-aprueba
+      paymentVerifier.waitForIncomingPayment(phone, {
+        reference: cleanRef,
+        amount: cleanAmount,
+        orderId: pedido.id
+      }, async (matchedTx) => {
+        if (matchedTx) {
+          console.log(`[FLOW AUTO-RESOLVE] 🚀 Alerta bancaria recibida a tiempo para +${phone}! Entregando...`);
+          store.aprobarPedido(pedido.id, {
+            reference: matchedTx.reference,
+            aprobadoPor: `banco_${matchedTx.bank.toLowerCase()}`
+          });
+
+          const autoMsg =
+            `¡Transferencia confirmada en nuestro banco! 🎉🍰\n\n` +
+            `Aquí tienes tu acceso oficial e inmediato a la colección *Emprende Dulce 2026*:\n\n` +
+            `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
+            `${settings.driveLink}\n\n` +
+            `📁 *Incluye tus 3 Libros y 3 Bonos:* Helados Artesanales (42 pág), Postres en Vaso (39 pág), Recetario Navideño (30 pág) y Plantillas de Costeo.\n\n` +
+            `¡Muchos éxitos en tu emprendimiento dulce! 🚀`;
+
+          await waService.sendTextMessage(phone, autoMsg);
+          store.agregarMensaje(phone, { from: 'bot', text: autoMsg, type: 'text' });
+          store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+        } else {
+          console.log(`[FLOW TIMEOUT] No llegó notificación automática en 90s para +${phone}. Queda en cola de panel.`);
+        }
+      }, 90000);
     } catch (err) {
       console.error('[FLOW ERROR] Procesando comprobante:', err.message);
-      // Fallback amigable
       const fallbackMsg =
-        `Recibí tu comprobante 📄 En este momento un asesor humano está revisando la cuenta para confirmarte y enviarte los libros en seguida 🙌`;
+        `Recibí tu comprobante 📄 En este momento un asesor está confirmando la cuenta bancaria para enviarte el enlace en seguida 🙌`;
       await waService.sendTextMessage(phone, fallbackMsg);
       store.agregarMensaje(phone, { from: 'bot', text: fallbackMsg, type: 'text' });
 
-      // Registrar pedido pendiente para el panel
       store.crearPedido(phone, {
         amount: settings.precioOferta || this.defaultPrice,
         status: 'PENDIENTE',

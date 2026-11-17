@@ -20,4 +20,6 @@ Thumbs.db
 
 # Temporales de builds grandes
 dist_pdfs/*.zip
+dist_pdfs/Emprende_Dulce_Pack_Completo_2026/
 libros-pdf/dist/html/
+creatives/competitor_samples/

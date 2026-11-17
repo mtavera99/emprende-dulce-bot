@@ -7,6 +7,7 @@ const waService = require('./whatsappService');
 const panel = require('./panel');
 const panelChat = require('./panel-chat');
 const seguimiento = require('./seguimiento');
+const paymentVerifier = require('./paymentVerifier');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -248,6 +249,59 @@ app.get('/api/pedidos/csv', authPanel, (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="ventas_emprende_dulce.csv"');
   res.send(csv);
+});
+
+// ----------------------------------------------------------------------------
+// 8. Ingesta de Notificaciones Bancarias (Nequi, Daviplata, Bre-B, Gmail)
+// ----------------------------------------------------------------------------
+app.post('/api/payment-notification', (req, res) => {
+  const secret = req.headers['x-api-key'] || req.query.token || req.body?.token;
+  const expectedKey = paymentVerifier.getWebhookKey();
+
+  if (secret !== expectedKey && secret !== PANEL_TOKEN) {
+    return res.status(403).json({ error: 'Token de webhook bancario inválido' });
+  }
+
+  try {
+    const result = paymentVerifier.ingestNotification(req.body);
+    console.log('[API WEBHOOK PAGO]', result);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('[API WEBHOOK ERROR]:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint para simular alerta de Nequi desde el panel o tests
+app.post('/api/payment-ledger/simulate', authPanel, (req, res) => {
+  const { amount = 10000, reference = `M${Math.floor(1000000 + Math.random() * 9000000)}`, bank = 'NEQUI', sender = 'Cliente Simulado' } = req.body;
+  paymentVerifier.ingestNotification({
+    bank,
+    amount: Number(amount),
+    reference,
+    sender
+  });
+  return res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Pago+simulado+registrado+con+Ref+${reference}#ledger`);
+});
+
+// Registrar pago manual en libro mayor
+app.post('/api/payment-ledger/manual-add', authPanel, (req, res) => {
+  const { amount, reference, bank, sender } = req.body;
+  if (!amount || !reference) {
+    return res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Error:+Monto+y+Referencia+son+obligatorios#ledger`);
+  }
+  paymentVerifier.ingestNotification({
+    bank: bank || 'NEQUI',
+    amount: Number(amount),
+    reference: String(reference).trim(),
+    sender: sender || 'Registro Manual'
+  });
+  return res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Transacción+registrada+en+Libro+Mayor#ledger`);
+});
+
+// Consultar libro mayor en JSON
+app.get('/api/payment-ledger', authPanel, (req, res) => {
+  res.json(paymentVerifier.getAllTransactions());
 });
 
 // ----------------------------------------------------------------------------

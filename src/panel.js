@@ -1,4 +1,5 @@
 const store = require('./store');
+const paymentVerifier = require('./paymentVerifier');
 
 function panelToken() {
   return process.env.PANEL_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN || 'lowticket_panel_token_2026';
@@ -53,6 +54,8 @@ function render(aviso = '') {
   const confirmados = store.pedidosVerificados();
   const convs = store.todasLasConversaciones();
   const settings = store.getSettings();
+  const bankTxs = paymentVerifier.getAllTransactions();
+  const unclaimedTxs = bankTxs.filter(t => t.status === 'UNCLAIMED');
 
   // Lista de chats ordenada por último mensaje
   const chatsLista = Object.entries(convs)
@@ -216,6 +219,10 @@ function render(aviso = '') {
     <a href="#pendientes" class="tab-link active">
       💸 Pagos por Verificar
       <span class="pill" style="background: ${pendientes.length > 0 ? 'var(--red)' : 'rgba(255,255,255,0.1)'}; color: #fff;">${pendientes.length}</span>
+    </a>
+    <a href="#ledger" class="tab-link">
+      💰 Banco Real Nequi/Daviplata
+      <span class="pill" style="background: ${unclaimedTxs.length > 0 ? 'var(--green)' : 'rgba(255,255,255,0.1)'}; color: ${unclaimedTxs.length > 0 ? '#000' : '#fff'};">${bankTxs.length}</span>
     </a>
     <a href="#pedidos" class="tab-link">
       📋 Ventas Confirmadas
@@ -389,6 +396,130 @@ function render(aviso = '') {
             `).join('')}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: LIBRO MAYOR DE PAGOS BANCARIOS REALES -->
+    <div id="sec-ledger" class="tab-sec" style="display: none;">
+      <div class="section-title">
+        <span>💰 Libro Mayor Bancario · Nequi / Daviplata / Bre-B (${bankTxs.length})</span>
+        <form method="POST" action="/api/payment-ledger/simulate?token=${esc(tk)}" style="display: inline;">
+          <button type="submit" class="btn btn-ghost" style="font-size: 0.78rem; border-color: var(--amber); color: var(--amber);">⚡ Simular Pago Nequi ($10.000)</button>
+        </form>
+      </div>
+
+      <!-- Métricas del Ledger -->
+      <div class="kpi-grid" style="margin-bottom: 20px;">
+        <div class="kpi">
+          <div class="kpi-lbl">Recibido en Banco</div>
+          <div class="kpi-num">${fmtCOP(bankTxs.reduce((sum, t) => sum + (t.amount || 0), 0))}</div>
+          <div class="kpi-sub green">${bankTxs.length} transacciones registradas</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Disponibles p/ Auto-Aprobación</div>
+          <div class="kpi-num" style="color: var(--green);">${unclaimedTxs.length}</div>
+          <div class="kpi-sub">Esperando comprobante de cliente</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Pagos Reclamados</div>
+          <div class="kpi-num" style="color: var(--blue);">${bankTxs.filter(t => t.status === 'CLAIMED').length}</div>
+          <div class="kpi-sub">Entregados con éxito</div>
+        </div>
+      </div>
+
+      <!-- Registro Manual Rápido -->
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 12px;">➕ Registrar Pago Acreditado Manualmente</div>
+        <form method="POST" action="/api/payment-ledger/manual-add?token=${esc(tk)}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) 120px; gap: 10px; align-items: end;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">BANCO</label>
+            <select name="bank" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px;">
+              <option value="NEQUI">Nequi</option>
+              <option value="DAVIPLATA">Daviplata</option>
+              <option value="LLAVE_BRE_B">Llave / Bre-B</option>
+              <option value="BANCOLOMBIA">Bancolombia</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">MONTO (COP)</label>
+            <input type="number" name="amount" value="10000" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">REFERENCIA</label>
+            <input type="text" name="reference" placeholder="Ej: M1234567" required style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px;">REMITENTE</label>
+            <input type="text" name="sender" placeholder="Nombre cliente" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px;">
+          </div>
+          <button type="submit" class="btn btn-green" style="height: 38px;">Acreditar</button>
+        </form>
+      </div>
+
+      <!-- Tabla de Transacciones -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Banco</th>
+              <th>Referencia</th>
+              <th>Monto</th>
+              <th>Remitente</th>
+              <th>Estado</th>
+              <th>Reclamado Por</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bankTxs.length === 0 ? `
+              <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--muted);">No hay transacciones bancarias registradas aún en el libro mayor. Puedes simular una o conectar el webhook de MacroDroid/Gmail.</td></tr>
+            ` : bankTxs.map(t => `
+              <tr>
+                <td>${fechaHora(t.timestamp)}</td>
+                <td><span class="badge ${t.bank === 'NEQUI' ? 'badge-green' : t.bank === 'DAVIPLATA' ? 'badge-amber' : 'badge-blue'}">${esc(t.bank)}</span></td>
+                <td><code>${esc(t.reference)}</code></td>
+                <td style="font-weight: 700; color: var(--green);">${fmtCOP(t.amount)}</td>
+                <td>${esc(t.sender || 'Cliente')}</td>
+                <td>
+                  <span class="badge ${t.status === 'UNCLAIMED' ? 'badge-green' : 'badge-blue'}">
+                    ${t.status === 'UNCLAIMED' ? '🟢 Disponible' : '🔵 Reclamado'}
+                  </span>
+                </td>
+                <td>
+                  ${t.claimedByPhone ? `<a href="/panel/chat?id=${esc(t.claimedByPhone)}&token=${esc(tk)}" style="color: #fff; text-decoration: none;">+${esc(t.claimedByPhone)}</a>` : '<span style="color: var(--muted);">—</span>'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tarjeta Guía de Conexión Automática -->
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 24px;">
+        <div style="font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 8px;">🔗 Cómo Conectar la Verificación Automática (Nequi / Daviplata / Llave)</div>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 14px;">Para que los pagos se acrediten solos sin intervención manual, cualquier notificación entrante puede enviarse a este webhook protegido:</p>
+        
+        <div style="background: #0b0f17; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-family: monospace; font-size: 0.82rem; color: var(--green); word-break: break-all;">
+          POST https://emprende-dulce-bot.onrender.com/api/payment-notification<br>
+          Header: x-api-key: dulce_pay_secret_2026<br>
+          Body JSON: { "text": "{notificación_del_celular}" }
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; font-size: 0.82rem; color: var(--muted);">
+          <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+            <b style="color: #fff;">Opción 1: App Gratuita MacroDroid (Android)</b><br>
+            1. Instala MacroDroid en el celular que tiene Nequi/Daviplata.<br>
+            2. Disparador: Notificación recibida de Nequi o Daviplata.<br>
+            3. Acción: Solicitud HTTP (POST) a la URL de arriba con el contenido de la notificación en el body.<br>
+            4. ¡Listo! Cada vez que alguien transfiere, el bot recibe la alerta en 1 segundo.
+          </div>
+          <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+            <b style="color: #fff;">Opción 2: Correo Gmail (mtavera99@gmail.com)</b><br>
+            1. Nequi envía un correo cada vez que entra dinero ("Te transfirieron plata").<br>
+            2. Con un Google Apps Script o filtro de reenvío, el correo hace un POST a la URL de arriba.<br>
+            3. El bot extrae automáticamente la referencia (Ref: M...) y el monto ($10.000).
+          </div>
+        </div>
       </div>
     </div>
 

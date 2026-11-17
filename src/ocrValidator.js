@@ -39,7 +39,7 @@ class OCRValidator {
   async _validateWithGemini(base64Image, expected, apiKey) {
     try {
       const key = apiKey || process.env.GEMINI_API_KEY;
-      const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+      const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
       const res = await fetch(url, {

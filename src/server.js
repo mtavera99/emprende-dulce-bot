@@ -93,6 +93,14 @@ app.post('/webhook', async (req, res) => {
       const entry = body.entry?.[0];
       const change = entry?.changes?.[0]?.value;
 
+      // Guardar los recibos de Meta (sent, delivered, read o failed). Esto
+      // permite diagnosticar mensajes aceptados por la API que no llegan.
+      const statuses = change?.statuses || [];
+      for (const status of statuses) {
+        const saved = store.registrarEstadoEntrega(status);
+        console.log('[WA DELIVERY]', JSON.stringify(saved));
+      }
+
       // Actualizar perfil del cliente si viene en contacts
       const contact = change?.contacts?.[0];
       if (contact && contact.wa_id) {
@@ -259,6 +267,11 @@ app.get('/api/pedidos/csv', authPanel, (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="ventas_emprende_dulce.csv"');
   res.send(csv);
+});
+
+// Diagnóstico de entrega de WhatsApp (protegido por el token del panel)
+app.get('/api/delivery-status', authPanel, (req, res) => {
+  res.json({ statuses: store.estadosEntrega() });
 });
 
 // ----------------------------------------------------------------------------

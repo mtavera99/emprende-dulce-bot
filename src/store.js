@@ -23,6 +23,7 @@ const LEADS_FILE = path.join(DIR, 'leads.json');
 const ORDERS_FILE = path.join(DIR, 'pedidos.json');
 const CONVS_FILE = path.join(DIR, 'conversations.json');
 const SETTINGS_FILE = path.join(DIR, 'settings.json');
+const DELIVERY_FILE = path.join(DIR, 'delivery-statuses.json');
 
 function loadJSON(filePath, defaultVal = {}) {
   try {
@@ -53,6 +54,7 @@ function saveJSON(filePath, data) {
 let leads = loadJSON(LEADS_FILE, {});
 let orders = loadJSON(ORDERS_FILE, {});
 let conversations = loadJSON(CONVS_FILE, {});
+let deliveryStatuses = loadJSON(DELIVERY_FILE, []);
 let settings = loadJSON(SETTINGS_FILE, {
   precioOferta: 10000,
   nequiNumero: process.env.NEQUI_NUMERO || '3058742138',
@@ -84,6 +86,26 @@ const store = {
     settings = { ...settings, ...newSettings };
     saveJSON(SETTINGS_FILE, settings);
     return settings;
+  },
+
+  registrarEstadoEntrega(status = {}) {
+    const event = {
+      id: status.id || null,
+      recipientId: status.recipient_id || null,
+      status: status.status || 'unknown',
+      timestamp: status.timestamp ? Number(status.timestamp) * 1000 : Date.now(),
+      conversation: status.conversation || null,
+      pricing: status.pricing || null,
+      errors: status.errors || []
+    };
+    deliveryStatuses.unshift(event);
+    deliveryStatuses = deliveryStatuses.slice(0, 200);
+    saveJSON(DELIVERY_FILE, deliveryStatuses);
+    return event;
+  },
+
+  estadosEntrega() {
+    return deliveryStatuses.slice();
   },
 
   // --------------------------------------------------------------------------

@@ -60,7 +60,8 @@ let settings = loadJSON(SETTINGS_FILE, {
   daviplataNumero: process.env.DAVIPLATA_NUMERO || '3058742138',
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
   driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/emprende-dulce-pack-completo',
-  botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478'
+  botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478',
+  modoAutoEntregaLeona: true
 });
 
 const store = {
@@ -212,6 +213,10 @@ const store = {
 
   obtenerPedidoPorTelefono(phone) {
     return Object.values(orders).reverse().find(o => o.phone === phone);
+  },
+
+  pedidosDeTelefono(phone) {
+    return Object.values(orders).filter(o => o.phone === phone).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   },
 
   crearPedido(phone, orderData = {}) {

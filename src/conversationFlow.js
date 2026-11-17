@@ -241,9 +241,9 @@ class ConversationFlow {
           `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
           `${settings.driveLink}\n\n` +
           `📁 *Tu pack incluye:*\n` +
-          `✓ Guía Maestra de Helados Artesanales (42 págs PDF)\n` +
-          `✓ Postres en Vaso para Emprender (39 págs PDF)\n` +
-          `✓ Recetario Navideño y Cajas de Regalo (30 págs PDF)\n` +
+          `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
+          `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
+          `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
           `✓ Bono 1: Plantilla de Costeo en Excel\n` +
           `✓ Bono 2: Guía de Conservación y Empaques\n` +
           `✓ Bono 3: Diseños de Etiquetas en Canva\n\n` +
@@ -255,14 +255,100 @@ class ConversationFlow {
         return;
       }
 
-      // CASO C: PENDIENTE DE NOTIFICACIÓN BANCARIA (En espera de la alerta de Nequi/Daviplata)
-      console.log(`[FLOW PENDING] Comprobante recibido, esperando notificación bancaria para +${phone}...`);
+      // CASO C: MODELO A (AUTO-ENTREGA POR IA ESTILO LEONA)
+      // Si el modo Leona está activado y el comprobante fue validado con éxito por la IA:
+      if (settings.modoAutoEntregaLeona !== false && ocrResult.isValid) {
+        console.log(`[FLOW LEONA-AUTO] 🦁 Modo Leona activo: Comprobante validado por IA para +${phone} ($${cleanAmount}). Auto-aprobando y entregando...`);
+
+        // Doble filtro antifraude de referencia contra pedidos existentes
+        if (cleanRef) {
+          const todos = store.todosLosPedidos();
+          const yaUsado = todos.find(
+            p => p.status === 'VERIFICADO' && p.reference && p.reference.toUpperCase() === cleanRef.toUpperCase() && p.phone !== phone
+          );
+          if (yaUsado) {
+            console.warn(`[FLOW ALERT] 🚨 Fraude detectado (referencia repetida en pedidos): ${cleanRef}`);
+            store.crearPedido(phone, {
+              amount: cleanAmount,
+              reference: cleanRef,
+              status: 'RECHAZADO',
+              ocrData: ocrResult,
+              motivoRechazo: `Referencia ${cleanRef} ya reclamada por otro comprador`
+            });
+            const fraudMsg =
+              `⚠️ *Aviso de Seguridad Bancaria*\n\n` +
+              `El comprobante con referencia *${cleanRef}* ya fue registrado previamente en otra compra.\n\n` +
+              `Si realizaste un pago independiente, por favor escribe un mensaje para que un asesor humano lo valide de inmediato 🙌`;
+            await waService.sendTextMessage(phone, fraudMsg);
+            store.agregarMensaje(phone, { from: 'bot', text: fraudMsg, type: 'text' });
+            return;
+          }
+        }
+
+        const autoRef = cleanRef || `LEONA-${Date.now().toString().slice(-6)}`;
+        const pedido = store.crearPedido(phone, {
+          amount: cleanAmount,
+          reference: autoRef,
+          status: 'VERIFICADO',
+          ocrData: ocrResult,
+          aprobadoPor: 'ia_leona_auto',
+          notas: `Auto-aprobado por IA (Modelo A Leona). Banco: ${bankName}. Ref: ${autoRef}`
+        });
+
+        store.aprobarPedido(pedido.id, {
+          reference: autoRef,
+          aprobadoPor: 'ia_leona_auto'
+        });
+
+        const confirmMsg =
+          `¡Comprobante verificado con éxito! 🎉🍰\n\n` +
+          `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
+          `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
+          `${settings.driveLink}\n\n` +
+          `📁 *Tu pack incluye:*\n` +
+          `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
+          `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
+          `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
+          `✓ Bono 1: Plantilla de Costeo en Excel\n` +
+          `✓ Bono 2: Guía de Conservación y Empaques\n` +
+          `✓ Bono 3: Diseños de Etiquetas en Canva\n\n` +
+          `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
+
+        await waService.sendTextMessage(phone, confirmMsg);
+        store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
+        store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+        return;
+      }
+
+      // CASO C2: IMAGEN NO CONCLUYENTE BAJO MODO LEONA (La foto no es clara o no es comprobante)
+      if (settings.modoAutoEntregaLeona !== false && !ocrResult.isValid) {
+        console.log(`[FLOW LEONA-PENDING] Comprobante no concluyente para +${phone}. Dejando en cola de revisión.`);
+        store.crearPedido(phone, {
+          amount: cleanAmount,
+          reference: cleanRef,
+          status: 'PENDIENTE',
+          ocrData: ocrResult,
+          notas: `Comprobante no concluyente por IA: ${ocrResult.reason || 'Ilegible'}`
+        });
+
+        const avisoRevisar =
+          `🔍 Recibí tu comprobante, pero la imagen no se ve completamente clara o los datos están borrosos.\n\n` +
+          `No te preocupes: ya quedó en *revisión prioritaria* en nuestro panel y en contados minutos un asesor lo validará manualmente 🙌\n\n` +
+          `_Si tienes una captura más nítida donde se lea bien el valor y la referencia, puedes enviarla por aquí._`;
+
+        await waService.sendTextMessage(phone, avisoRevisar);
+        store.agregarMensaje(phone, { from: 'bot', text: avisoRevisar, type: 'text' });
+        return;
+      }
+
+      // CASO D: MODO BANCO ESTRICTO (ESPERANDO NOTIFICACIÓN BANCARIA REAL EN LIBRO MAYOR)
+      console.log(`[FLOW STRICT BANK] Modo Banco estricto activo, esperando acreditación en libro mayor para +${phone}...`);
       const pedido = store.crearPedido(phone, {
         amount: cleanAmount,
         reference: cleanRef,
         status: 'PENDIENTE',
         ocrData: ocrResult,
-        notas: `Comprobante recibido por bot. Ref=${cleanRef || 'S/R'}. Esperando confirmación de Nequi/Daviplata.`
+        notas: `Comprobante recibido (Modo Banco estricto). Ref=${cleanRef || 'S/R'}. Esperando confirmación de Nequi/Daviplata.`
       });
 
       const waitMsg =
@@ -290,7 +376,7 @@ class ConversationFlow {
             `Aquí tienes tu acceso oficial e inmediato a la colección *Emprende Dulce 2026*:\n\n` +
             `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
             `${settings.driveLink}\n\n` +
-            `📁 *Incluye tus 3 Libros y 3 Bonos:* Helados Artesanales (42 pág), Postres en Vaso (39 pág), Recetario Navideño (30 pág) y Plantillas de Costeo.\n\n` +
+            `📁 *Incluye tus 3 Libros y 3 Bonos:* Helados Artesanales (47 pág), Postres en Vaso (41 pág), Recetario Navideño (35 pág) y Plantillas de Costeo.\n\n` +
             `¡Muchos éxitos en tu emprendimiento dulce! 🚀`;
 
           await waService.sendTextMessage(phone, autoMsg);

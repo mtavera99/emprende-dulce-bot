@@ -28,10 +28,11 @@ async function runTests() {
 
   // Test 2: Ingesta en el Libro Mayor
   console.log('\n--- TEST 2: Ingesta en el Libro Mayor Bancario ---');
+  const testRef = 'M' + Date.now().toString().slice(-7);
   const resIngest = paymentVerifier.ingestNotification({
     bank: 'NEQUI',
     amount: 10000,
-    reference: 'M5558881',
+    reference: testRef,
     sender: 'Camila Rojas'
   });
   assert.strictEqual(resIngest.success, true);
@@ -42,7 +43,7 @@ async function runTests() {
   console.log('\n--- TEST 3: Cruce exitoso Comprobante OCR vs Libro Mayor ---');
   const customerPhone = '573001112233';
   const check = paymentVerifier.verifyPayment({
-    reference: 'M5558881',
+    reference: testRef,
     amount: 10000,
     bank: 'nequi'
   }, customerPhone);
@@ -57,7 +58,7 @@ async function runTests() {
   console.log('\n--- TEST 4: Detección Antifraude (Intento de reuso por otro cliente) ---');
   const scammerPhone = '573119998877';
   const scamCheck = paymentVerifier.verifyPayment({
-    reference: 'M5558881',
+    reference: testRef,
     amount: 10000,
     bank: 'nequi'
   }, scammerPhone);
@@ -70,7 +71,7 @@ async function runTests() {
   // Test 5: Watcher en espera activa (Llega alerta bancaria después de que el cliente manda la captura)
   console.log('\n--- TEST 5: Watcher en espera activa (Alerta bancaria asíncrona) ---');
   const slowPhone = '573204445566';
-  const pendingRef = 'M7773332';
+  const pendingRef = 'M' + (Date.now() + 500).toString().slice(-7);
 
   let autoApprovedTx = null;
   paymentVerifier.waitForIncomingPayment(slowPhone, {

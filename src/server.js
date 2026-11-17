@@ -225,7 +225,7 @@ app.post('/api/chats/:id/pausar', authPanel, (req, res) => {
 
 // Actualizar configuración
 app.post('/api/settings', authPanel, (req, res) => {
-  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, botWhatsApp } = req.body;
+  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, botWhatsApp, modoAutoEntregaLeona } = req.body;
   store.updateSettings({
     nequiNumero: nequiNumero || undefined,
     nequiTitular: nequiTitular || undefined,
@@ -233,9 +233,19 @@ app.post('/api/settings', authPanel, (req, res) => {
     llaveNumero: llaveNumero || undefined,
     precioOferta: precioOferta ? Number(precioOferta) : undefined,
     driveLink: driveLink || undefined,
-    botWhatsApp: botWhatsApp || undefined
+    botWhatsApp: botWhatsApp || undefined,
+    modoAutoEntregaLeona: modoAutoEntregaLeona === '1' || modoAutoEntregaLeona === 'true' || modoAutoEntregaLeona === true || modoAutoEntregaLeona === 'on'
   });
   res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Configuración+guardada+con+éxito#config`);
+});
+
+// Toggle rápido de Auto-Entrega Leona (Modelo A)
+app.post('/api/settings/toggle-leona', authPanel, (req, res) => {
+  const current = store.getSettings().modoAutoEntregaLeona !== false;
+  const nuevo = !current;
+  store.updateSettings({ modoAutoEntregaLeona: nuevo });
+  const estadoStr = nuevo ? 'ACTIVADA+🟢+(Entrega+inmediata+por+IA)' : 'DESACTIVADA+🔴+(Solo+Banco+o+Aprobación+Manual)';
+  res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Auto-Entrega+Leona+${estadoStr}#config`);
 });
 
 // Exportar CSV de pedidos confirmados

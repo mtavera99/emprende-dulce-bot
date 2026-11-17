@@ -11,18 +11,22 @@ class OCRValidator {
 
     const base64Image = imageBuffer.toString('base64');
 
+    // Detección automática de llaves de IA (Gemini, OpenAI o IA_API_KEY unificada)
+    const geminiKey = process.env.GEMINI_API_KEY || (process.env.IA_API_KEY && process.env.IA_API_KEY.startsWith('AIza') ? process.env.IA_API_KEY : (!process.env.OPENAI_API_KEY && process.env.IA_API_KEY && !process.env.IA_API_KEY.startsWith('sk-') ? process.env.IA_API_KEY : null));
+    const openaiKey = process.env.OPENAI_API_KEY || (process.env.IA_API_KEY && process.env.IA_API_KEY.startsWith('sk-') ? process.env.IA_API_KEY : null);
+
     // Opción 1: Google Gemini 1.5/2.5 Flash (Gratuito / ultra económico)
-    if (process.env.GEMINI_API_KEY) {
-      return await this._validateWithGemini(base64Image, expected);
+    if (geminiKey) {
+      return await this._validateWithGemini(base64Image, expected, geminiKey);
     }
 
     // Opción 2: OpenAI GPT-4o-mini
-    if (process.env.OPENAI_API_KEY) {
-      return await this._validateWithOpenAI(base64Image, expected);
+    if (openaiKey) {
+      return await this._validateWithOpenAI(base64Image, expected, openaiKey);
     }
 
-    // Modo de desarrollo: Si no hay API key configurada en local
-    console.warn("[OCR WARNING] No se configuró GEMINI_API_KEY ni OPENAI_API_KEY. Modo simulación activo.");
+    // Modo de desarrollo / fallback
+    console.warn("[OCR WARNING] No se configuró GEMINI_API_KEY, OPENAI_API_KEY ni IA_API_KEY. Modo simulación activo.");
     return {
       isValid: true,
       amount: expected.minAmount || 10000,
@@ -32,11 +36,11 @@ class OCRValidator {
     };
   }
 
-  async _validateWithGemini(base64Image, expected) {
+  async _validateWithGemini(base64Image, expected, apiKey) {
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
+      const key = apiKey || process.env.GEMINI_API_KEY;
       const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -47,15 +51,21 @@ class OCRValidator {
               parts: [
                 {
                   text: `Eres un auditor forense de transferencias bancarias en Colombia (Nequi, Daviplata, Bancolombia, Bre-B, Transfiya).
-Analiza esta imagen y responde ÚNICAMENTE un JSON con:
+Analiza esta imagen y responde ÚNICAMENTE un JSON estricto con:
 {
   "es_comprobante": boolean,
-  "banco": "nequi" | "daviplata" | "bancolombia" | "otro",
+  "banco": "nequi" | "daviplata" | "bancolombia" | "bre_b" | "otro",
   "monto": number,
   "destinatario": string,
   "referencia": string,
-  "fecha": string
-}`
+  "fecha": string,
+  "exitoso": boolean
+}
+Reglas:
+1. "es_comprobante": true si es una captura de pantalla legítima de comprobante de transferencia bancaria, false si es una foto no relacionada, meme, selfie o captura irrelevante.
+2. "monto": extrae el número entero transferido (ej: 10000 si dice $10.000).
+3. "referencia": extrae el código alfanumérico o número de comprobante/aprobación (ej: M1234567, 839201).
+4. "exitoso": true si la transferencia fue exitosa/enviada/aprobada.`
                 },
                 {
                   inline_data: {
@@ -85,7 +95,7 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON con:
 
       const minAmount = expected.minAmount || 10000;
       const amountOk = (Number(parsed.monto) || 0) >= minAmount;
-      const isValid = Boolean(parsed.es_comprobante) && amountOk;
+      const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false);
 
       return {
         isValid,
@@ -93,6 +103,7 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON con:
         bank: parsed.banco || "nequi",
         recipient: parsed.destinatario || "",
         reference: parsed.referencia || "",
+        date: parsed.fecha || "",
         reason: isValid ? "Comprobante verificado con éxito por Gemini" : "Monto inferior o imagen no bancaria"
       };
     } catch (error) {
@@ -101,12 +112,13 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON con:
     }
   }
 
-  async _validateWithOpenAI(base64Image, expected) {
+  async _validateWithOpenAI(base64Image, expected, apiKey) {
     try {
+      const key = apiKey || process.env.OPENAI_API_KEY;
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -115,12 +127,12 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON con:
           messages: [
             {
               role: 'system',
-              content: `Eres un auditor de transferencias bancarias en Colombia (Nequi, Daviplata, Bancolombia). Devuelve JSON: {"es_comprobante": boolean, "banco": string, "monto": number, "destinatario": string, "referencia": string}`
+              content: `Eres un auditor forense de transferencias bancarias en Colombia (Nequi, Daviplata, Bancolombia, Bre-B). Devuelve un JSON: {"es_comprobante": boolean, "banco": string, "monto": number, "destinatario": string, "referencia": string, "fecha": string, "exitoso": boolean}`
             },
             {
               role: 'user',
               content: [
-                { type: 'text', text: 'Analiza el comprobante' },
+                { type: 'text', text: 'Analiza este comprobante de pago de Colombia y extrae los datos.' },
                 { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
               ]
             }
@@ -137,16 +149,17 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON con:
       const data = await res.json();
       const parsed = JSON.parse(data.choices[0].message.content);
       const minAmount = expected.minAmount || 10000;
-      const amountOk = (parsed.monto || 0) >= minAmount;
-      const isValid = Boolean(parsed.es_comprobante) && amountOk;
+      const amountOk = (Number(parsed.monto) || 0) >= minAmount;
+      const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false);
 
       return {
         isValid,
-        amount: parsed.monto || 0,
+        amount: Number(parsed.monto) || 0,
         bank: parsed.banco || "nequi",
         recipient: parsed.destinatario || "",
         reference: parsed.referencia || "",
-        reason: isValid ? "Comprobante verificado con éxito" : "Monto inferior o no es comprobante"
+        date: parsed.fecha || "",
+        reason: isValid ? "Comprobante verificado con éxito por OpenAI" : "Monto inferior o no es comprobante"
       };
     } catch (error) {
       console.error("[OCR ERROR OpenAI]:", error.message);

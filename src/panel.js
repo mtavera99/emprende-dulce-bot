@@ -200,7 +200,12 @@ function render(aviso = '') {
         🍰 Emprende Dulce · Panel de Control
         <span>Pack Digital $10.000 COP</span>
       </div>
-      <div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <form method="POST" action="/api/settings/toggle-leona?token=${esc(tk)}" style="margin: 0;">
+          <button type="submit" class="btn ${settings.modoAutoEntregaLeona !== false ? 'btn-green' : 'btn-ghost'}" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700;" title="Haz clic para alternar entre auto-entrega automática por IA y verificación manual/bancaria">
+            🦁 Auto-Entrega Leona: ${settings.modoAutoEntregaLeona !== false ? 'ACTIVADA 🟢' : 'DESACTIVADA 🔴'}
+          </button>
+        </form>
         <a href="/panel?token=${esc(tk)}" class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem;">🔄 Actualizar Ahora</a>
       </div>
     </div>
@@ -383,8 +388,8 @@ function render(aviso = '') {
                 <td style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
                 <td><code>${esc(p.reference || 'MANUAL-OK')}</code></td>
                 <td>
-                  <span class="badge ${p.aprobadoPor === 'bot_ocr' ? 'badge-green' : 'badge-blue'}">
-                    ${esc(p.aprobadoPor || 'Operador')}
+                  <span class="badge ${p.aprobadoPor === 'ia_leona_auto' ? 'badge-green' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? 'badge-blue' : 'badge-amber'}">
+                    ${p.aprobadoPor === 'ia_leona_auto' ? '🦁 IA Leona (Auto)' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? '💰 ' + esc(p.aprobadoPor.replace('banco_', '').toUpperCase()) : esc(p.aprobadoPor || 'Operador')}
                   </span>
                 </td>
                 <td>
@@ -610,6 +615,28 @@ function render(aviso = '') {
 
       <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px;">
         <form method="POST" action="/api/settings?token=${esc(tk)}">
+
+          <!-- Card Modo Leona (Modelo A) -->
+          <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="max-width: 650px;">
+              <div style="font-weight: 700; color: #fff; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                🦁 Modo Auto-Entrega Inmediata por IA (Modelo A estilo Leona)
+                <span class="badge ${settings.modoAutoEntregaLeona !== false ? 'badge-green' : 'badge-red'}">
+                  ${settings.modoAutoEntregaLeona !== false ? 'ACTIVADA 🟢' : 'DESACTIVADA 🔴'}
+                </span>
+              </div>
+              <div style="font-size: 0.82rem; color: var(--muted); margin-top: 6px; line-height: 1.4;">
+                Cuando un cliente envía una captura de Nequi/Daviplata por $10.000 COP, la IA analiza la imagen con visión artificial, verifica que no sea una referencia ya utilizada (antifraude) y entrega el enlace de Google Drive en 5 segundos sin depender de un celular Android ni de MacroDroid.
+              </div>
+            </div>
+            <div>
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: var(--card); border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px;">
+                <input type="checkbox" name="modoAutoEntregaLeona" value="1" ${settings.modoAutoEntregaLeona !== false ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--green);">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #fff;">Auto-entregar con IA</span>
+              </label>
+            </div>
+          </div>
+
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
             <div>
               <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">NÚMERO NEQUI</label>

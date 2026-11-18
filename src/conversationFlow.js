@@ -2,6 +2,7 @@ const store = require('./store');
 const waService = require('./whatsappService');
 const ocrValidator = require('./ocrValidator');
 const paymentVerifier = require('./paymentVerifier');
+const audioService = require('./audioService');
 
 class ConversationFlow {
   constructor() {
@@ -21,6 +22,8 @@ class ConversationFlow {
         store.agregarMensaje(phone, { from: 'cliente', text: message.text?.body || '', type: 'text' });
       } else if (message.type === 'image') {
         store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante/Imagen]', type: 'image' });
+      } else if (message.type === 'audio' || message.type === 'voice') {
+        store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Nota de voz recibida]', type: 'audio' });
       }
       return;
     }
@@ -34,13 +37,18 @@ class ConversationFlow {
       return await this.handleTextMessage(phone, text);
     }
 
-    // 2. Mensaje de IMAGEN (Comprobante de pago)
+    // 2. Mensaje de AUDIO / NOTA DE VOZ (Transcripción inteligente con IA)
+    if (msgType === 'audio' || msgType === 'voice') {
+      return await this.handleAudioMessage(phone, message.audio || message.voice);
+    }
+
+    // 3. Mensaje de IMAGEN (Comprobante de pago)
     if (msgType === 'image') {
       store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante enviado]', type: 'image' });
       return await this.handleImageMessage(phone, message.image);
     }
 
-    // 3. Botones / Respuestas interactivas
+    // 4. Botones / Respuestas interactivas
     if (msgType === 'interactive') {
       const btnId = message.interactive?.button_reply?.id || '';
       const btnTitle = message.interactive?.button_reply?.title || '';
@@ -48,7 +56,7 @@ class ConversationFlow {
       return await this.handleButtonReply(phone, btnId, btnTitle);
     }
 
-    // Otros tipos (audio, documentos, sticker)
+    // Otros tipos (documentos, sticker, etc.)
     store.agregarMensaje(phone, { from: 'cliente', text: `📎 [Archivo tipo ${msgType}]`, type: msgType });
   }
 
@@ -552,6 +560,65 @@ Respuesta de Sofía:`;
     }
     if (btnId.includes('info')) {
       return await this.sendMainPitch(phone, settings, precioCOP);
+    }
+  }
+
+  /**
+   * Procesa notas de voz y audios de WhatsApp:
+   * 1. Descarga el audio desde Meta Cloud API
+   * 2. Lo transcribe con Gemini 2.5 Flash
+   * 3. Lo almacena en el historial como '🎙️ "texto"'
+   * 4. Lo pasa por handleTextMessage para responder con la lógica comercial exacta
+   */
+  async handleAudioMessage(phone, audioMeta) {
+    const mediaId = audioMeta?.id;
+    console.log(`[FLOW] 🎙️ Recibida nota de voz de +${phone} (mediaId: ${mediaId || 'no-id'})`);
+
+    if (!mediaId) {
+      const msgError = '¡Hola! 🙌 Nos llegó una nota de voz pero no pudimos abrirla. ¿Podrías escribirnos tu pregunta por aquí para responderte de inmediato?';
+      await waService.sendTextMessage(phone, msgError);
+      store.agregarMensaje(phone, { from: 'bot', text: msgError, type: 'text' });
+      return;
+    }
+
+    try {
+      // 1. Descargar el archivo de audio de WhatsApp
+      const media = await waService.downloadMedia(mediaId);
+      if (!media || !media.buffer) {
+        throw new Error('No se pudo descargar el buffer de audio de WhatsApp');
+      }
+
+      // 2. Transcribir el audio usando Gemini 2.5 Flash
+      const resTrans = await audioService.transcribe(media.buffer, media.mimeType);
+
+      if (resTrans.ok && resTrans.text) {
+        const text = resTrans.text.trim();
+        console.log(`[FLOW] 🎙️ Audio de +${phone} transcrito con éxito: "${text}"`);
+        // Registrar en el chat lo que dijo el cliente con ícono de audio para que se vea claro en el panel
+        store.agregarMensaje(phone, { from: 'cliente', text: `🎙️ "${text}"`, type: 'audio' });
+
+        // Procesar como texto normal para que responda con toda la lógica del guión de ventas
+        return await this.handleTextMessage(phone, text);
+      }
+
+      // Audio inaudible, ruido o silencio
+      console.warn(`[FLOW] Audio de +${phone} inaudible o sin voz clara:`, resTrans.error || 'inaudible');
+      store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Nota de voz inaudible]', type: 'audio' });
+
+      const msgInaudible = '¡Hola! Te escuché a medias porque se me entrecortó el audio 🙈 ¿Me podrías escribir tu duda por aquí? Así te respondo de inmediato con toda la información 🙌';
+      await waService.sendTextMessage(phone, msgInaudible);
+      store.agregarMensaje(phone, { from: 'bot', text: msgInaudible, type: 'text' });
+    } catch (err) {
+      console.error(`[FLOW ERROR] Error al procesar audio de +${phone}:`, err.message);
+      store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Error al descargar/procesar audio]', type: 'audio' });
+
+      const msgFallo = '¡Hola! No alcancé a reproducir tu audio 🙈 ¿Me podrías escribir por aquí qué duda tienes para ayudarte de inmediato?';
+      try {
+        await waService.sendTextMessage(phone, msgFallo);
+        store.agregarMensaje(phone, { from: 'bot', text: msgFallo, type: 'text' });
+      } catch (sendErr) {
+        console.error('[FLOW ERROR] No se pudo enviar mensaje de fallback:', sendErr.message);
+      }
     }
   }
 }

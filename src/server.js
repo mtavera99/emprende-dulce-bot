@@ -90,6 +90,8 @@ app.get('/privacidad', (req, res) => {
 </div>
 </body>
 </html>`);
+});
+
 // Servir archivos descargables
 app.use('/descargas', express.static(path.join(__dirname, '../public/descargas')));
 

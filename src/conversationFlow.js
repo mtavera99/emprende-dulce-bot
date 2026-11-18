@@ -79,6 +79,17 @@ class ConversationFlow {
         `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🍰`;
       await waService.sendTextMessage(phone, respuestaConfianza);
       store.agregarMensaje(phone, { from: 'bot', text: respuestaConfianza, type: 'text' });
+
+      // Micro-muestreo: enviar inmediatamente muestra real de receta con tabla de costeo en COP
+      try {
+        const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+        const sampleUrl = `${host}/descargas/muestra_receta_oficial.jpg`;
+        const captionSample = '📖 Mira, aquí te comparto una muestra real de una de las recetas del libro (con su fotografía gastronómica y su tabla de costeo en pesos colombianos) para que compruebes la calidad antes de transferir ✨';
+        await waService.sendImage(phone, sampleUrl, captionSample);
+        store.agregarMensaje(phone, { from: 'bot', text: `📷 [Muestra oficial de receta enviada]: ${captionSample}`, type: 'image' });
+      } catch (errSample) {
+        console.error('[FLOW] Error enviando imagen de muestra de receta:', errSample.message);
+      }
       return;
     }
 

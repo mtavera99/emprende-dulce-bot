@@ -64,7 +64,7 @@ class ConversationFlow {
     const pitchYaEnviado = (lead && lead.step !== 'INICIO') || botMessages.length > 0;
 
     // Detección de Objeción de Desconfianza / Seguridad / Estafa / Garantía / "Mándalo primero"
-    const patronesDesconfianza = /\b(estafa|robo|roban|engañ[ao]|segur[oa]|confi(anza|able)|garant[ií]a|miedo|desconf[ií]o|desconfianza|c[oó]mo\s+s[eé]|por\s*qu[eé]\s+tan\s+barato|sospechos[oa]|primero\s+(me\s+)?(mandas|env[ií]as)|env[ií]amel[oa]\s+primero|pago\s+despu[eé]s)\b/i;
+    const patronesDesconfianza = /(estaf|robo|roban|engañ|segur[oa]|confi|garant|miedo|desconfi|c[oó]mo\s+s[eé]|es\s+(algo\s+)?real|sospech|tan\s+barat|primer.*(m[aá]nd|env[ií]|pas)|(m[aá]nd|env[ií]|pas).*primer|pago\s+despu[eé]s)/i;
     const esDudaSeguridad = patronesDesconfianza.test(text);
 
     if (esDudaSeguridad) {

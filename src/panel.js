@@ -106,7 +106,7 @@ function render(aviso = '') {
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
-    header { background: #0f1622; border-bottom: 1px solid var(--border); padding: 18px 20px; position: sticky; top: 0; z-index: 50; }
+    header { background: #0f1622; border-bottom: 1px solid var(--border); padding: 14px 20px; position: sticky; top: 0; z-index: 50; }
     .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .brand { display: flex; align-items: center; gap: 10px; font-size: 1.25rem; font-weight: 700; color: #fff; }
     .brand span { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
@@ -114,12 +114,16 @@ function render(aviso = '') {
     .disk-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.72rem; }
     .disk-badge.warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 
-    /* Nav Pills */
-    nav.tabs { display: flex; gap: 8px; padding: 14px 20px; background: #0d131d; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* Nav Pills (Desktop) */
+    nav.tabs { display: flex; gap: 8px; padding: 12px 20px; background: #0d131d; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
     nav.tabs a { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none; color: var(--muted); background: var(--card); border: 1px solid var(--border); white-space: nowrap; transition: 0.15s ease; }
     nav.tabs a:hover { color: #fff; background: var(--card-hover); }
     nav.tabs a.active { background: var(--green); color: #000; border-color: var(--green); }
     nav.tabs a .pill { background: rgba(0,0,0,0.25); padding: 2px 6px; border-radius: 999px; font-size: 0.75rem; }
+
+    /* Barra Inferior Fija para Móviles */
+    .mobile-bottom-nav { display: none; }
+    .mobile-quick-stats { display: none; }
 
     .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
@@ -147,17 +151,15 @@ function render(aviso = '') {
     .btn-ghost:hover { background: var(--card-hover); }
 
     /* Sections */
-    .section-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+    .section-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
     .card-list { display: flex; flex-direction: column; gap: 12px; }
 
     /* Pending Verification Cards */
     .card-pago { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; grid-template-columns: 120px 1fr auto; gap: 16px; align-items: center; }
-    @media (max-width: 768px) {
-      .card-pago { grid-template-columns: 1fr; }
-    }
-    .thumb-wrap { width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #000; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .thumb-wrap { width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #000; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
     .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
     .thumb-wrap .no-img { font-size: 0.75rem; color: var(--muted); text-align: center; padding: 8px; }
+    .thumb-badge { position: absolute; bottom: 4px; right: 4px; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .pago-info h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
     .ocr-box { margin-top: 8px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--blue); padding: 8px 12px; border-radius: 4px; font-size: 0.82rem; }
     .ocr-box b { color: var(--blue); }
@@ -174,7 +176,7 @@ function render(aviso = '') {
     /* Chat Rows */
     .chat-row { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: inherit; transition: 0.15s ease; }
     .chat-row:hover { background: var(--card-hover); border-color: #334155; }
-    .chat-user { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .chat-user { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .chat-preview { font-size: 0.82rem; color: var(--muted); margin-top: 4px; max-width: 600px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chat-meta { text-align: right; font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
 
@@ -190,6 +192,211 @@ function render(aviso = '') {
     .modal.active { display: flex; }
     .modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; border: 2px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
     .modal-close { position: absolute; top: 20px; right: 20px; font-size: 2rem; color: #fff; cursor: pointer; }
+
+    /* ==========================================================================
+       OPTIMIZACIÓN MÓVIL PROFESIONAL (Evita scroll innecesario y adapta todo)
+       ========================================================================== */
+    @media (max-width: 768px) {
+      body {
+        padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
+      }
+      header {
+        padding: 10px 14px;
+      }
+      .brand {
+        font-size: 1.05rem;
+      }
+      .brand span {
+        display: none;
+      }
+      .sub-bar {
+        display: none;
+      }
+      .container {
+        padding: 12px 12px;
+      }
+
+      /* Ocultar barra de pestañas superior en móvil (reemplazada por barra inferior ergonómica) */
+      nav.tabs {
+        display: none !important;
+      }
+
+      /* Barra de Navegación Móvil Fija en la Parte Inferior */
+      .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(58px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: rgba(13, 19, 29, 0.98);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-top: 1px solid var(--border);
+        z-index: 99;
+        justify-content: space-around;
+        align-items: center;
+      }
+      .mbn-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 4px 6px;
+        position: relative;
+        transition: 0.15s ease;
+        flex: 1;
+        max-width: 75px;
+      }
+      .mbn-item.active {
+        color: var(--green);
+      }
+      .mbn-icon-wrap {
+        position: relative;
+        display: inline-block;
+        font-size: 1.25rem;
+        line-height: 1;
+        margin-bottom: 2px;
+      }
+      .mbn-badge {
+        position: absolute;
+        top: -4px;
+        right: -10px;
+        background: var(--red);
+        color: #fff;
+        font-size: 0.62rem;
+        font-weight: 800;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid #0d131d;
+      }
+
+      /* Reemplazo de la torre de 6 KPIs por Ticker Horizontal Compacto de 1 línea */
+      .kpi-grid-top {
+        display: none !important;
+      }
+      .mobile-quick-stats {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .quick-stat-chip {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 12px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-decoration: none;
+        flex-shrink: 0;
+      }
+      .quick-stat-chip b {
+        color: #fff;
+      }
+
+      /* Tarjeta de Comprobante / Pago en Móvil */
+      .card-pago {
+        grid-template-columns: 1fr;
+        padding: 14px;
+        gap: 12px;
+      }
+      .thumb-wrap {
+        width: 100%;
+        height: 180px;
+        border-radius: 10px;
+      }
+      .pago-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+      }
+      .pago-actions form:first-child {
+        grid-column: 1 / -1;
+      }
+      .pago-actions .btn {
+        padding: 12px 14px;
+        font-size: 0.9rem;
+        justify-content: center;
+        width: 100%;
+      }
+
+      /* Inputs no hacen auto-zoom en iPhone Safari */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    /* Tablas responsivas en móvil: se convierten en tarjetas verticales (CERO scroll horizontal) */
+    @media (max-width: 680px) {
+      .table-wrap {
+        background: transparent !important;
+        border: none !important;
+        overflow: visible;
+      }
+      .table-wrap table {
+        display: block;
+        width: 100%;
+      }
+      .table-wrap thead {
+        display: none;
+      }
+      .table-wrap tbody {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+      .table-wrap tr {
+        display: block;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        width: 100%;
+      }
+      .table-wrap td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        font-size: 0.84rem;
+        text-align: right;
+      }
+      .table-wrap td:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .table-wrap td::before {
+        content: attr(data-label);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        text-align: left;
+        margin-right: 10px;
+        flex-shrink: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -248,8 +455,8 @@ function render(aviso = '') {
   <div class="container">
     ${aviso ? `<div class="aviso">${esc(aviso)}</div>` : ''}
 
-    <!-- KPI GRID -->
-    <div class="kpi-grid">
+    <!-- KPI GRID TOP (Desktop) -->
+    <div class="kpi-grid kpi-grid-top">
       <div class="kpi">
         <div class="kpi-lbl">Ventas Hoy</div>
         <div class="kpi-num">${metricas.pedidosHoy}</div>
@@ -284,6 +491,27 @@ function render(aviso = '') {
       </div>
     </div>
 
+    <!-- QUICK STATS TICKER (Móvil: reemplaza la torre de 600px de KPIs) -->
+    <div class="mobile-quick-stats">
+      <a href="#pedidos" class="quick-stat-chip">
+        <span>💰 Ventas Hoy:</span>
+        <b>${metricas.pedidosHoy} (${fmtCOP(metricas.recaudoHoy)})</b>
+      </a>
+      <a href="#pendientes" class="quick-stat-chip" style="${pendientes.length > 0 ? 'border-color: var(--amber); background: rgba(245,158,11,0.12);' : ''}">
+        <span>💸 Por Validar:</span>
+        <b style="color: ${pendientes.length > 0 ? 'var(--amber)' : 'var(--green)'};">${pendientes.length}</b>
+      </a>
+      <a href="#chats" class="quick-stat-chip">
+        <span>💬 Leads Hoy:</span>
+        <b>${metricas.leadsHoy}</b>
+      </a>
+      <a href="#metricas" class="quick-stat-chip">
+        <span>📈 Cierre:</span>
+        <b style="color: var(--green);">${metricas.tasaCierre}%</b>
+        <span style="color: var(--blue); font-size: 0.72rem; margin-left: 2px;">Métricas →</span>
+      </a>
+    </div>
+
     <!-- SECCIÓN: PENDIENTES DE VERIFICACIÓN -->
     <div id="sec-pendientes" class="tab-sec">
       <div class="section-title">
@@ -303,6 +531,7 @@ function render(aviso = '') {
               <div class="thumb-wrap" onclick="abrirZoom('${esc(p.comprobanteUrl || '')}')">
                 ${p.comprobanteUrl ? `
                   <img src="${esc(p.comprobanteUrl)}" alt="Comprobante" loading="lazy">
+                  <span class="thumb-badge">🔍 Toca para ampliar</span>
                 ` : `
                   <div class="no-img">📷 Sin imagen adjunta</div>
                 `}
@@ -378,22 +607,22 @@ function render(aviso = '') {
               <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--muted);">No hay ventas confirmadas registradas aún.</td></tr>
             ` : confirmados.map(p => `
               <tr>
-                <td>${fechaHora(p.verifiedAt || p.createdAt)}</td>
-                <td>
+                <td data-label="Fecha">${fechaHora(p.verifiedAt || p.createdAt)}</td>
+                <td data-label="Cliente">
                   <a href="/panel/chat?id=${esc(p.phone)}&token=${esc(tk)}" style="color: #fff; font-weight: 600; text-decoration: none;">
                     +${esc(p.phone)}
                   </a>
                 </td>
-                <td>${esc(p.product)}</td>
-                <td style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
-                <td><code>${esc(p.reference || 'MANUAL-OK')}</code></td>
-                <td>
+                <td data-label="Producto">${esc(p.product)}</td>
+                <td data-label="Monto" style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
+                <td data-label="Referencia"><code>${esc(p.reference || 'MANUAL-OK')}</code></td>
+                <td data-label="Aprobado Por">
                   <span class="badge ${p.aprobadoPor === 'ia_leona_auto' ? 'badge-green' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? 'badge-blue' : 'badge-amber'}">
                     ${p.aprobadoPor === 'ia_leona_auto' ? '🦁 IA Leona (Auto)' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? '💰 ' + esc(p.aprobadoPor.replace('banco_', '').toUpperCase()) : esc(p.aprobadoPor || 'Operador')}
                   </span>
                 </td>
-                <td>
-                  <a href="/panel/chat?id=${esc(p.phone)}&token=${esc(tk)}" class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.75rem;">
+                <td data-label="Acción">
+                  <a href="/panel/chat?id=${esc(p.phone)}&token=${esc(tk)}" class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem;">
                     💬 Chat
                   </a>
                 </td>
@@ -480,17 +709,17 @@ function render(aviso = '') {
               <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--muted);">No hay transacciones bancarias registradas aún en el libro mayor. Puedes simular una o conectar el webhook de MacroDroid/Gmail.</td></tr>
             ` : bankTxs.map(t => `
               <tr>
-                <td>${fechaHora(t.timestamp)}</td>
-                <td><span class="badge ${t.bank === 'NEQUI' ? 'badge-green' : t.bank === 'DAVIPLATA' ? 'badge-amber' : 'badge-blue'}">${esc(t.bank)}</span></td>
-                <td><code>${esc(t.reference)}</code></td>
-                <td style="font-weight: 700; color: var(--green);">${fmtCOP(t.amount)}</td>
-                <td>${esc(t.sender || 'Cliente')}</td>
-                <td>
+                <td data-label="Fecha">${fechaHora(t.timestamp)}</td>
+                <td data-label="Banco"><span class="badge ${t.bank === 'NEQUI' ? 'badge-green' : t.bank === 'DAVIPLATA' ? 'badge-amber' : 'badge-blue'}">${esc(t.bank)}</span></td>
+                <td data-label="Referencia"><code>${esc(t.reference)}</code></td>
+                <td data-label="Monto" style="font-weight: 700; color: var(--green);">${fmtCOP(t.amount)}</td>
+                <td data-label="Remitente">${esc(t.sender || 'Cliente')}</td>
+                <td data-label="Estado">
                   <span class="badge ${t.status === 'UNCLAIMED' ? 'badge-green' : 'badge-blue'}">
                     ${t.status === 'UNCLAIMED' ? '🟢 Disponible' : '🔵 Reclamado'}
                   </span>
                 </td>
-                <td>
+                <td data-label="Reclamado Por">
                   ${t.claimedByPhone ? `<a href="/panel/chat?id=${esc(t.claimedByPhone)}&token=${esc(tk)}" style="color: #fff; text-decoration: none;">+${esc(t.claimedByPhone)}</a>` : '<span style="color: var(--muted);">—</span>'}
                 </td>
               </tr>
@@ -559,7 +788,43 @@ function render(aviso = '') {
     <!-- SECCIÓN: MÉTRICAS Y EMBUDO -->
     <div id="sec-metricas" class="tab-sec" style="display: none;">
       <div class="section-title">
-        <span>📊 Embudo de Conversión de Infoproducto</span>
+        <span>📊 Métricas Comerciales y Embudo de Conversión</span>
+      </div>
+
+      <!-- Tarjetas de Métricas -->
+      <div class="kpi-grid" style="margin-bottom: 20px;">
+        <div class="kpi">
+          <div class="kpi-lbl">Ventas Hoy</div>
+          <div class="kpi-num">${metricas.pedidosHoy}</div>
+          <div class="kpi-sub green">${fmtCOP(metricas.recaudoHoy)} recaudados</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Recaudo Total</div>
+          <div class="kpi-num">${fmtCOP(metricas.totalRecaudo)}</div>
+          <div class="kpi-sub">${metricas.totalVentas} clientes compradores</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Pagos por Verificar</div>
+          <div class="kpi-num" style="color: ${pendientes.length > 0 ? 'var(--amber)' : 'inherit'};">${pendientes.length}</div>
+          <div class="kpi-sub ${pendientes.length > 0 ? 'red' : ''}">
+            ${metricas.conComprobante} con captura enviada
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Leads / Prospectos</div>
+          <div class="kpi-num">${metricas.leadsTotales}</div>
+          <div class="kpi-sub green">${metricas.leadsHoy} llegaron hoy</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Tasa de Cierre</div>
+          <div class="kpi-num" style="color: var(--green);">${metricas.tasaCierre}%</div>
+          <div class="kpi-sub">Conversión anuncio → pago</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Atención Humana</div>
+          <div class="kpi-num" style="color: ${metricas.esperandoHumano > 0 ? 'var(--blue)' : 'inherit'};">${metricas.esperandoHumano}</div>
+          <div class="kpi-sub">Chats esperando operador</div>
+        </div>
       </div>
 
       <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px;">
@@ -678,6 +943,43 @@ function render(aviso = '') {
 
   </div>
 
+  <!-- BARRA DE NAVEGACIÓN MÓVIL INFERIOR FIJA (Acceso inmediato con 1 pulgar) -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a href="#pendientes" class="mbn-item active" data-tab="pendientes">
+      <div class="mbn-icon-wrap">
+        <span>💸</span>
+        ${pendientes.length > 0 ? `<span class="mbn-badge">${pendientes.length}</span>` : ''}
+      </div>
+      <span>Pendientes</span>
+    </a>
+    <a href="#chats" class="mbn-item" data-tab="chats">
+      <div class="mbn-icon-wrap">
+        <span>💬</span>
+        <span class="mbn-badge" style="background:#2563eb;">${chatsLista.length}</span>
+      </div>
+      <span>Chats</span>
+    </a>
+    <a href="#ledger" class="mbn-item" data-tab="ledger">
+      <div class="mbn-icon-wrap">
+        <span>💰</span>
+        ${unclaimedTxs.length > 0 ? `<span class="mbn-badge" style="background:var(--green); color:#000;">${unclaimedTxs.length}</span>` : ''}
+      </div>
+      <span>Banco</span>
+    </a>
+    <a href="#pedidos" class="mbn-item" data-tab="pedidos">
+      <div class="mbn-icon-wrap">
+        <span>📋</span>
+      </div>
+      <span>Ventas (${confirmados.length})</span>
+    </a>
+    <a href="#config" class="mbn-item" data-tab="config">
+      <div class="mbn-icon-wrap">
+        <span>⚙️</span>
+      </div>
+      <span>Ajustes</span>
+    </a>
+  </nav>
+
   <!-- MODAL ZOOM COMPROBANTE -->
   <div class="modal" id="modalZoom" onclick="cerrarZoom()">
     <span class="modal-close">&times;</span>
@@ -685,31 +987,41 @@ function render(aviso = '') {
   </div>
 
   <script>
-    // Tab switching
+    // Tab switching (Soporta pestañas desktop, barra móvil inferior y quick chips)
     function initTabs() {
-      const links = document.querySelectorAll('nav.tabs a');
+      const allLinks = document.querySelectorAll('nav.tabs a, nav.mobile-bottom-nav a, .mobile-quick-stats a');
       const hash = window.location.hash || '#pendientes';
 
-      function activate(h) {
+      function activate(h, shouldScroll = false) {
+        const cleanHash = (h && h.startsWith('#')) ? h : ('#' + (h || 'pendientes'));
         document.querySelectorAll('.tab-sec').forEach(s => s.style.display = 'none');
-        links.forEach(a => a.classList.remove('active'));
+        document.querySelectorAll('nav.tabs a, nav.mobile-bottom-nav a').forEach(a => a.classList.remove('active'));
 
-        const target = document.getElementById('sec-' + h.replace('#', ''));
-        const link = document.querySelector('nav.tabs a[href="' + h + '"]');
-        if (target) target.style.display = 'block';
-        if (link) link.classList.add('active');
+        const target = document.getElementById('sec-' + cleanHash.replace('#', ''));
+        const matched = document.querySelectorAll('nav.tabs a[href="' + cleanHash + '"], nav.mobile-bottom-nav a[href="' + cleanHash + '"]');
+        
+        if (target) {
+          target.style.display = 'block';
+        }
+        matched.forEach(l => l.classList.add('active'));
+
+        if (shouldScroll) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
 
-      links.forEach(a => {
+      allLinks.forEach(a => {
         a.addEventListener('click', (e) => {
-          e.preventDefault();
-          const targetHash = a.getAttribute('href');
-          history.replaceState(null, null, targetHash);
-          activate(targetHash);
+          const href = a.getAttribute('href');
+          if (href && href.startsWith('#')) {
+            e.preventDefault();
+            history.replaceState(null, null, href);
+            activate(href, true);
+          }
         });
       });
 
-      activate(hash);
+      activate(hash, false);
     }
     initTabs();
 

@@ -90,6 +90,36 @@ function renderChat(phone, aviso = '') {
     .chat-input:focus { border-color: var(--blue); }
     .send-btn { background: var(--blue); color: #000; font-weight: 700; padding: 0 18px; border-radius: 8px; border: none; cursor: pointer; }
     .send-btn:hover { filter: brightness(1.1); }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 8px 12px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .header-left {
+        justify-content: space-between;
+        width: 100%;
+      }
+      .header-actions {
+        width: 100%;
+      }
+      .header-actions form, .header-actions .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 8px;
+      }
+      .msg {
+        max-width: 90%;
+      }
+      footer {
+        padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+      .chat-input {
+        font-size: 16px !important;
+      }
+    }
   </style>
 </head>
 <body>

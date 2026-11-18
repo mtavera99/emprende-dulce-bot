@@ -53,38 +53,53 @@ class ConversationFlow {
   }
 
   async handleTextMessage(phone, rawText) {
-    const text = rawText.toLowerCase();
+    const text = rawText.toLowerCase().trim();
     const settings = this.getSettings();
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
 
-    // Detección de intención de PAGO / NÚMERO DE CUENTA
-    if (
-      text.includes('nequi') ||
-      text.includes('daviplata') ||
-      text.includes('bancolombia') ||
-      text.includes('cuenta') ||
-      text.includes('como pago') ||
-      text.includes('donde pago') ||
-      text.includes('datos de pago') ||
-      text.includes('quiero comprar') ||
-      text.includes('lo quiero') ||
-      text.includes('me interesa') ||
-      text.includes('comprar') ||
-      text.includes('transferir') ||
-      text.includes('numero')
-    ) {
+    const lead = store.getLead(phone);
+    const conv = store.obtenerConversacion(phone);
+    const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
+    const pitchYaEnviado = (lead && lead.step !== 'INICIO') || botMessages.length > 0;
+
+    // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS con límites de palabra (evita trampas como 'hola quiero')
+    const patronesCompra = [
+      /\b(nequi|daviplata|bancolombia|transfiya|bre-?b)\b/i,
+      /\b(como|donde|dónde)\s+(pago|compro|consigno|transfiero|cancelo)\b/i,
+      /\b(datos|medios)\s+(de\s+)?pago\b/i,
+      /\b(quiero\s+comprar|lo\s+quiero|la\s+quiero|lo\s+deseo)\b/i,
+      /\b(me\s+interesa|estoy\s+interesad[oa]|estaba\s+interesad[oa]|interesad[oa]|interesa)\b/i,
+      /\b(si|sí)\s+(me\s+interesa|quiero)\b/i,
+      /\b(transferir|consignar|comprar|apartar|cupo)\b/i,
+      /\b(a\s+d[oó]nde|a\s+qu[eé]\s+n[uú]mero)\b/i,
+      /\b(p[aá]same|dame|deme)\s+(la\s+cuenta|el\s+n[uú]mero|el\s+nequi|el\s+daviplata)\b/i,
+      /\b(n[uú]mero\s+de\s+(nequi|cuenta|daviplata))\b/i,
+      /\b(cu[aá]nto\s+(vale|cuesta)|precio|costo)\b/i
+    ];
+    const esInteresCompra = patronesCompra.some(re => re.test(text));
+
+    // Si el pitch ya fue enviado y responde una afirmación corta ("sí", "claro", "dale", "de una", "bueno", "listo", "ok")
+    const esAfirmacionCorta = /^(si|sí|sii|siii|claro|dale|de una|deuna|bueno|listo|ok|oka|yes|por favor|vale|hágale|hagale|me sirve|quiero)$/i.test(text);
+
+    if (esInteresCompra || (pitchYaEnviado && esAfirmacionCorta)) {
       return await this.sendPaymentDetails(phone, settings, precioCOP);
     }
 
-    // Detección de "YA PAGUÉ" o aviso de comprobante
+    // 2. Detección de "YA PAGUÉ" o aviso de comprobante
     if (
       text.includes('ya pague') ||
+      text.includes('ya pagué') ||
       text.includes('ya transferi') ||
+      text.includes('ya transferí') ||
       text.includes('ya consigne') ||
+      text.includes('ya consigné') ||
       text.includes('ahi le envie') ||
+      text.includes('ahí le envié') ||
       text.includes('listo el pago') ||
-      text.includes('comprobante')
+      text.includes('comprobante') ||
+      text.includes('adjunto') ||
+      text.includes('ya lo mande')
     ) {
       const reply = `¡Excelente! 🙌 Por favor adjúntame por aquí la *captura de pantalla o foto del comprobante* para que nuestro sistema te entregue de inmediato el enlace de descarga con todos los libros y tus 3 regalos 🎁`;
       await waService.sendTextMessage(phone, reply);
@@ -92,8 +107,33 @@ class ConversationFlow {
       return;
     }
 
-    // Duda: "¿Es físico o digital? / ¿Cómo se recibe?"
-    if (text.includes('fisico') || text.includes('digital') || text.includes('pdf') || text.includes('libro')) {
+    // 3. Duda o aclaración: "¿Cómo así? / ¿De qué trata? / ¿De qué se trata? / ¿Qué incluye?"
+    const esDudaAclaracion = /\b(de\s+qu[eé]\s+(se\s+)?trata|c[oó]mo\s+as[ií]|no\s+entiendo|qu[eé]\s+(es|incluye)|expl[ií]came|cu[eé]ntame|m[aá]s\s+info(rmaci[oó]n)?|en\s+qu[eé]\s+consiste)\b/i.test(text) ||
+      text.includes('de que se trata') ||
+      text.includes('de qué se trata') ||
+      text.includes('como asi') ||
+      text.includes('cómo así') ||
+      text.includes('no entiendo');
+
+    if (esDudaAclaracion) {
+      if (pitchYaEnviado) {
+        const aclaracion =
+          `¡Con todo gusto te aclaro! 😊\n\n` +
+          `Es una colección digital completa con *3 Recetarios en PDF* de alta definición:\n` +
+          `🍦 *1. Helados Artesanales* (fórmulas cremosas que no se cristalizan sin máquinas costosas)\n` +
+          `🧁 *2. Postres en Vaso* (12 recetas listas para vender en vasito domo)\n` +
+          `🎄 *3. Recetario Navideño* (natillas, buñuelos, anchetas y torta negra)\n\n` +
+          `Más la plantilla de costeo en Excel para que calcules tus ganancias exactas.\n\n` +
+          `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a tu celular).\n\n` +
+          `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo?`;
+        await waService.sendTextMessage(phone, aclaracion);
+        store.agregarMensaje(phone, { from: 'bot', text: aclaracion, type: 'text' });
+        return;
+      }
+    }
+
+    // 4. Duda: "¿Es físico o digital? / ¿Cómo se recibe?"
+    if (text.includes('fisico') || text.includes('físico') || text.includes('digital') || text.includes('pdf') || text.includes('libro')) {
       const reply =
         `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
         `Los descargas directamente a tu celular, tablet o computador para verlos siempre sin necesidad de internet, o si prefieres también los puedes imprimir.\n\n` +
@@ -104,8 +144,8 @@ class ConversationFlow {
       return;
     }
 
-    // Duda: "Máquinas / experiencia / ingredientes"
-    if (text.includes('maquina') || text.includes('experiencia') || text.includes('dificil') || text.includes('ingrediente')) {
+    // 5. Duda: "Máquinas / experiencia / ingredientes"
+    if (text.includes('maquina') || text.includes('máquina') || text.includes('experiencia') || text.includes('dificil') || text.includes('difícil') || text.includes('ingrediente')) {
       const reply =
         `¡Cero complicaciones! 👩‍🍳 No necesitas ninguna máquina industrial costosa ni tener experiencia previa.\n\n` +
         `Todas las recetas están formuladas para hacer en casa con batidora o licuadora tradicional, y los ingredientes se consiguen en cualquier supermercado o tienda de barrio de Colombia.\n\n` +
@@ -115,8 +155,69 @@ class ConversationFlow {
       return;
     }
 
-    // Lead inicial / Saludo / Click de anuncio
-    return await this.sendMainPitch(phone, settings, precioCOP);
+    // 6. Lead inicial (nunca se le ha enviado el pitch)
+    if (!pitchYaEnviado) {
+      return await this.sendMainPitch(phone, settings, precioCOP);
+    }
+
+    // 7. Fallback inteligente con IA Gemini para cualquier otra consulta
+    return await this._responderConGemini(phone, rawText, settings, precioCOP);
+  }
+
+  async _responderConGemini(phone, userText, settings, precioCOP) {
+    try {
+      const key = process.env.GEMINI_API_KEY;
+      const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+      if (!key) {
+        return await this.sendPaymentDetails(phone, settings, precioCOP);
+      }
+
+      const conv = store.obtenerConversacion(phone);
+      const historial = (conv?.messages || []).slice(-6).map(m => `${m.from === 'bot' ? 'Asistente' : 'Cliente'}: ${m.text}`).join('\n');
+
+      const systemPrompt = `Eres Sofía, asesora experta de "Emprende Dulce" en Colombia.
+Tu tono es cálido, colombiano, dulce, servicial y persuasivo.
+Reglas clave:
+- Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
+- El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.
+- Si el cliente pregunta algo específico (ej: "¿cómo pago?", "¿es seguro?", "¿qué ingredientes?"), responde con empatía y claridad.
+- Cierra siempre invitándolo amablemente a adquirir el pack por Nequi o Daviplata.
+- No uses saludos repetitivos si ya estamos en medio de la conversación.
+
+Historial de la conversación:
+${historial}
+
+Cliente: ${userText}
+Respuesta de Sofía:`;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { maxOutputTokens: 200, temperature: 0.3 }
+        })
+      });
+
+      if (!res.ok) {
+        return await this.sendPaymentDetails(phone, settings, precioCOP);
+      }
+
+      const data = await res.json();
+      let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      aiText = aiText.replace(/^Sofía:\s*/i, '').trim();
+
+      if (!aiText) {
+        return await this.sendPaymentDetails(phone, settings, precioCOP);
+      }
+
+      await waService.sendTextMessage(phone, aiText);
+      store.agregarMensaje(phone, { from: 'bot', text: aiText, type: 'text' });
+    } catch (err) {
+      console.error('[FLOW GEMINI ERROR]:', err.message);
+      return await this.sendPaymentDetails(phone, settings, precioCOP);
+    }
   }
 
   async sendMainPitch(phone, settings, precioCOP) {
@@ -148,7 +249,7 @@ class ConversationFlow {
       `¡Excelente decisión! 🚀 Aquí tienes las cuentas oficiales para tu transferencia de *${precioCOP} COP*:\n\n` +
       `💚 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
       `💛 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
-      `👤 *Titular:* ${titular}\n\n` +
+      `👤 *Titular:* ${titular} _(en Nequi/Daviplata te saldrá como MAN*** TAV*** o Manuel Tavera)_\n\n` +
       `_Toca el número para copiarlo en un segundo._\n\n` +
       `Apenas hagas la transferencia, *envíame la captura de pantalla por este chat* y en segundos te entrego el enlace de acceso con todos los libros y tus 3 regalos 🎁`;
 
@@ -331,10 +432,16 @@ class ConversationFlow {
           notas: `Comprobante no concluyente por IA: ${ocrResult.reason || 'Ilegible'}`
         });
 
-        const avisoRevisar =
+        let avisoRevisar =
           `🔍 Recibí tu comprobante, pero la imagen no se ve completamente clara o los datos están borrosos.\n\n` +
           `No te preocupes: ya quedó en *revisión prioritaria* en nuestro panel y en contados minutos un asesor lo validará manualmente 🙌\n\n` +
           `_Si tienes una captura más nítida donde se lea bien el valor y la referencia, puedes enviarla por aquí._`;
+
+        if (ocrResult.titularValido === false) {
+          avisoRevisar =
+            `⚠️ En el comprobante enviado, el destinatario parece transferido a una cuenta o persona distinta a *Manuel Tavera*.\n\n` +
+            `Por favor asegúrate de transferir a la cuenta oficial indicada (*Nequi: 3058742138* a nombre de Manuel Tavera). Si crees que se trata de un error, déjanos un mensaje y un asesor humano lo revisará 🙌`;
+        }
 
         await waService.sendTextMessage(phone, avisoRevisar);
         store.agregarMensaje(phone, { from: 'bot', text: avisoRevisar, type: 'text' });

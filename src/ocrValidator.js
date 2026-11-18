@@ -57,6 +57,7 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON estricto con:
   "banco": "nequi" | "daviplata" | "bancolombia" | "bre_b" | "otro",
   "monto": number,
   "destinatario": string,
+  "titular_coincide": boolean,
   "referencia": string,
   "fecha": string,
   "exitoso": boolean
@@ -64,8 +65,10 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON estricto con:
 Reglas:
 1. "es_comprobante": true si es una captura de pantalla legítima de comprobante de transferencia bancaria, false si es una foto no relacionada, meme, selfie o captura irrelevante.
 2. "monto": extrae el número entero transferido (ej: 10000 si dice $10.000).
-3. "referencia": extrae el código alfanumérico o número de comprobante/aprobación (ej: M1234567, 839201).
-4. "exitoso": true si la transferencia fue exitosa/enviada/aprobada.`
+3. "destinatario": extrae el nombre o número que aparece como destino de la transferencia. En Colombia comúnmente aparece enmascarado con asteriscos (ej: "MAN*** TAV***", "M*** T***", "MANUEL TAVERA", "M. TAVERA" o el número 3058742138 / 3105652478).
+4. "titular_coincide": true si el destinatario mostrado corresponde al titular esperado ("Manuel Tavera" o variantes enmascaradas como MAN***, TAV***, Manuel, Tavera, M*** T*** o los teléfonos 3058742138 / 3105652478). Si el comprobante claramente muestra que fue transferido a otra persona o empresa completamente distinta, pon false.
+5. "referencia": extrae el código alfanumérico o número de comprobante/aprobación (ej: M1234567, 839201).
+6. "exitoso": true si la transferencia fue exitosa/enviada/aprobada.`
                 },
                 {
                   inline_data: {
@@ -95,7 +98,14 @@ Reglas:
 
       const minAmount = expected.minAmount || 10000;
       const amountOk = (Number(parsed.monto) || 0) >= minAmount;
-      const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false);
+      const titularOk = parsed.titular_coincide !== false;
+      const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false) && titularOk;
+
+      let reason = "Comprobante verificado con éxito por Gemini";
+      if (!parsed.es_comprobante) reason = "La imagen no corresponde a un comprobante bancario";
+      else if (!amountOk) reason = `Monto ($${parsed.monto}) inferior al valor de la oferta ($${minAmount})`;
+      else if (parsed.exitoso === false) reason = "La transacción figura como rechazada o fallida";
+      else if (!titularOk) reason = `El destinatario (${parsed.destinatario || 'desconocido'}) no coincide con el titular de la cuenta (Manuel Tavera)`;
 
       return {
         isValid,
@@ -104,7 +114,8 @@ Reglas:
         recipient: parsed.destinatario || "",
         reference: parsed.referencia || "",
         date: parsed.fecha || "",
-        reason: isValid ? "Comprobante verificado con éxito por Gemini" : "Monto inferior o imagen no bancaria"
+        titularValido: titularOk,
+        reason
       };
     } catch (error) {
       console.error("[OCR ERROR Gemini]:", error.message);

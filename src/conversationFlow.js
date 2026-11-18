@@ -93,15 +93,16 @@ class ConversationFlow {
       return;
     }
 
-    // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS con límites de palabra (evita trampas como 'hola quiero')
+    // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS (incluye botones automáticos de anuncios Meta)
     const patronesCompra = [
       /\b(nequi|daviplata|bancolombia|transfiya|bre-?b)\b/i,
-      /\b(como|donde|dónde)\s+(pago|compro|consigno|transfiero|cancelo)\b/i,
+      /\b(como|c[oó]mo|donde|d[oó]nde)\s+(hago\s+(para\s+)?|puedo\s+|se\s+puede\s+|podr[ií]a\s+)?(pag|compr|consign|transfer|cancel|adquir)/i,
       /\b(datos|medios)\s+(de\s+)?pago\b/i,
-      /\b(quiero\s+comprar|lo\s+quiero|la\s+quiero|lo\s+deseo)\b/i,
+      /\b(quiero|deseo)\s+(compr|adquir|el\s+pack|los\s+libros|la\s+gu[ií]a)/i,
+      /\b(lo|la)\s+(quiero|deseo)\b/i,
       /\b(me\s+interesa|estoy\s+interesad[oa]|estaba\s+interesad[oa]|interesad[oa]|interesa)\b/i,
       /\b(si|sí)\s+(me\s+interesa|quiero)\b/i,
-      /\b(transferir|consignar|comprar|apartar|cupo)\b/i,
+      /\b(transferir|consignar|comprar|comprarlo|adquirir|adquirirlo|apartar|cupo)\b/i,
       /\b(a\s+d[oó]nde|a\s+qu[eé]\s+n[uú]mero)\b/i,
       /\b(p[aá]same|dame|deme)\s+(la\s+cuenta|el\s+n[uú]mero|el\s+nequi|el\s+daviplata)\b/i,
       /\b(n[uú]mero\s+de\s+(nequi|cuenta|daviplata))\b/i,

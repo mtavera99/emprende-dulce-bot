@@ -296,6 +296,22 @@ const store = {
     return ord;
   },
 
+  descartarPedido(id, motivo = 'Descartado manualmente por operador (sin notificar)') {
+    const ord = store.actualizarPedido(id, {
+      status: 'DESCARTADO',
+      motivoDescarte: motivo,
+      discardedAt: Date.now()
+    });
+    if (ord) {
+      // Liberar al lead de pedido pendiente activo si corresponde
+      const lead = store.getLead(ord.phone);
+      if (lead && lead.activeOrderId === id) {
+        store.saveLead(ord.phone, { activeOrderId: null });
+      }
+    }
+    return ord;
+  },
+
   pedidosPendientes() {
     return Object.values(orders)
       .filter(o => o.status === 'PENDIENTE')

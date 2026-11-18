@@ -380,6 +380,19 @@ app.post('/api/pedidos/:id/rechazar', authPanel, async (req, res) => {
   res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Pedido+${id}+marcado+como+rechazado#pendientes`);
 });
 
+// Descarte silencioso de un pedido pendiente (quitar de la lista sin enviar mensaje por WhatsApp)
+app.post('/api/pedidos/:id/descartar', authPanel, async (req, res) => {
+  const id = req.params.id;
+  const pedido = store.obtenerPedido(id);
+
+  if (pedido) {
+    store.descartarPedido(id, 'Descartado manualmente desde el panel (sin notificar)');
+    console.log(`[PANEL] Pedido ${id} descartado silenciosamente (sin mensaje al cliente).`);
+  }
+
+  res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Pedido+${id}+descartado+de+la+lista+(sin+notificar)#pendientes`);
+});
+
 // Responder directamente a un cliente desde el panel
 app.post('/api/chats/:id/responder', authPanel, async (req, res) => {
   const phone = req.params.id;

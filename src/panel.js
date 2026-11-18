@@ -166,7 +166,9 @@ function render(aviso = '') {
     .card-list { display: flex; flex-direction: column; gap: 12px; }
 
     /* Pending Verification Cards */
-    .card-pago { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; grid-template-columns: 120px 1fr auto; gap: 16px; align-items: center; }
+    .card-pago { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; grid-template-columns: 120px 1fr auto; gap: 16px; align-items: center; position: relative; }
+    .btn-card-close { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 6px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease; }
+    .btn-card-close:hover { color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12); }
     .thumb-wrap { width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #000; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
     .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
     .thumb-wrap .no-img { font-size: 0.75rem; color: var(--muted); text-align: center; padding: 8px; }
@@ -174,7 +176,7 @@ function render(aviso = '') {
     .pago-info h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
     .ocr-box { margin-top: 8px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--blue); padding: 8px 12px; border-radius: 4px; font-size: 0.82rem; }
     .ocr-box b { color: var(--blue); }
-    .pago-actions { display: flex; flex-direction: column; gap: 8px; min-width: 160px; }
+    .pago-actions { display: flex; flex-direction: column; gap: 8px; min-width: 175px; }
 
     /* Orders Table */
     .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
@@ -611,6 +613,13 @@ function render(aviso = '') {
         <div class="card-list">
           ${pendientes.map(p => `
             <div class="card-pago">
+              <!-- Botón rápido X en la esquina superior para descartar sin enviar mensaje al cliente -->
+              <form method="POST" action="/api/pedidos/${esc(p.id)}/descartar?token=${esc(tk)}" onsubmit="return confirm('¿Quitar este pedido de la lista de pendientes? NO se enviará ningún mensaje al cliente.');" style="position: absolute; top: 12px; right: 12px; z-index: 5; margin: 0;">
+                <button type="submit" title="Quitar de pendientes (sin enviar mensaje al cliente)" class="btn-card-close">
+                  ✕ <span style="font-size: 0.72rem; font-weight: 600;">Descartar</span>
+                </button>
+              </form>
+
               <div class="thumb-wrap" onclick="abrirZoom('${esc(p.comprobanteUrl || '')}')">
                 ${p.comprobanteUrl ? `
                   <img src="${esc(p.comprobanteUrl)}" alt="Comprobante" loading="lazy">
@@ -650,9 +659,14 @@ function render(aviso = '') {
                     ✅ Aprobar y Entregar
                   </button>
                 </form>
-                <form method="POST" action="/api/pedidos/${esc(p.id)}/rechazar?token=${esc(tk)}" onsubmit="return confirm('¿Rechazar este pago? Se avisará al cliente.');">
-                  <button type="submit" class="btn btn-ghost" style="width: 100%; color: var(--red); border-color: rgba(239,68,68,0.3);">
-                    ❌ Rechazar
+                <form method="POST" action="/api/pedidos/${esc(p.id)}/descartar?token=${esc(tk)}" onsubmit="return confirm('¿Quitar este pedido de la lista? NO se enviará ningún mensaje al cliente.');">
+                  <button type="submit" class="btn btn-ghost" style="width: 100%; color: var(--muted); border-color: rgba(148,163,184,0.3);">
+                    ✕ Descartar (Sin Notificar)
+                  </button>
+                </form>
+                <form method="POST" action="/api/pedidos/${esc(p.id)}/rechazar?token=${esc(tk)}" onsubmit="return confirm('¿Rechazar este pago? Se enviará un mensaje por WhatsApp al cliente diciendo que no se validó la transferencia.');">
+                  <button type="submit" class="btn btn-ghost" style="width: 100%; color: var(--red); border-color: rgba(239,68,68,0.3); font-size: 0.78rem;">
+                    ⚠️ Rechazar y Avisar
                   </button>
                 </form>
                 <a href="/panel/chat?id=${esc(p.phone)}&token=${esc(tk)}" class="btn btn-ghost" style="width: 100%; text-align: center; justify-content: center; font-size: 0.78rem;">

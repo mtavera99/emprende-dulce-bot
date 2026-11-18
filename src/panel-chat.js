@@ -155,9 +155,12 @@ function renderChat(phone, aviso = '') {
       <div>
         ${pedido.status === 'PENDIENTE' ? `
           <form method="POST" action="/api/pedidos/${esc(pedido.id)}/aprobar?token=${esc(tk)}" style="display: inline;">
-            <button type="submit" class="btn btn-green" style="padding: 3px 8px; font-size: 0.75rem;">✅ Aprobar y Entregar</button>
+            <button type="submit" class="btn btn-green" style="padding: 3px 8px; font-size: 0.75rem;">✅ Aprobar</button>
           </form>
-        ` : `<span style="color: var(--green); font-weight: 600;">✓ Entregado</span>`}
+          <form method="POST" action="/api/pedidos/${esc(pedido.id)}/descartar?token=${esc(tk)}" style="display: inline;" onsubmit="return confirm('¿Quitar este pedido de pendientes? NO se enviará mensaje al cliente.');">
+            <button type="submit" class="btn btn-ghost" style="padding: 3px 8px; font-size: 0.75rem; color: var(--muted); border-color: rgba(148,163,184,0.3);">✕ Descartar</button>
+          </form>
+        ` : (pedido.status === 'VERIFICADO' || pedido.status === 'ENTREGADO' ? `<span style="color: var(--green); font-weight: 600;">✓ Entregado</span>` : `<span style="color: var(--muted); font-weight: 600;">${esc(pedido.status)}</span>`)}
       </div>
     </div>
   ` : ''}

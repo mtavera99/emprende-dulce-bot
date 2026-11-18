@@ -289,12 +289,8 @@ Respuesta de Sofía:`;
     await waService.sendTextMessage(phone, reply);
     store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
     store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS' });
-
-    // Crear orden pendiente en el store
-    store.crearPedido(phone, {
-      amount: settings.precioOferta || this.defaultPrice,
-      paymentMethod: 'NEQUI'
-    });
+    // NOTA: No se crea pedido en status PENDIENTE aquí. El pedido solo se crea
+    // cuando el cliente realmente envía la captura/comprobante en handleImageMessage.
   }
 
   async handleImageMessage(phone, imageObj) {

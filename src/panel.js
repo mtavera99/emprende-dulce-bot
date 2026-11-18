@@ -45,6 +45,16 @@ function fechaHora(ms) {
   });
 }
 
+function horaCorta(ms) {
+  if (!ms) return '';
+  return new Date(ms).toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 function render(aviso = '') {
   const tk = panelToken();
   const numBot = numeroDelBot() || 'Línea de WhatsApp no configurada (poné BOT_WHATSAPP en Render)';
@@ -105,6 +115,7 @@ function render(aviso = '') {
       --purple: #a855f7;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    html, body { overflow-x: hidden; max-width: 100vw; width: 100%; }
     body { background: var(--bg); color: var(--text); padding-bottom: 80px; }
     header { background: #0f1622; border-bottom: 1px solid var(--border); padding: 14px 20px; position: sticky; top: 0; z-index: 50; }
     .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -173,12 +184,84 @@ function render(aviso = '') {
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--card-hover); }
 
-    /* Chat Rows */
-    .chat-row { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: inherit; transition: 0.15s ease; }
+    /* Chat Rows - Mobile First Ergonomic (Zero scroll horizontal) */
+    .chat-row {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-decoration: none;
+      color: inherit;
+      transition: 0.15s ease;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
     .chat-row:hover { background: var(--card-hover); border-color: #334155; }
-    .chat-user { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .chat-preview { font-size: 0.82rem; color: var(--muted); margin-top: 4px; max-width: 600px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chat-meta { text-align: right; font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+    .chat-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+    }
+    .chat-user-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+    .chat-user-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .chat-time-tag {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-align: right;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .chat-row-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-width: 0;
+    }
+    .chat-preview {
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      flex: 1;
+    }
+    .chat-msg-badge {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
 
     /* Badges */
     .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
@@ -761,10 +844,10 @@ function render(aviso = '') {
 
     <!-- SECCIÓN: CHATS -->
     <div id="sec-chats" class="tab-sec" style="display: none;">
-      <div class="section-title">
+      <div class="section-title" style="flex-wrap: wrap; gap: 10px;">
         <span>💬 Conversaciones de Clientes (${chatsLista.length})</span>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" id="chatSearch" placeholder="Buscar por teléfono..." oninput="filtrarChats()" style="background: var(--card); border: 1px solid var(--border); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;">
+        <div style="width: 100%; max-width: 360px;">
+          <input type="text" id="chatSearch" placeholder="🔍 Buscar por teléfono o nombre..." oninput="filtrarChats()" style="width: 100%; background: var(--card); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 16px; box-sizing: border-box;">
         </div>
       </div>
 
@@ -1069,16 +1152,19 @@ function renderFilaChat({ tel, c, msgs, cuando }, tk) {
 
   return `
     <a href="/panel/chat?id=${esc(tel)}&token=${esc(tk)}" class="chat-row">
-      <div>
-        <div class="chat-user">
-          ${esc(nombre)}
-          ${esPausado ? '<span class="badge badge-amber">⏸️ Bot Silenciado</span>' : '<span class="badge badge-green">🟢 Bot Activo</span>'}
+      <div class="chat-row-top">
+        <div class="chat-user-wrap">
+          <span class="chat-user-name">${esc(nombre)}</span>
+          ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="badge badge-green" style="font-size: 0.68rem; padding: 1px 6px;">🟢 Activo</span>'}
         </div>
-        <div class="chat-preview">${esc(texto)}</div>
+        <div class="chat-time-tag">
+          <span style="color: #cbd5e1;">${horaCorta(cuando)}</span>
+          <span style="font-size: 0.72rem; opacity: 0.75;"> · ${hace(cuando)}</span>
+        </div>
       </div>
-      <div class="chat-meta">
-        <div>${hace(cuando)}</div>
-        <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">${msgs.length} mensajes</div>
+      <div class="chat-row-bottom">
+        <div class="chat-preview">${esc(texto)}</div>
+        <span class="chat-msg-badge">${msgs.length} msgs</span>
       </div>
     </a>
   `;

@@ -61,7 +61,7 @@ let settings = loadJSON(SETTINGS_FILE, {
   nequiTitular: process.env.NEQUI_TITULAR || 'Manuel Tavera',
   daviplataNumero: process.env.DAVIPLATA_NUMERO || '3058742138',
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
-  driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/emprende-dulce-pack-completo',
+  driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing',
   botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478',
   modoAutoEntregaLeona: true
 });

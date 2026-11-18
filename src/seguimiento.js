@@ -26,6 +26,15 @@ async function ejecutarSeguimientos() {
         texto =
           `¡Hola de nuevo! ✨ Te escribo para avisarte que los cupos promocionales del Pack *Emprende Dulce 2026* por $10.000 COP están por cerrarse para volver a su precio regular.\n\n` +
           `Si todavía quieres asegurar tus 3 Guías Maestras (Helados Artesanales, Postres en Vaso y Recetario Navideño) con acceso permanente, solo avísame por aquí para reactivar tu cupo 🙌`;
+      } else if (paso === 3) {
+        const templateName = process.env.META_TEMPLATE_REMARKETING;
+        if (templateName) {
+          await waService.sendTemplate(phone, templateName);
+          store.agregarMensaje(phone, { from: 'bot', text: `[PLANTILLA HSM REMARKETING: ${templateName}]`, type: 'text' });
+          store.registrarSeguimientoEnviado(phone, paso);
+          console.log(`[SEGUIMIENTO] Plantilla HSM ${templateName} enviada con éxito a +${phone}`);
+          continue;
+        }
       }
 
       if (texto) {

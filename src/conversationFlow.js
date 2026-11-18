@@ -63,6 +63,25 @@ class ConversationFlow {
     const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
     const pitchYaEnviado = (lead && lead.step !== 'INICIO') || botMessages.length > 0;
 
+    // Detección de Objeción de Desconfianza / Seguridad / Estafa / Garantía / "Mándalo primero"
+    const patronesDesconfianza = /\b(estafa|robo|roban|engañ[ao]|segur[oa]|confi(anza|able)|garant[ií]a|miedo|desconf[ií]o|desconfianza|c[oó]mo\s+s[eé]|por\s*qu[eé]\s+tan\s+barato|sospechos[oa]|primero\s+(me\s+)?(mandas|env[ií]as)|env[ií]amel[oa]\s+primero|pago\s+despu[eé]s)\b/i;
+    const esDudaSeguridad = patronesDesconfianza.test(text);
+
+    if (esDudaSeguridad) {
+      const titular = settings.nequiTitular || 'Manuel Tavera';
+      const num = settings.nequiNumero || '3058742138';
+      const respuestaConfianza =
+        `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
+        `Para darte total tranquilidad y seguridad:\n` +
+        `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
+        `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo los 3 Libros Completos en PDF + la Plantilla Excel de Costeo + el acceso permanente a Google Drive.\n` +
+        `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de imprenta ni envíos físicos. Queremos que cualquier persona en Colombia pueda empezar su emprendimiento dulce desde casa sin una inversión gigante.\n\n` +
+        `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🍰`;
+      await waService.sendTextMessage(phone, respuestaConfianza);
+      store.agregarMensaje(phone, { from: 'bot', text: respuestaConfianza, type: 'text' });
+      return;
+    }
+
     // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS con límites de palabra (evita trampas como 'hola quiero')
     const patronesCompra = [
       /\b(nequi|daviplata|bancolombia|transfiya|bre-?b)\b/i,
@@ -177,11 +196,12 @@ class ConversationFlow {
       const historial = (conv?.messages || []).slice(-6).map(m => `${m.from === 'bot' ? 'Asistente' : 'Cliente'}: ${m.text}`).join('\n');
 
       const systemPrompt = `Eres Sofía, asesora experta de "Emprende Dulce" en Colombia.
-Tu tono es cálido, colombiano, dulce, servicial y persuasivo.
+Tu tono es cálido, colombiano, dulce, servicial, transparente y persuasivo.
 Reglas clave:
 - Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
 - El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.
-- Si el cliente pregunta algo específico (ej: "¿cómo pago?", "¿es seguro?", "¿qué ingredientes?"), responde con empatía y claridad.
+- Si el cliente expresa desconfianza, miedo o pregunta si es seguro: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital sin intermediarios.
+- Si piden que se les envíe primero antes de pagar: diles amablemente que el sistema automático libera el paquete completo al registrar el comprobante con total garantía.
 - Si el cliente muestra interés o acuerdo, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
 - Cierra siempre invitándolo amablemente a adquirir el pack por Nequi o Daviplata.
 - No uses saludos repetitivos si ya estamos en medio de la conversación.

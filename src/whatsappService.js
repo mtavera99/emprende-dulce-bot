@@ -48,6 +48,47 @@ class WhatsAppService {
     }
   }
 
+  async sendTemplate(to, templateName, languageCode = 'es', components = []) {
+    if (!this.getConfigured()) {
+      console.warn(`[WA DEV] Simulación envío template ${templateName} a ${to}`);
+      return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
+    }
+
+    try {
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: String(to).replace(/\D/g, ''),
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: languageCode }
+        }
+      };
+      if (components && components.length > 0) {
+        payload.template.components = components;
+      }
+
+      const res = await fetch(this.getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Meta Template HTTP ${res.status}: ${errText.slice(0, 250)}`);
+      }
+      return await res.json();
+    } catch (error) {
+      console.error(`[WA ERROR] No se pudo enviar template ${templateName} a ${to}:`, error.message);
+      throw error;
+    }
+  }
+
   async sendImage(to, imageUrl, caption = '') {
     if (!this.getConfigured()) {
       console.warn(`[WA DEV] Simulación envío imagen a ${to}: ${imageUrl}`);

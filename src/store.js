@@ -324,13 +324,17 @@ const store = {
       const tiempoDesdeCliente = ahora - conv.ultimoDelCliente;
       const numEnviados = lead.seguimientosEnviados || 0;
 
-      // Toque 1: entre 2h y 20h
-      if (numEnviados === 0 && tiempoDesdeCliente >= 2 * 60 * 60 * 1000 && tiempoDesdeCliente < 20 * 60 * 60 * 1000) {
+      // Toque 1: entre 2h y 16h (recordatorio suave dentro de la ventana activa)
+      if (numEnviados === 0 && tiempoDesdeCliente >= 2 * 60 * 60 * 1000 && tiempoDesdeCliente < 16 * 60 * 60 * 1000) {
         candidatos.push({ phone, paso: 1, lead, conv });
       }
-      // Toque 2: entre 24h y 48h
-      else if (numEnviados === 1 && tiempoDesdeCliente >= 24 * 60 * 60 * 1000 && tiempoDesdeCliente < 48 * 60 * 60 * 1000) {
+      // Toque 2: entre 18h y 23.5h (último llamado dentro de la ventana de 24h para entrega garantizada sin costo)
+      else if (numEnviados === 1 && tiempoDesdeCliente >= 18 * 60 * 60 * 1000 && tiempoDesdeCliente < 23.5 * 60 * 60 * 1000) {
         candidatos.push({ phone, paso: 2, lead, conv });
+      }
+      // Toque 3: después de 24h (solo si hay plantilla HSM configurada en Meta)
+      else if (numEnviados === 2 && tiempoDesdeCliente >= 24 * 60 * 60 * 1000 && tiempoDesdeCliente < 72 * 60 * 60 * 1000 && process.env.META_TEMPLATE_REMARKETING) {
+        candidatos.push({ phone, paso: 3, lead, conv });
       }
     }
     return candidatos;

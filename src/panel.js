@@ -69,7 +69,7 @@ function render(aviso = '') {
 
   // Lista de chats ordenada por último mensaje
   const chatsLista = Object.entries(convs)
-    .filter(([tel]) => !tel.startsWith('prueba-'))
+    .filter(([tel]) => tel && tel !== 'undefined' && tel !== 'null' && !tel.startsWith('prueba-'))
     .map(([tel, c]) => {
       const msgs = c.messages || [];
       const ultimo = msgs.length ? msgs[msgs.length - 1] : null;

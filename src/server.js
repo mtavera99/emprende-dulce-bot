@@ -296,6 +296,7 @@ app.post('/webhook', async (req, res) => {
 
       const message = messages[0];
       const from = message.from;
+      if (!from || from === 'undefined') return;
 
       if (message.id) {
         waService.markAsRead(message.id).catch(() => {});

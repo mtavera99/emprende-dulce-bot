@@ -60,6 +60,38 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/privacidad', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad · Emprende Dulce</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#0b0f19;color:#e8edf7;line-height:1.6;margin:0;padding:0}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 22px}
+  h1{color:#eab308;font-size:26px}
+  h2{color:#4f9dff;font-size:18px;margin-top:28px}
+  a{color:#4f9dff}
+  .muted{color:#9aa7c2;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Política de Privacidad — Emprende Dulce 🍰</h1>
+  <p class="muted">Última actualización: 17 de noviembre de 2026</p>
+  <p>En <strong>Emprende Dulce</strong> respetamos tu privacidad. Esta política explica cómo recopilamos, usamos y protegemos la información suministrada al comunicarte con nuestra línea oficial de atención en WhatsApp.</p>
+  <h2>1. Información recopilada</h2>
+  <p>Recopilamos tu número de teléfono, nombre de contacto y comprobantes de pago enviados voluntariamente para la entrega digital de los recetarios.</p>
+  <h2>2. Uso de la información</h2>
+  <p>Tus datos son utilizados exclusivamente para la entrega del material educativo digital adquirido y el soporte postventa.</p>
+  <h2>3. Contacto</h2>
+  <p>Para cualquier duda o solicitud de eliminación de datos, contáctanos en soporte@emprendedulce.com o directamente en nuestra línea oficial de WhatsApp (+57 310 5652478).</p>
+</div>
+</body>
+</html>`);
+});
+
 // ----------------------------------------------------------------------------
 // 2. Webhook de Meta: Handshake inicial (GET)
 // ----------------------------------------------------------------------------

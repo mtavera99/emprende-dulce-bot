@@ -229,7 +229,7 @@ Respuesta de Sofía:`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { maxOutputTokens: 200, temperature: 0.3 }
+          generationConfig: { maxOutputTokens: 1000, temperature: 0.3 }
         })
       });
 

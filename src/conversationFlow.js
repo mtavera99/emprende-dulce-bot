@@ -341,15 +341,17 @@ Respuesta de Sofía:`;
         const confirmMsg =
           `¡Pago verificado con éxito en nuestra cuenta! 🎉🍰\n\n` +
           `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-          `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
+          `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
+          `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
+          `🔗 *O en Google Drive:*\n` +
           `${settings.driveLink}\n\n` +
           `📁 *Tu pack incluye:*\n` +
           `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
           `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
           `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
-          `✓ Bono 1: Plantilla de Costeo en Excel\n` +
-          `✓ Bono 2: Guía de Conservación y Empaques\n` +
-          `✓ Bono 3: Diseños de Etiquetas en Canva\n\n` +
+          `✓ Bono 1: Plantilla de Costeo en Excel y Web\n` +
+          `✓ Bono 2: Directorio de Proveedores en Colombia\n` +
+          `✓ Bono 3: Guía de Ventas por WhatsApp\n\n` +
           `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
 
         await waService.sendTextMessage(phone, confirmMsg);
@@ -406,15 +408,17 @@ Respuesta de Sofía:`;
         const confirmMsg =
           `¡Comprobante verificado con éxito! 🎉🍰\n\n` +
           `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-          `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
+          `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
+          `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
+          `🔗 *O en Google Drive:*\n` +
           `${settings.driveLink}\n\n` +
           `📁 *Tu pack incluye:*\n` +
           `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
           `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
           `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
-          `✓ Bono 1: Plantilla de Costeo en Excel\n` +
-          `✓ Bono 2: Guía de Conservación y Empaques\n` +
-          `✓ Bono 3: Diseños de Etiquetas en Canva\n\n` +
+          `✓ Bono 1: Plantilla de Costeo en Excel y Web\n` +
+          `✓ Bono 2: Directorio de Proveedores en Colombia\n` +
+          `✓ Bono 3: Guía de Ventas por WhatsApp\n\n` +
           `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
 
         await waService.sendTextMessage(phone, confirmMsg);

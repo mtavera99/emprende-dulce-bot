@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Costos y Rentabilidad - Emprende Dulce</title>
+  <style>
+    :root {
+      --primary: #f43f5e;
+      --primary-dark: #e11d48;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --accent: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 760px; background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid var(--border); }
+    h1 { font-size: 1.6rem; color: var(--primary); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+    .section-title { font-size: 1.1rem; margin-top: 20px; margin-bottom: 12px; color: #38bdf8; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    label { font-size: 0.85rem; color: var(--text-muted); }
+    input, select { background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px; font-size: 0.95rem; }
+    input:focus { border-color: var(--primary); outline: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+    .btn-add { background: #334155; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+    .btn-add:hover { background: #475569; }
+    .btn-del { color: #f87171; background: transparent; border: none; cursor: pointer; font-size: 1rem; }
+    .results-box { background: #090d16; border: 1px solid #10b981; border-radius: 12px; padding: 20px; margin-top: 24px; }
+    .result-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 1rem; }
+    .result-row.highlight { font-size: 1.25rem; font-weight: bold; color: #10b981; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 8px; }
+    .badge { background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧁 Calculadora de Costos & Rentabilidad</h1>
+    <p class="subtitle">Herramienta oficial de Emprende Dulce para calcular el costo exacto por porción y tu margen de ganancia.</p>
+
+    <div class="grid">
+      <div class="form-group">
+        <label>Nombre de la Receta / Postre:</label>
+        <input type="text" id="recipeName" value="Postre 3 Leches 7 oz">
+      </div>
+      <div class="form-group">
+        <label>Porciones / Vasos que rinde esta tanda:</label>
+        <input type="number" id="yieldCount" value="12" min="1" oninput="calculate()">
+      </div>
+    </div>
+
+    <div class="section-title">1. Ingredientes de la Receta</div>
+    <table id="ingredientsTable">
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th>Costo Paquete ($ COP)</th>
+          <th>Cantidad Total</th>
+          <th>Usado en Receta</th>
+          <th>Costo Real</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="ingredientsBody">
+        <tr>
+          <td><input type="text" value="Crema de Leche" style="width:100%"></td>
+          <td><input type="number" value="12000" oninput="calculate()" style="width:100px"></td>
+          <td><input type="number" value="1000" oninput="calculate()" style="width:70px"> g</td>
+          <td><input type="number" value="500" oninput="calculate()" style="width:70px"> g</td>
+          <td class="row-cost">$6.000</td>
+          <td><button class="btn-del" onclick="deleteRow(this)">✕</button></td>
+        </tr>
+        <tr>
+          <td><input type="text" value="Leche Condensada" style="width:100%"></td>
+          <td><input type="number" value="6500" oninput="calculate()" style="width:100px"></td>
+          <td><input type="number" value="395" oninput="calculate()" style="width:70px"> g</td>
+          <td><input type="number" value="395" oninput="calculate()" style="width:70px"> g</td>
+          <td class="row-cost">$6.500</td>
+          <td><button class="btn-del" onclick="deleteRow(this)">✕</button></td>
+        </tr>
+        <tr>
+          <td><input type="text" value="Huevos + Harina (Bizcocho)" style="width:100%"></td>
+          <td><input type="number" value="4000" oninput="calculate()" style="width:100px"></td>
+          <td><input type="number" value="1" oninput="calculate()" style="width:70px"> un</td>
+          <td><input type="number" value="1" oninput="calculate()" style="width:70px"> un</td>
+          <td class="row-cost">$4.000</td>
+          <td><button class="btn-del" onclick="deleteRow(this)">✕</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <button class="btn-add" onclick="addRow()">+ Agregar Ingrediente</button>
+
+    <div class="section-title">2. Empaque y Presentación (Por Unidad)</div>
+    <div class="grid">
+      <div class="form-group">
+        <label>Vaso + Tapa Domo ($ COP):</label>
+        <input type="number" id="packagingCost" value="350" oninput="calculate()">
+      </div>
+      <div class="form-group">
+        <label>Cuchara + Servilleta + Sticker ($ COP):</label>
+        <input type="number" id="extraCost" value="150" oninput="calculate()">
+      </div>
+    </div>
+
+    <div class="section-title">3. Margen de Ganancia Deseado</div>
+    <div class="grid">
+      <div class="form-group">
+        <label>Margen de Ganancia Objetivo (%):</label>
+        <select id="targetMargin" onchange="calculate()">
+          <option value="0.50">50% (Competitivo)</option>
+          <option value="0.60">60% (Recomendado Comercio)</option>
+          <option value="0.70" selected>70% (Excelente Rentabilidad)</option>
+          <option value="0.80">80% (Gourmet / Eventos)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="results-box">
+      <div class="result-row">
+        <span>Costo Total de la Preparación (Materia Prima):</span>
+        <strong id="totalBatchCost">$16.500 COP</strong>
+      </div>
+      <div class="result-row">
+        <span>Costo de ingredientes por vaso:</span>
+        <strong id="costPerUnitIngredients">$1.375 COP</strong>
+      </div>
+      <div class="result-row">
+        <span>Empaque por vaso (Vaso, Tapa, Sticker, Cuchara):</span>
+        <strong id="costPerUnitPackaging">$500 COP</strong>
+      </div>
+      <div class="result-row" style="border-top: 1px solid var(--border); padding-top: 8px;">
+        <span>COSTO TOTAL POR VASO (Ingredientes + Empaque):</span>
+        <strong id="totalUnitCost" style="color:#38bdf8;">$1.875 COP</strong>
+      </div>
+      <div class="result-row highlight">
+        <span>PRECIO SUGERIDO DE VENTA AL PÚBLICO:</span>
+        <span id="suggestedPrice">$6.500 COP</span>
+      </div>
+      <div class="result-row">
+        <span>Ganancia Neta Limpia por Vaso:</span>
+        <strong id="netProfitPerCup" style="color:#10b981;">+$4.625 COP <span class="badge">71% margen</span></strong>
+      </div>
+      <div class="result-row">
+        <span>Ganancia Neta vendiendo 100 vasos a la semana:</span>
+        <strong id="weeklyProfit" style="color:#f59e0b;">$462.500 COP / semana ($1.850.000 COP/mes)</strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function calculate() {
+      const rows = document.querySelectorAll("#ingredientsBody tr");
+      let batchCost = 0;
+      rows.forEach(r => {
+        const costInput = r.querySelectorAll("input")[1];
+        const totalQty = r.querySelectorAll("input")[2];
+        const usedQty = r.querySelectorAll("input")[3];
+        const costVal = parseFloat(costInput.value) || 0;
+        const totalVal = parseFloat(totalQty.value) || 1;
+        const usedVal = parseFloat(usedQty.value) || 0;
+        const itemCost = (costVal / totalVal) * usedVal;
+        r.querySelector(".row-cost").innerText = "$" + Math.round(itemCost).toLocaleString("es-CO");
+        batchCost += itemCost;
+      });
+
+      const yieldCount = Math.max(1, parseFloat(document.getElementById("yieldCount").value) || 1);
+      const pkgCost = parseFloat(document.getElementById("packagingCost").value) || 0;
+      const extraCost = parseFloat(document.getElementById("extraCost").value) || 0;
+      const margin = parseFloat(document.getElementById("targetMargin").value) || 0.70;
+
+      const costPerUnitIng = batchCost / yieldCount;
+      const totalUnitCost = costPerUnitIng + pkgCost + extraCost;
+      const rawPrice = totalUnitCost / (1 - margin);
+      // Redondear a cientos para precio comercial colombiano (ej: $6.300 -> $6.500)
+      const suggestedPrice = Math.ceil(rawPrice / 500) * 500;
+      const netProfit = suggestedPrice - totalUnitCost;
+      const profitMarginPct = Math.round((netProfit / suggestedPrice) * 100);
+
+      document.getElementById("totalBatchCost").innerText = "$" + Math.round(batchCost).toLocaleString("es-CO") + " COP";
+      document.getElementById("costPerUnitIngredients").innerText = "$" + Math.round(costPerUnitIng).toLocaleString("es-CO") + " COP";
+      document.getElementById("costPerUnitPackaging").innerText = "$" + Math.round(pkgCost + extraCost).toLocaleString("es-CO") + " COP";
+      document.getElementById("totalUnitCost").innerText = "$" + Math.round(totalUnitCost).toLocaleString("es-CO") + " COP";
+      document.getElementById("suggestedPrice").innerText = "$" + Math.round(suggestedPrice).toLocaleString("es-CO") + " COP";
+      document.getElementById("netProfitPerCup").innerHTML = "+$" + Math.round(netProfit).toLocaleString("es-CO") + ` COP <span class="badge">${profitMarginPct}% margen</span>`;
+      document.getElementById("weeklyProfit").innerText = "$" + Math.round(netProfit * 100).toLocaleString("es-CO") + " COP / semana ($" + Math.round(netProfit * 400).toLocaleString("es-CO") + " COP/mes)";
+    }
+
+    function addRow() {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="text" value="Nuevo Ingrediente" style="width:100%"></td>
+        <td><input type="number" value="5000" oninput="calculate()" style="width:100px"></td>
+        <td><input type="number" value="500" oninput="calculate()" style="width:70px"> g</td>
+        <td><input type="number" value="100" oninput="calculate()" style="width:70px"> g</td>
+        <td class="row-cost">$1.000</td>
+        <td><button class="btn-del" onclick="deleteRow(this)">✕</button></td>
+      `;
+      document.getElementById("ingredientsBody").appendChild(tr);
+      calculate();
+    }
+
+    function deleteRow(btn) {
+      btn.closest("tr").remove();
+      calculate();
+    }
+
+    window.onload = calculate;
+  </script>
+</body>
+</html>

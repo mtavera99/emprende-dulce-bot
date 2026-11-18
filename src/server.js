@@ -90,6 +90,153 @@ app.get('/privacidad', (req, res) => {
 </div>
 </body>
 </html>`);
+// Servir archivos descargables
+app.use('/descargas', express.static(path.join(__dirname, '../public/descargas')));
+
+// Hub de descarga móvil para compradores
+app.get(['/descargar', '/acceso'], (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>🍰 Emprende Dulce · Descarga de Tu Pack Completo</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151c28;
+      --border: #222f44;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #f43f5e;
+      --green: #10b981;
+      --blue: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px 16px 60px; display: flex; justify-content: center; }
+    .wrap { width: 100%; max-width: 640px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .badge { display: inline-block; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; border: 1px solid rgba(16, 185, 129, 0.3); }
+    h1 { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    p.sub { color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+    
+    .zip-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid var(--primary); border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.15); }
+    .zip-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: #fff; font-weight: 700; font-size: 1.05rem; padding: 14px 20px; border-radius: 10px; text-decoration: none; margin-top: 12px; transition: 0.2s ease; }
+    .zip-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    
+    .section-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+    .file-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; transition: 0.15s ease; }
+    .file-item:hover { border-color: var(--blue); background: #1c2637; }
+    .file-meta { flex: 1; }
+    .file-title { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .file-sub { font-size: 0.78rem; color: var(--muted); }
+    .dl-btn { background: #222f44; color: var(--blue); padding: 8px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+    .file-item:hover .dl-btn { background: var(--blue); color: #000; }
+    
+    .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; }
+    .drive-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: 0.95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
+    .footer-note { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 24px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <span class="badge">✅ PAGO CONFIRMADO · ACCESO OFICIAL</span>
+      <h1>¡Bienvenido(a) a Emprende Dulce! 🍰</h1>
+      <p class="sub">Aquí tienes acceso permanente e ilimitado a todo tu material digital en alta definición para ver o descargar en tu celular, tablet o computador.</p>
+    </div>
+
+    <!-- Descargar todo en ZIP -->
+    <div class="zip-card">
+      <div style="font-size: 1.8rem; margin-bottom: 4px;">📦</div>
+      <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 4px;">Descargar Todo el Paquete Completo</h3>
+      <p style="color: var(--muted); font-size: 0.85rem;">Los 3 libros PDF + 3 bonos + calculadora de costos en un solo archivo comprimido.</p>
+      <a href="/descargas/Pack_Completo_Emprende_Dulce_2026.zip" class="zip-btn" download>
+        ⬇️ Descargar Todo en ZIP (30 MB)
+      </a>
+    </div>
+
+    <!-- Descargas Individuales -->
+    <div class="section-title">📚 Descargar Libros en PDF Individuales</div>
+    <div class="file-list">
+      <a href="/descargas/01_Helados_Artesanales_Guia_Maestra.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">🍦 1. Guía Maestra de Helados Artesanales</div>
+          <div class="file-sub">47 páginas · PDF HD · Fórmulas cremosas y paletas</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+
+      <a href="/descargas/02_Postres_en_Vaso_Para_Emprender.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">🧁 2. Postres en Vaso para Emprender</div>
+          <div class="file-sub">41 páginas · PDF HD · 12 recetas top en vasito domo</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+
+      <a href="/descargas/03_Recetario_Navideno_Postres_y_Cajas_Regalo.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">🎄 3. Recetario Navideño y Cajas de Regalo</div>
+          <div class="file-sub">35 páginas · PDF HD · Natillas, buñuelos y anchetas</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+    </div>
+
+    <!-- Bonos y Herramientas -->
+    <div class="section-title">🎁 Bonos de Regalo y Herramientas de Costeo</div>
+    <div class="file-list">
+      <a href="/descargas/Bono_01_Calculadora_Costos_y_Precios.xlsx" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">📊 Plantilla de Costeo en Excel (.xlsx)</div>
+          <div class="file-sub">Fórmulas automáticas de costos y precio de venta</div>
+        </div>
+        <span class="dl-btn">Descargar Excel</span>
+      </a>
+
+      <a href="/descargas/Bono_01_Calculadora_Costos_y_Precios.html" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">🌐 Calculadora Interactiva Móvil (.html)</div>
+          <div class="file-sub">Funciona sin internet en cualquier celular o computador</div>
+        </div>
+        <span class="dl-btn">Abrir App</span>
+      </a>
+
+      <a href="/descargas/Bono_02_Directorio_Proveedores_Colombia.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">📦 Directorio de Proveedores Colombia</div>
+          <div class="file-sub">Empaques, vasitos domo e insumos al por mayor</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+
+      <a href="/descargas/Bono_03_Guia_Ventas_WhatsApp_Postres.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">💬 Guía de Ventas por WhatsApp</div>
+          <div class="file-sub">Estrategias y guiones de venta para conseguir clientes</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+    </div>
+
+    <!-- Carpeta en Google Drive -->
+    <div class="drive-box">
+      <h3 style="color: #fff; font-size: 1rem; margin-bottom: 4px;">📁 También disponible en Google Drive</h3>
+      <p style="color: var(--muted); font-size: 0.82rem;">Puedes guardar la carpeta en tu Google Drive para verla siempre online.</p>
+      <a href="https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing" target="_blank" class="drive-btn">
+        Abrir en Google Drive
+      </a>
+    </div>
+
+    <div class="footer-note">
+      Emprende Dulce 2026 · Soporte oficial en WhatsApp: +57 310 5652478<br>
+      Acceso garantizado de por vida para el comprador.
+    </div>
+  </div>
+</body>
+</html>`);
 });
 
 // ----------------------------------------------------------------------------

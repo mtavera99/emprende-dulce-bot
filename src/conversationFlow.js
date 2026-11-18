@@ -79,10 +79,11 @@ class ConversationFlow {
     ];
     const esInteresCompra = patronesCompra.some(re => re.test(text));
 
-    // Si el pitch ya fue enviado y responde una afirmación corta ("sí", "claro", "dale", "de una", "bueno", "listo", "ok")
-    const esAfirmacionCorta = /^(si|sí|sii|siii|claro|dale|de una|deuna|bueno|listo|ok|oka|yes|por favor|vale|hágale|hagale|me sirve|quiero)$/i.test(text);
+    // Si el pitch ya fue enviado y responde una afirmación ("sí", "claro", "dale de una", "bueno", "listo", "ok", "de una", "hágale", etc.)
+    const palabrasAfirmativas = /\b(si|sí|sii|claro|dale|de\s*una|bueno|listo|ok|oka|yes|por\s*favor|vale|h[aá]gale|me\s*sirve|quiero|perfecto|excelente|s[uú]per|va)\b/i;
+    const esAfirmacionCorta = pitchYaEnviado && text.length <= 35 && palabrasAfirmativas.test(text) && !text.includes('?') && !text.includes('¿');
 
-    if (esInteresCompra || (pitchYaEnviado && esAfirmacionCorta)) {
+    if (esInteresCompra || esAfirmacionCorta) {
       return await this.sendPaymentDetails(phone, settings, precioCOP);
     }
 
@@ -181,6 +182,7 @@ Reglas clave:
 - Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
 - El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.
 - Si el cliente pregunta algo específico (ej: "¿cómo pago?", "¿es seguro?", "¿qué ingredientes?"), responde con empatía y claridad.
+- Si el cliente muestra interés o acuerdo, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
 - Cierra siempre invitándolo amablemente a adquirir el pack por Nequi o Daviplata.
 - No uses saludos repetitivos si ya estamos en medio de la conversación.
 

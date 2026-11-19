@@ -636,18 +636,18 @@ Respuesta de Sofía:`;
     let confirmMsg = '';
 
     if (producto === 'moldes') {
-      const driveLink = settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
+      const driveLink = (settings.driveLinkMoldes || '').trim();
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
-        `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
+        `Bienvenido(a) al *Mega Pack de Moldes y Patrones de Costura 2026*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
         `📥 *Enlace de Descarga Directa (Panel Web Oficial):*\n` +
         `https://emprende-dulce-bot.onrender.com/descargar-moldes\n\n` +
-        `🔗 *O en Google Drive:*\n` +
-        `${driveLink}\n\n` +
-        `📁 *Tu paquete contiene 10 carpetas listas para descargar e imprimir en casa (hoja carta o A4):*\n` +
-        `✓ Carpetas 01 a 09: +2.000 Moldes en PDF clasificados (Vestidos, Blusas, Pantalones, Deportiva, Lencería, Niños, Mascotas, Accesorios)\n` +
-        `✓ Carpeta 10: Bonos Exclusivos (Catálogo Maestro, Manual de Escalamiento, Guía de Impresión y Calculadora de Costos en Excel)\n\n` +
-        `¡Muchos éxitos en tus proyectos de confección y costura! Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂️`;
+        (driveLink ? `🔗 *O en Google Drive:*\n${driveLink}\n\n` : '') +
+        `📁 *Tu paquete contiene:*\n` +
+        `✓ 10 colecciones en ZIP con 34 patrones profesionales: vestidos, blusas, pantalones, faldas, deportiva, lencería, infantil y bebé, mascotas, bolsos y uniformes\n` +
+        `✓ Cada patrón con ficha técnica de 6 páginas y un PDF por talla para imprimir en hoja carta o A4 a escala real\n` +
+        `✓ 4 bonos: Manual Técnico de Costura, Guía de Telas y Agujas, Tabla de Medidas y Calculadora de Costos\n\n` +
+        `Imprime al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm antes de unir las hojas. Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂`;
     } else {
       confirmMsg =
         `¡Comprobante verificado con éxito! 🎉🍰\n\n` +

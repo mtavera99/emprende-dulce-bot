@@ -178,4 +178,18 @@ Reglas:
 
       return {
         isValid,
- 
+        amount: Number(parsed.monto) || 0,
+        bank: parsed.banco || "nequi",
+        recipient: parsed.destinatario || "",
+        reference: parsed.referencia || "",
+        date: parsed.fecha || "",
+        reason: isValid ? "Comprobante verificado con éxito por OpenAI" : "Monto inferior o no es comprobante"
+      };
+    } catch (error) {
+      console.error("[OCR ERROR OpenAI]:", error.message);
+      return { isValid: false, reason: "Error procesando con OpenAI: " + error.message };
+    }
+  }
+}
+
+module.exports = new OCRValidator();

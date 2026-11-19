@@ -250,11 +250,49 @@ app.get(['/descargar', '/acceso'], (req, res) => {
 </html>`);
 });
 
-// Hub de descarga móvil para compradores (Mega Pack Moldes & Costura)
+// Hub de descarga para compradores (Mega Pack Moldes de Costura).
+// La lista se arma desde public/descargas/moldes/manifest.json: si se reemplazan los zips, la página se actualiza sola.
+const MOLDES_DIR = path.join(__dirname, '../public/descargas/moldes');
+function cargarManifestMoldes() {
+  try {
+    return JSON.parse(require('fs').readFileSync(path.join(MOLDES_DIR, 'manifest.json'), 'utf8'));
+  } catch (e) {
+    console.error('No se pudo leer el manifest de moldes:', e.message);
+    return { colecciones: [], bonos: [] };
+  }
+}
+const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const NOMBRES_BONOS = {
+  'Bono_01_Manual_Tecnico_de_Costura.pdf': ['📘 Manual Técnico de Costura', 'Del patrón impreso a la prenda terminada · 9 páginas'],
+  'Bono_02_Guia_Telas_Agujas_Prensatelas.pdf': ['🧵 Guía de Telas, Agujas y Prensatelas', 'Qué tela, aguja y prensatelas usar en cada prenda'],
+  'Bono_03_Tabla_Antropometrica_y_Medicion.pdf': ['📏 Tabla de Medidas y Cómo Medir', 'Mujer, hombre, niños, bebé y perro'],
+  'Bono_04_Calculadora_Costos_Precios_Confeccion.html': ['🧮 Calculadora de Costos y Precios', 'Ábrela en el navegador: consumo de tela de cada patrón ya cargado'],
+};
+
 app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
   const settings = store.getSettings();
-  const driveLink = settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
-  
+  const driveLink = (settings.driveLinkMoldes || '').trim();
+  const man = cargarManifestMoldes();
+  const totalPrendas = man.colecciones.reduce((n, c) => n + c.prendas.length, 0);
+  const colecciones = man.colecciones.map((c) => `
+      <a href="/descargas/moldes/${encodeURIComponent(c.zip)}" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">${escHtml(c.id)} · ${escHtml(c.titulo)}</div>
+          <div class="file-sub">${c.prendas.map((p) => escHtml(p.nombre)).join(' · ')}</div>
+          <div class="file-sub">ZIP · ${String(c.mb).replace('.', ',')} MB · ${c.prendas.length} patrones</div>
+        </div>
+        <span class="dl-btn">Descargar</span>
+      </a>`).join('');
+  const bonos = man.bonos.map((b) => {
+    const base = b.archivo.split('/').pop();
+    const [t, s] = NOMBRES_BONOS[base] || [base, ''];
+    const esHtml = base.endsWith('.html');
+    return `
+      <a href="/descargas/moldes/${b.archivo.split('/').map(encodeURIComponent).join('/')}" class="file-item" ${esHtml ? 'target="_blank"' : 'download'}>
+        <div class="file-meta"><div class="file-title">${escHtml(t)}</div><div class="file-sub">${escHtml(s)}</div></div>
+        <span class="dl-btn">${esHtml ? 'Abrir' : 'Descargar PDF'}</span>
+      </a>`;
+  }).join('');
   res.send(`<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -262,210 +300,45 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>🧵 Mega Pack Moldes de Costura · Descarga Oficial</title>
   <style>
-    :root {
-      --bg: #0b0f19;
-      --card: #151c28;
-      --border: #222f44;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --primary: #8b5cf6;
-      --green: #10b981;
-      --blue: #38bdf8;
-    }
+    :root { --bg: #0b0f19; --card: #151c28; --border: #222f44; --text: #f1f5f9; --muted: #94a3b8; --primary: #8b5cf6; --blue: #38bdf8; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 24px 16px 60px; display: flex; justify-content: center; }
     .wrap { width: 100%; max-width: 640px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    .badge { display: inline-block; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; border: 1px solid rgba(16, 185, 129, 0.3); }
-    h1 { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
-    p.sub { color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
-    
-    .zip-card { background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px solid var(--primary); border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.2); }
-    .zip-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: #fff; font-weight: 700; font-size: 1.05rem; padding: 14px 20px; border-radius: 10px; text-decoration: none; margin-top: 12px; transition: 0.2s ease; }
-    .zip-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    
-    .section-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .header { text-align: center; margin-bottom: 22px; }
+    .badge { display: inline-block; background: rgba(16,185,129,.15); color: #34d399; font-size: .8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; border: 1px solid rgba(16,185,129,.3); }
+    h1 { font-size: 1.55rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    p.sub { color: var(--muted); font-size: .92rem; line-height: 1.5; }
+    .steps { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 22px; font-size: .85rem; color: var(--muted); line-height: 1.55; }
+    .steps b { color: #fff; }
+    .section-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 4px 0 12px; }
     .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
-    .file-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; transition: 0.15s ease; }
+    .file-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; }
     .file-item:hover { border-color: var(--primary); background: #1c2637; }
-    .file-meta { flex: 1; }
-    .file-title { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
-    .file-sub { font-size: 0.78rem; color: var(--muted); }
-    .dl-btn { background: #222f44; color: var(--blue); padding: 8px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
-    .file-item:hover .dl-btn { background: var(--primary); color: #fff; }
-    
-    .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; }
-    .drive-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: 0.95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
-    .footer-note { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 24px; line-height: 1.5; }
+    .file-meta { flex: 1; min-width: 0; }
+    .file-title { font-size: .95rem; font-weight: 700; color: #fff; margin-bottom: 3px; }
+    .file-sub { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+    .dl-btn { background: var(--primary); color: #fff; padding: 9px 14px; border-radius: 8px; font-size: .82rem; font-weight: 700; white-space: nowrap; }
+    .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 22px; }
+    .drive-btn { display: inline-flex; justify-content: center; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: .95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
+    .footer-note { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 20px; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="header">
       <span class="badge">✅ PAGO CONFIRMADO · ACCESO OFICIAL</span>
-      <h1>¡Bienvenida a Tu Mega Pack de Costura! 🧵✨</h1>
-      <p class="sub">Aquí tienes acceso permanente e ilimitado a todo tu material digital en alta definición para ver o descargar en tu celular, tablet o computador.</p>
+      <h1>Tu Mega Pack de Moldes de Costura 🧵</h1>
+      <p class="sub">${totalPrendas} patrones profesionales en ${man.colecciones.length} colecciones, con todas las tallas en hoja Carta y A4 a escala real, más 4 bonos técnicos.</p>
     </div>
-
-    <!-- Descargar todo en ZIP -->
-    <div class="zip-card">
-      <div style="font-size: 1.8rem; margin-bottom: 4px;">📦</div>
-      <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 4px;">Descargar Todo el Paquete Completo</h3>
-      <p style="color: var(--muted); font-size: 0.85rem;">Las 11 carpetas clasificadas con todos los moldes en PDF + 4 guías técnicas + calculadora de confección en Excel.</p>
-      <a href="/descargas/moldes/Mega_Pack_2000_Moldes_Costura_2026.zip" class="zip-btn" download>
-        ⬇️ Descargar Todo en ZIP (11 Carpetas)
-      </a>
+    <div class="steps">
+      <b>Cómo descargar:</b> toca una colección para bajar su ZIP. Cada carpeta trae la ficha técnica de 6 páginas de cada prenda y un PDF por talla para imprimir al <b>100 % (tamaño real)</b>. Mide primero el cuadro de 5 × 5 cm de la hoja de inicio.
     </div>
-
-    <!-- Bonos y Herramientas Técnicas -->
-    <div class="section-title">🎁 Bonos Exclusivos y Herramientas de Confección</div>
-    <div class="file-list">
-      <a href="/descargas/moldes/10%20-%20BONOS%20EXCLUSIVOS%20(Guias%20Tecnicas%20y%20Calculadora)/01_Catalogo_Maestro_2000_Moldes.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">📖 1. Catálogo Maestro de Referencias</div>
-          <div class="file-sub">Índice completo de los +2.000 moldes por categoría y tallas</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20BONOS%20EXCLUSIVOS%20(Guias%20Tecnicas%20y%20Calculadora)/02_Manual_Tecnico_Escalamiento_y_Medidas.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">📏 2. Manual Técnico de Escalamiento y Medidas</div>
-          <div class="file-sub">Tabla anatómica y cómo graduar de talla XS a XXL</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20BONOS%20EXCLUSIVOS%20(Guias%20Tecnicas%20y%20Calculadora)/03_Guia_Impresion_Hoja_Carta_y_Armado.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🖨️ 3. Guía de Impresión en Casa (Hoja Carta / A4)</div>
-          <div class="file-sub">Paso a paso para imprimir en escala 100% sin plotter y ensamblar con cinta</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20BONOS%20EXCLUSIVOS%20(Guias%20Tecnicas%20y%20Calculadora)/04_Diccionario_Textil_y_Guia_de_Agujas.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🧵 4. Diccionario Textil y Guía de Agujas</div>
-          <div class="file-sub">Calibres recomendados de agujas e hilos según el tipo de tela</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20BONOS%20EXCLUSIVOS%20(Guias%20Tecnicas%20y%20Calculadora)/Calculadora_Costos_Confeccion_2026.xlsx" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">📊 5. Calculadora de Costos de Confección (.xlsx)</div>
-          <div class="file-sub">Calcula tela, insumos, mano de obra y precio de venta en Excel</div>
-        </div>
-        <span class="dl-btn">Descargar Excel</span>
-      </a>
-    </div>
-
-    <!-- Moldes por Categoría -->
-    <div class="section-title">👗 Moldes y Patrones Listos para Imprimir (PDFs)</div>
-    <div class="file-list">
-      <a href="/descargas/moldes/01%20-%20Vestidos%20Casuales%20y%20de%20Fiesta%20(Tallas%20XS%20-%20XXL)/Molde_Vestido_Casual_Manga_Corta_XS_a_XXL.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👗 Vestido Casual Manga Corta (XS a XXL)</div>
-          <div class="file-sub">Patrón en hoja carta · Con margen de costura 1cm</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/01%20-%20Vestidos%20Casuales%20y%20de%20Fiesta%20(Tallas%20XS%20-%20XXL)/Molde_Vestido_Camisero_Cinturon.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👗 Vestido Camisero con Cinturón</div>
-          <div class="file-sub">Patrón clásico formal · Tallas XS a XXL</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/02%20-%20Blusas,%20Tops%20y%20Camiseria%20(Tallas%20XS%20-%20XXL)/Molde_Blusa_Basica_Cuello_Redondo_XS_a_XXL.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👚 Blusa Básica Cuello Redondo (XS a XXL)</div>
-          <div class="file-sub">Ideal para popelina, chifón o seda fría</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/03%20-%20Pantalones,%20Palazzos%20y%20Shorts%20(Tallas%20XS%20-%20XXL)/Molde_Pantalon_Palazzo_Tiro_Alto.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👖 Pantalón Palazzo Tiro Alto</div>
-          <div class="file-sub">Elegante y amplio · Tallas XS a XXL</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/05%20-%20Ropa%20Deportiva%20(Leggings,%20Tops%20y%20Sudaderas)/Molde_Leggings_Deportivas_Tiro_Alto.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🏃‍♀️ Leggings Deportivas Tiro Alto Levanta Cola</div>
-          <div class="file-sub">Para licra o suplex · Tallas XS a XXL</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/06%20-%20Lenceria%20y%20Pijamas%20Femeninas/Molde_Bralette_Encaje_Copas.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👙 Bralette de Encaje con Copas</div>
-          <div class="file-sub">Lencería fina · Guía de elásticos y copas</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/07%20-%20Moda%20Infantil%20y%20Ropa%20de%20Ninos/Molde_Vestido_Nina_Princesa_Talla_2_a_10.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👶 Vestido Niña Princesa (Tallas 2 a 10)</div>
-          <div class="file-sub">Moda infantil para fiestas y cumpleaños</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/08%20-%20Ropa%20para%20Mascotas%20(Perros%20y%20Gatos)/Molde_Capa_Impermeable_Perro_Tallas_S_a_XL.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🐶 Capa Impermeable para Perro (S a XL)</div>
-          <div class="file-sub">Confección para mascotas · Alta rentabilidad</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/09%20-%20Bolsos,%20Cartucheras%20y%20Accesorios/Molde_Bolso_Tote_Bag_Lona.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">👜 Bolso Tote Bag en Lona con Forro</div>
-          <div class="file-sub">Fácil armado · Con bolsillos internos</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20Uniformes%20de%20Trabajo,%20Batas%20y%20Delantales/Molde_Uniforme_Scrub_Medico_Antifluidos.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🩺 Uniforme Scrub Médico Quirúrgico (XS a XXL)</div>
-          <div class="file-sub">Filipina y pantalón en antifluidos · Alta demanda</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/moldes/10%20-%20Uniformes%20de%20Trabajo,%20Batas%20y%20Delantales/Molde_Delantal_Barista_Chef_Pechera.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">☕ Delantal Barista y Chef con Pechera y Cuero</div>
-          <div class="file-sub">Tiras cruzadas ergonómicas en X · Fácil confección</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-    </div>
-
-    <!-- Carpeta en Google Drive -->
-    <div class="drive-box">
-      <h3 style="color: #fff; font-size: 1rem; margin-bottom: 4px;">📁 También disponible en Google Drive</h3>
-      <p style="color: var(--muted); font-size: 0.82rem;">Puedes guardar la carpeta completa en tu Google Drive para verla siempre online.</p>
-      <a href="${driveLink}" target="_blank" class="drive-btn">
-        Abrir en Google Drive
-      </a>
-    </div>
-
-    <div class="footer-note">
-      Mega Pack 2.000+ Moldes de Costura · Soporte oficial en WhatsApp: +57 310 5652478<br>
-      Acceso garantizado de por vida para el comprador.
-    </div>
+    ${driveLink ? `<div class="drive-box"><h3 style="color:#fff;font-size:1rem;margin-bottom:4px;">📁 Todo el pack en Google Drive</h3><p style="color:var(--muted);font-size:.82rem;">Ábrelo y usa «Descargar» o «Agregar a Mi unidad».</p><a href="${escHtml(driveLink)}" target="_blank" rel="noopener" class="drive-btn">Abrir en Google Drive</a></div>` : ''}
+    <div class="section-title">👗 Colecciones de moldes (ZIP)</div>
+    <div class="file-list">${colecciones}</div>
+    <div class="section-title">🎁 Bonos técnicos</div>
+    <div class="file-list">${bonos}</div>
+    <div class="footer-note">Mega Pack Moldes de Costura 2026 · Soporte por WhatsApp: +57 310 5652478<br>Acceso de por vida para el comprador.</div>
   </div>
 </body>
 </html>`);

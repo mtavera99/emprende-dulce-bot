@@ -274,12 +274,14 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
   const driveLink = (settings.driveLinkMoldes || '').trim();
   const man = cargarManifestMoldes();
   const totalPrendas = man.colecciones.reduce((n, c) => n + c.prendas.length, 0);
+  const T = man.totales || { patrones: totalPrendas, moldes: 0, moldes_imprimibles: 0, hojas_carta: 0 };
+  const mil = (n) => Number(n || 0).toLocaleString('es-CO');
   const colecciones = man.colecciones.map((c) => `
       <a href="/descargas/moldes/${encodeURIComponent(c.zip)}" class="file-item" download>
         <div class="file-meta">
           <div class="file-title">${escHtml(c.id)} · ${escHtml(c.titulo)}</div>
           <div class="file-sub">${c.prendas.map((p) => escHtml(p.nombre)).join(' · ')}</div>
-          <div class="file-sub">ZIP · ${String(c.mb).replace('.', ',')} MB · ${c.prendas.length} patrones</div>
+          <div class="file-sub">ZIP · ${String(c.mb).replace('.', ',')} MB · ${c.prendas.length} patrones · ${mil(c.moldes)} moldes por talla (${mil(c.moldes * 2)} en Carta y A4)</div>
         </div>
         <span class="dl-btn">Descargar</span>
       </a>`).join('');
@@ -320,6 +322,13 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
     .dl-btn { background: var(--primary); color: #fff; padding: 9px 14px; border-radius: 8px; font-size: .82rem; font-weight: 700; white-space: nowrap; }
     .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 22px; }
     .drive-btn { display: inline-flex; justify-content: center; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: .95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
+    .cuenta { background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px solid var(--primary); border-radius: 14px; padding: 16px; margin-bottom: 22px; }
+    .cuenta-t { font-weight: 800; color: #fff; font-size: 1rem; margin-bottom: 10px; text-align: center; }
+    .cuenta-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .cuenta-g div { background: rgba(255,255,255,.05); border-radius: 10px; padding: 10px; text-align: center; }
+    .cuenta-g b { display: block; font-size: 1.35rem; color: #c4b5fd; }
+    .cuenta-g span { font-size: .75rem; color: var(--muted); line-height: 1.35; display: block; }
+    .cuenta p { font-size: .78rem; color: var(--muted); line-height: 1.5; }
     .footer-note { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 20px; line-height: 1.5; }
   </style>
 </head>
@@ -327,8 +336,18 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
   <div class="wrap">
     <div class="header">
       <span class="badge">✅ PAGO CONFIRMADO · ACCESO OFICIAL</span>
-      <h1>Tu Mega Pack de Moldes de Costura 🧵</h1>
-      <p class="sub">${totalPrendas} patrones profesionales en ${man.colecciones.length} colecciones, con todas las tallas en hoja Carta y A4 a escala real, más 4 bonos técnicos.</p>
+      <h1>Tu Mega Pack de +2.000 Moldes de Costura 🧵</h1>
+      <p class="sub">${mil(T.moldes_imprimibles)} moldes listos para imprimir a escala real, de ${T.patrones} patrones profesionales en ${man.colecciones.length} colecciones, más 4 bonos técnicos.</p>
+    </div>
+    <div class="cuenta">
+      <div class="cuenta-t">¿Cómo se cuentan los +2.000 moldes?</div>
+      <div class="cuenta-g">
+        <div><b>${T.patrones}</b><span>patrones (prendas completas)</span></div>
+        <div><b>${mil(T.moldes)}</b><span>moldes de pieza: cada pieza en cada talla</span></div>
+        <div><b>${mil(T.moldes_imprimibles)}</b><span>moldes imprimibles: en hoja Carta y en A4</span></div>
+        <div><b>${mil(T.hojas_carta)}</b><span>hojas de molde para armar (versión Carta)</span></div>
+      </div>
+      <p>Un molde es una pieza de corte (delantero, espalda, manga, cuello, pretina…) trazada para una talla. Cada patrón trae todas sus piezas en todas sus tallas (XS a XXL, 2 a 10 años, 0 a 24 meses o S a XL), con márgenes de costura, piquetes y recto hilo.</p>
     </div>
     <div class="steps">
       <b>Cómo descargar:</b> toca una colección para bajar su ZIP. Cada carpeta trae la ficha técnica de 6 páginas de cada prenda y un PDF por talla para imprimir al <b>100 % (tamaño real)</b>. Mide primero el cuadro de 5 × 5 cm de la hoja de inicio.
@@ -338,7 +357,7 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
     <div class="file-list">${colecciones}</div>
     <div class="section-title">🎁 Bonos técnicos</div>
     <div class="file-list">${bonos}</div>
-    <div class="footer-note">Mega Pack Moldes de Costura 2026 · Soporte por WhatsApp: +57 310 5652478<br>Acceso de por vida para el comprador.</div>
+    <div class="footer-note">Mega Pack +2.000 Moldes de Costura 2026 · Soporte por WhatsApp: +57 310 5652478<br>Acceso de por vida para el comprador.</div>
   </div>
 </body>
 </html>`);

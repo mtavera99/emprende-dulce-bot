@@ -20,6 +20,12 @@ function horaCorta(ms) {
   });
 }
 
+// Las imágenes guardadas en el disco del bot se sirven por /panel/media y piden el token
+function conToken(url, tk) {
+  if (!url || !String(url).startsWith('/panel/media/')) return url;
+  return `${url}?token=${encodeURIComponent(tk)}`;
+}
+
 function renderChat(phone, aviso = '') {
   const tk = panelToken();
   const conv = store.obtenerConversacion(phone);
@@ -178,7 +184,7 @@ function renderChat(phone, aviso = '') {
         <div class="msg ${rol}">
           <div class="msg-badge">${label}</div>
           <div>${esc(m.text || '')}</div>
-          ${m.mediaUrl ? `<img src="${esc(m.mediaUrl)}" alt="Adjunto" onclick="window.open(this.src)">` : ''}
+          ${m.mediaUrl ? `<img src="${esc(conToken(m.mediaUrl, tk))}" alt="Adjunto" loading="lazy" style="max-width: 260px; border-radius: 8px; margin-top: 6px; cursor: zoom-in;" onclick="window.open(this.src)">` : ''}
           <div class="msg-time">${horaCorta(m.timestamp)}</div>
         </div>
       `;

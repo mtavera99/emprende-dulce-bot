@@ -22,7 +22,8 @@ class ConversationFlow {
       if (message.type === 'text') {
         store.agregarMensaje(phone, { from: 'cliente', text: message.text?.body || '', type: 'text' });
       } else if (message.type === 'image') {
-        store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante/Imagen]', type: 'image' });
+        const img = await this.descargarYGuardarImagen(phone, message.image);
+        store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante/Imagen]' + (message.image?.caption ? ` ${message.image.caption}` : ''), type: 'image', mediaUrl: img.url });
       } else if (message.type === 'audio' || message.type === 'voice') {
         store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Nota de voz recibida]', type: 'audio' });
       }
@@ -45,8 +46,9 @@ class ConversationFlow {
 
     // 3. Mensaje de IMAGEN (Comprobante de pago)
     if (msgType === 'image') {
-      store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante enviado]', type: 'image' });
-      return await this.handleImageMessage(phone, message.image);
+      const img = await this.descargarYGuardarImagen(phone, message.image);
+      store.agregarMensaje(phone, { from: 'cliente', text: '📷 [Comprobante enviado]' + (message.image?.caption ? ` ${message.image.caption}` : ''), type: 'image', mediaUrl: img.url });
+      return await this.handleImageMessage(phone, message.image, img);
     }
 
     // 4. Botones / Respuestas interactivas
@@ -425,7 +427,20 @@ Respuesta de Sofía:`;
     // cuando el cliente realmente envía la captura/comprobante en handleImageMessage.
   }
 
-  async handleImageMessage(phone, imageObj) {
+  // Descarga la imagen de Meta y la guarda en el disco del bot para verla en el panel.
+  async descargarYGuardarImagen(phone, imageObj) {
+    try {
+      if (!imageObj || !imageObj.id) return { url: null, buffer: null };
+      const media = await waService.downloadMedia(imageObj.id);
+      const url = store.guardarMedia(phone, media.buffer, media.mimeType);
+      return { url, buffer: media.buffer, mimeType: media.mimeType };
+    } catch (e) {
+      console.error(`[FLOW] No se pudo guardar la imagen de +${phone}:`, e.message);
+      return { url: null, buffer: null, error: e.message };
+    }
+  }
+
+  async handleImageMessage(phone, imageObj, img = null) {
     const settings = this.getSettings();
     const aviso = `🔍 ¡Recibí tu comprobante! Estoy validándolo en nuestro sistema bancario, dame unos segundos...`;
     await waService.sendTextMessage(phone, aviso);
@@ -433,8 +448,9 @@ Respuesta de Sofía:`;
 
     try {
       // 1. Descargar imagen desde Meta WhatsApp Cloud API
-      let buffer = null;
-      if (imageObj.id) {
+      let buffer = img && img.buffer ? img.buffer : null;
+      const comprobanteUrl = img && img.url ? img.url : null;
+      if (!buffer && imageObj.id) {
         const media = await waService.downloadMedia(imageObj.id);
         buffer = media.buffer;
       }
@@ -470,6 +486,7 @@ Respuesta de Sofía:`;
           reference: cleanRef,
           status: 'RECHAZADO',
           ocrData: ocrResult,
+          comprobanteUrl,
           motivoRechazo: verification.message
         });
 
@@ -491,6 +508,7 @@ Respuesta de Sofía:`;
           reference: verification.reference || cleanRef || 'BANCO-OK',
           status: 'VERIFICADO',
           ocrData: ocrResult,
+          comprobanteUrl,
           bankTxId: verification.transaction?.id,
           aprobadoPor: `banco_${verification.bank.toLowerCase()}`
         });
@@ -521,6 +539,7 @@ Respuesta de Sofía:`;
               reference: cleanRef,
               status: 'RECHAZADO',
               ocrData: ocrResult,
+              comprobanteUrl,
               motivoRechazo: `Referencia ${cleanRef} ya reclamada por otro comprador`
             });
             const fraudMsg =
@@ -539,6 +558,7 @@ Respuesta de Sofía:`;
           reference: autoRef,
           status: 'VERIFICADO',
           ocrData: ocrResult,
+          comprobanteUrl,
           aprobadoPor: 'ia_leona_auto',
           notas: `Auto-aprobado por IA (Modelo A Leona). Banco: ${bankName}. Ref: ${autoRef}`
         });
@@ -560,6 +580,7 @@ Respuesta de Sofía:`;
           reference: cleanRef,
           status: 'PENDIENTE',
           ocrData: ocrResult,
+          comprobanteUrl,
           notas: `Comprobante no concluyente por IA: ${ocrResult.reason || 'Ilegible'}`
         });
 
@@ -624,6 +645,7 @@ Respuesta de Sofía:`;
       store.crearPedido(phone, {
         amount: settings.precioOferta || this.defaultPrice,
         status: 'PENDIENTE',
+        comprobanteUrl: img && img.url ? img.url : null,
         notas: `Error en lectura automática: ${err.message}`
       });
     }

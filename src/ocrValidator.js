@@ -64,7 +64,7 @@ Analiza esta imagen y responde ÚNICAMENTE un JSON estricto con:
 }
 Reglas:
 1. "es_comprobante": true si es una captura de pantalla legítima de comprobante de transferencia bancaria, false si es una foto no relacionada, meme, selfie o captura irrelevante.
-2. "monto": extrae el número entero transferido (ej: 10000 si dice $10.000).
+2. "monto": extrae el número entero transferido (ej: 7000 si dice $7.000, 10000 si dice $10.000).
 3. "destinatario": extrae el nombre o número que aparece como destino de la transferencia. En Colombia comúnmente aparece enmascarado con asteriscos (ej: "MAN*** TAV***", "M*** T***", "MANUEL TAVERA", "M. TAVERA" o el número 3058742138 / 3105652478).
 4. "titular_coincide": true si el destinatario mostrado corresponde al titular esperado ("Manuel Tavera" o variantes enmascaradas como MAN***, TAV***, Manuel, Tavera, M*** T*** o los teléfonos 3058742138 / 3105652478). Si el comprobante claramente muestra que fue transferido a otra persona o empresa completamente distinta, pon false.
 5. "referencia": extrae el código alfanumérico o número de comprobante/aprobación (ej: M1234567, 839201).
@@ -96,7 +96,7 @@ Reglas:
       const parsed = JSON.parse(text);
       console.log("[OCR GEMINI RESULT]", parsed);
 
-      const minAmount = expected.minAmount || 10000;
+      const minAmount = expected.minAmount || 7000;
       const amountOk = (Number(parsed.monto) || 0) >= minAmount;
       const titularOk = parsed.titular_coincide !== false;
       const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false) && titularOk;
@@ -159,7 +159,7 @@ Reglas:
 
       const data = await res.json();
       const parsed = JSON.parse(data.choices[0].message.content);
-      const minAmount = expected.minAmount || 10000;
+      const minAmount = expected.minAmount || 7000;
       const amountOk = (Number(parsed.monto) || 0) >= minAmount;
       const isValid = Boolean(parsed.es_comprobante) && amountOk && (parsed.exitoso !== false);
 

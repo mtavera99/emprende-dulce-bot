@@ -182,8 +182,8 @@ class PaymentVerifier {
    * 3. Cruce temporal (si OCR leyó mal la referencia): Transacción UNCLAIMED con monto exacto en los últimos 20 min.
    */
   verifyPayment({ reference, amount, bank }, customerPhone) {
-    const cleanRef = reference ? reference.replace(/\s+/g, '').toUpperCase() : null;
-    const minAmount = store.getSettings().precioOferta || 10000;
+    const lead = customerPhone ? store.getLead(customerPhone) : null;
+    const minAmount = (lead && lead.precioOfrecido) ? lead.precioOfrecido : (store.getSettings().precioOferta || 7000);
 
     // Regla 1: Validar si la referencia ya fue usada anteriormente en alguna compra (Antifraude)
     if (cleanRef) {

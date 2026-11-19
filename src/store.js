@@ -340,20 +340,31 @@ const store = {
       const tiempoDesdeCliente = ahora - conv.ultimoDelCliente;
       const numEnviados = lead.seguimientosEnviados || 0;
 
-      // Toque 1: entre 2h y 16h (recordatorio suave dentro de la ventana activa)
-      if (numEnviados === 0 && tiempoDesdeCliente >= 2 * 60 * 60 * 1000 && tiempoDesdeCliente < 16 * 60 * 60 * 1000) {
+      // Paso 1: Downsell $7.000 COP con urgencia de 2 horas (1.5h - 3h)
+      if (numEnviados === 0 && tiempoDesdeCliente >= 1.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 3.5 * 60 * 60 * 1000) {
         candidatos.push({ phone, paso: 1, lead, conv });
       }
-      // Toque 2: entre 18h y 23.5h (último llamado dentro de la ventana de 24h para entrega garantizada sin costo)
-      else if (numEnviados === 1 && tiempoDesdeCliente >= 18 * 60 * 60 * 1000 && tiempoDesdeCliente < 23.5 * 60 * 60 * 1000) {
+      // Paso 2: Prueba en video / Tour por dentro (3.5h - 5.5h)
+      else if (numEnviados === 1 && tiempoDesdeCliente >= 3.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 5.5 * 60 * 60 * 1000) {
         candidatos.push({ phone, paso: 2, lead, conv });
       }
-      // Toque 3: después de 24h (solo si hay plantilla HSM configurada en Meta)
-      else if (numEnviados === 2 && tiempoDesdeCliente >= 24 * 60 * 60 * 1000 && tiempoDesdeCliente < 72 * 60 * 60 * 1000 && process.env.META_TEMPLATE_REMARKETING) {
+      // Paso 3: Inversión de riesgo / Acceso Primero "HONESTIDAD" (5.5h - 8h)
+      else if (numEnviados === 2 && tiempoDesdeCliente >= 5.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 8 * 60 * 60 * 1000) {
         candidatos.push({ phone, paso: 3, lead, conv });
+      }
+      // Paso 4: Último llamado antes del cierre de 24h (18h - 23.5h)
+      else if (numEnviados === 3 && tiempoDesdeCliente >= 18 * 60 * 60 * 1000 && tiempoDesdeCliente < 23.5 * 60 * 60 * 1000) {
+        candidatos.push({ phone, paso: 4, lead, conv });
       }
     }
     return candidatos;
+  },
+
+  setLeadPrecio(phone, precio) {
+    const lead = store.getLead(phone);
+    if (!lead) return;
+    lead.precioOfrecido = Number(precio) || 10000;
+    saveJSON(LEADS_FILE, leads);
   },
 
   registrarSeguimientoEnviado(phone, paso) {

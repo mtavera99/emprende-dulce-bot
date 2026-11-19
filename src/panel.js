@@ -1090,4 +1090,101 @@ function render(aviso = '') {
       const hash = window.location.hash || '#pendientes';
 
       function activate(h, shouldScroll = false) {
-        const cleanHash = (h && h.startsWith('#')) ? h : ('#' + (h || 'pendiente
+        const cleanHash = (h && h.startsWith('#')) ? h : ('#' + (h || 'pendientes'));
+        document.querySelectorAll('.tab-sec').forEach(s => s.style.display = 'none');
+        document.querySelectorAll('nav.tabs a, nav.mobile-bottom-nav a').forEach(a => a.classList.remove('active'));
+
+        const target = document.getElementById('sec-' + cleanHash.replace('#', ''));
+        const matched = document.querySelectorAll('nav.tabs a[href="' + cleanHash + '"], nav.mobile-bottom-nav a[href="' + cleanHash + '"]');
+        
+        if (target) {
+          target.style.display = 'block';
+        }
+        matched.forEach(l => l.classList.add('active'));
+
+        if (shouldScroll) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+
+      allLinks.forEach(a => {
+        a.addEventListener('click', (e) => {
+          const href = a.getAttribute('href');
+          if (href && href.startsWith('#')) {
+            e.preventDefault();
+            history.replaceState(null, null, href);
+            activate(href, true);
+          }
+        });
+      });
+
+      activate(hash, false);
+    }
+    initTabs();
+
+    // Zoom modal
+    function abrirZoom(url) {
+      if (!url) return;
+      document.getElementById('modalImg').src = url;
+      document.getElementById('modalZoom').classList.add('active');
+    }
+    function cerrarZoom() {
+      document.getElementById('modalZoom').classList.remove('active');
+    }
+
+    // Filtro de chats
+    function filtrarChats() {
+      const q = (document.getElementById('chatSearch').value || '').toLowerCase();
+      document.querySelectorAll('.chat-row').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(q) ? 'flex' : 'none';
+      });
+    }
+
+    // Auto-refresh cada 45 segundos (nunca mientras el operador escribe)
+    let typing = false;
+    document.addEventListener('focusin', e => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) typing = true;
+    });
+    document.addEventListener('focusout', () => { typing = false; });
+
+    setInterval(() => {
+      if (!typing && !document.getElementById('modalZoom').classList.contains('active')) {
+        window.location.reload();
+      }
+    }, 45000);
+  </script>
+</body>
+</html>`;
+}
+
+function renderFilaChat({ tel, c, msgs, cuando }, tk) {
+  const ultimo = msgs.length ? msgs[msgs.length - 1] : null;
+  const texto = ultimo ? ultimo.text || (ultimo.type === 'image' ? '📷 [Comprobante/Imagen]' : 'Archivo') : 'Sin mensajes';
+  const nombre = c.perfil?.nombre || c.perfil?.username || `+${tel}`;
+  const esPausado = c.pausado;
+
+  return `
+    <a href="/panel/chat?id=${esc(tel)}&token=${esc(tk)}" class="chat-row">
+      <div class="chat-row-top">
+        <div class="chat-user-wrap">
+          <span class="chat-user-name">${esc(nombre)}</span>
+          ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="badge badge-green" style="font-size: 0.68rem; padding: 1px 6px;">🟢 Activo</span>'}
+        </div>
+        <div class="chat-time-tag">
+          <span style="color: #cbd5e1;">${horaCorta(cuando)}</span>
+          <span style="font-size: 0.72rem; opacity: 0.75;"> · ${hace(cuando)}</span>
+        </div>
+      </div>
+      <div class="chat-row-bottom">
+        <div class="chat-preview">${esc(texto)}</div>
+        <span class="chat-msg-badge">${msgs.length} msgs</span>
+      </div>
+    </a>
+  `;
+}
+
+module.exports = {
+  render,
+  panelToken
+};

@@ -101,6 +101,29 @@ class ConversationFlow {
       return;
     }
 
+    // 0. Detección especial de palabra clave "HONESTIDAD" (Inversión de Riesgo / Acceso Primero - Estilo Creativo A-Z)
+    const esHonestidad = /\b(honestidad|honesto|acceso\s+primero|dame\s+el\s+acceso|env[ií]alo\s+primero|verificar\s+primero|p[aá]salo\s+primero|mu[eé]stramelo\s+primero)\b/i.test(text);
+    if (esHonestidad) {
+      store.setLeadPrecio(phone, 7000);
+      const num = settings.nequiNumero || '3058742138';
+      const titular = settings.nequiTitular || 'Manuel Tavera';
+      const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+      const replyHonestidad =
+        `¡Trato hecho! 🤝✨ Aquí tienes tu acceso prioritario para que compruebes con tus propios ojos la calidad del material:\n\n` +
+        `👉 ${host}\n\n` +
+        `_(Allí puedes entrar, abrir las guías en PDF y revisar las recetas de helados, postres en vaso y tablas de costos)_\n\n` +
+        `📌 Cuando verifiques que es exactamente lo que prometimos, transfieres los *$7.000 COP* a cualquiera de nuestras cuentas oficiales:\n\n` +
+        `🟢 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
+        `🟡 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
+        `👤 *Titular:* ${titular}\n\n` +
+        `Apenas transfieras, me envías la foto del comprobante por aquí para dejar tu acceso 100% permanente de por vida. ¡Confío plenamente en tu palabra! 🙌🍰`;
+
+      await waService.sendTextMessage(phone, replyHonestidad);
+      store.agregarMensaje(phone, { from: 'bot', text: replyHonestidad, type: 'text' });
+      store.saveLead(phone, { status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000 });
+      return;
+    }
+
     // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS (incluye botones automáticos de anuncios Meta)
     const patronesCompra = [
       /\b(nequi|daviplata|bancolombia|transfiya|bre-?b)\b/i,
@@ -121,6 +144,16 @@ class ConversationFlow {
     // Si el pitch ya fue enviado y responde una afirmación ("sí", "claro", "dale de una", "bueno", "listo", "ok", "de una", "hágale", etc.)
     const palabrasAfirmativas = /\b(si|sí|sii|claro|dale|de\s*una|bueno|listo|ok|oka|yes|por\s*favor|vale|h[aá]gale|me\s*sirve|quiero|perfecto|excelente|s[uú]per|va)\b/i;
     const esAfirmacionCorta = pitchYaEnviado && text.length <= 35 && palabrasAfirmativas.test(text) && !text.includes('?') && !text.includes('¿');
+
+    // Detección de solicitud de descuento de $7.000 o datos actualizados tras remarketing
+    const esPedido7k = /\b(7\.?000|siete\s*mil|descuento|promo(ci[oó]n)?|datos\s+actualizados|la\s+oferta)\b/i.test(text);
+    const currentLead = store.getLead(phone);
+    const yaTieneOferta7k = currentLead && (currentLead.precioOfrecido === 7000 || (currentLead.seguimientosEnviados && currentLead.seguimientosEnviados >= 1));
+
+    if (esPedido7k || (yaTieneOferta7k && (esInteresCompra || esAfirmacionCorta))) {
+      store.setLeadPrecio(phone, 7000);
+      return await this.sendPaymentDetails(phone, settings, '7.000');
+    }
 
     if (esInteresCompra || esAfirmacionCorta) {
       return await this.sendPaymentDetails(phone, settings, precioCOP);
@@ -318,9 +351,11 @@ Respuesta de Sofía:`;
 
       // 2. Ejecutar análisis OCR con IA
       let ocrResult = { isValid: false };
+      const lead = store.getLead(phone);
+      const minEsperado = (lead && lead.precioOfrecido) ? lead.precioOfrecido : (settings.precioOferta || 7000);
       if (buffer) {
         ocrResult = await ocrValidator.validateReceipt(buffer, {
-          minAmount: settings.precioOferta || this.defaultPrice,
+          minAmount: minEsperado,
           recipientKeyword: settings.nequiTitular
         });
       }

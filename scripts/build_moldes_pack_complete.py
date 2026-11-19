@@ -12,11 +12,46 @@ import json
 import zipfile
 import subprocess
 import shutil
+import base64
 
 BASE_DIR = "/Users/santiagotavera/Desktop/Trabajos/lowticket-bot"
 DRIVE_DIR = os.path.join(BASE_DIR, "SUBIR_A_DRIVE_MOLDES_2000")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public", "descargas", "moldes")
 CHROME_SHELL = "/Users/santiagotavera/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-mac-x64/chrome-headless-shell"
+
+PORTADAS_DIR = os.path.join(BASE_DIR, "moldes-pack", "portadas")
+COVER_BASE64 = {}
+if os.path.exists(PORTADAS_DIR):
+    for img_name in os.listdir(PORTADAS_DIR):
+        if img_name.endswith(".jpg") or img_name.endswith(".png"):
+            fpath = os.path.join(PORTADAS_DIR, img_name)
+            with open(fpath, "rb") as img_f:
+                b64_str = base64.b64encode(img_f.read()).decode("utf-8")
+                ext = "jpeg" if img_name.endswith(".jpg") else "png"
+                COVER_BASE64[img_name] = f"data:image/{ext};base64,{b64_str}"
+
+def get_cover_image_key(title, category):
+    text = (title + " " + category).lower()
+    if any(k in text for k in ["mascota", "perro", "gato", "canin"]):
+        return "cover_mascotas.jpg"
+    elif any(k in text for k in ["bolso", "tote", "cartuchera", "mochila", "neceser", "accesorio"]):
+        return "cover_bolsos.jpg"
+    elif any(k in text for k in ["uniforme", "scrub", "delantal", "bata", "quirurgic", "barista", "chef"]):
+        return "cover_uniformes.jpg"
+    elif any(k in text for k in ["lenceria", "pijama", "bralette", "panty", "babydoll", "encaje"]):
+        return "cover_lenceria.jpg"
+    elif any(k in text for k in ["deportiv", "legging", "jogger", "hoodie", "activewear", "chandal"]):
+        return "cover_deportiva.jpg"
+    elif any(k in text for k in ["infantil", "niño", "niña", "nino", "nina", "bebe", "bebé", "mameluco", "princesa"]):
+        return "cover_infantil.jpg"
+    elif any(k in text for k in ["blusa", "camisa", "camisero", "top", "olanes", "wrap"]):
+        return "cover_blusas.jpg"
+    elif any(k in text for k in ["pantalon", "pantalón", "palazzo", "short", "bermuda", "falda", "conjunto"]):
+        return "cover_pantalones.jpg"
+    elif any(k in text for k in ["vestido", "gala", "coctel", "evase"]):
+        return "cover_vestidos.jpg"
+    else:
+        return "cover_vestidos.jpg"
 
 CSS_STYLES = """
 @page {
@@ -72,7 +107,7 @@ p { margin: 0 0 .75em; text-align: justify; }
 /* Portada Editorial Lujo Navy & Gold */
 .cover {
   width: 215.9mm;
-  height: 279mm;
+  height: 279.4mm;
   overflow: hidden;
   page-break-after: always;
   break-after: page;
@@ -80,7 +115,7 @@ p { margin: 0 0 .75em; text-align: justify; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 18mm 16mm 14mm;
+  padding: 13mm 16mm 11mm;
   text-align: center;
   color: #fff;
   background:
@@ -89,64 +124,98 @@ p { margin: 0 0 .75em; text-align: justify; }
 .cover::after {
   content: "";
   position: absolute;
-  inset: 7mm;
+  inset: 6.5mm;
   border: 1px solid rgba(212, 175, 55, 0.45);
   pointer-events: none;
 }
 .c-badge {
   display: inline-block;
-  padding: 5px 16px;
+  padding: 4px 16px;
   background: rgba(212, 175, 55, 0.15);
   border: 1px solid #d4af37;
   color: #f5d78a;
   font-size: 7.8pt;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   border-radius: 20px;
-  margin-bottom: 12px;
+  margin-bottom: 7px;
 }
 .c-title {
-  font-size: 26pt;
+  font-family: Georgia, serif;
+  font-size: 23pt;
   color: #fff;
-  margin: 8px 0;
+  margin: 3px 0 5px;
   letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 .c-sub {
-  font-size: 10.5pt;
+  font-size: 9pt;
   color: #9bb7de;
-  max-width: 82%;
+  max-width: 84%;
   margin: 0 auto;
-  line-height: 1.45;
+  line-height: 1.4;
+}
+.c-photo-box {
+  position: relative;
+  width: 165mm;
+  height: 104mm;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1.5px solid rgba(212, 175, 55, 0.65);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  background: #060e1c;
+}
+.c-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.c-photo-tag {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  background: rgba(12, 27, 51, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 7.2pt;
+  font-weight: 600;
+  color: #f5d78a;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
 }
 .c-kpis {
   display: flex;
   justify-content: center;
-  gap: 25px;
-  margin: 20px 0;
+  gap: 16px;
+  margin: 0 auto;
 }
 .c-kpi {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  padding: 10px 18px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  padding: 8px 16px;
   border-radius: 8px;
-  min-width: 90px;
+  min-width: 85px;
 }
 .c-kpi strong {
   display: block;
-  font-size: 16pt;
+  font-size: 15pt;
   color: #d4af37;
   font-family: Georgia, serif;
 }
 .c-kpi span {
-  font-size: 7.2pt;
+  font-size: 7pt;
   color: #cbd7e6;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 .c-footer {
   border-top: 1px solid rgba(212, 175, 55, 0.35);
-  padding-top: 10px;
-  font-size: 7.8pt;
+  padding-top: 8px;
+  font-size: 7.5pt;
   color: #8da4c2;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -448,6 +517,8 @@ def generate_pattern_svg(tipo):
 
 def build_molde_html(title, category, code, fabric, consumption, difficulty, time_est, steps, measurements):
     svg_diagram = generate_pattern_svg(title.lower() + " " + category.lower())
+    cover_img_file = get_cover_image_key(title, category)
+    cover_data_uri = COVER_BASE64.get(cover_img_file, "")
     
     def get_row(key):
         vals = measurements.get(key, ["-"] * 6)
@@ -495,6 +566,11 @@ def build_molde_html(title, category, code, fabric, consumption, difficulty, tim
     <span class="c-badge">COLECCIÓN OFICIAL · {category.upper()}</span>
     <h1 class="c-title">{title}</h1>
     <p class="c-sub">Patrón industrial graduado en tallas XS, S, M, L, XL y XXL. Incluye despiece técnico, cuadro de escala real de 5x5 cm, consumo de tela y guía paso a paso de confección para taller.</p>
+  </div>
+
+  <div class="c-photo-box">
+    <img src="{cover_data_uri}" class="c-photo-img" alt="{title}">
+    <span class="c-photo-tag">ALTA COSTURA · DISEÑO EDITORIAL 2026</span>
   </div>
 
   <div class="c-kpis">
@@ -691,6 +767,7 @@ def build_molde_html(title, category, code, fabric, consumption, difficulty, tim
     return html
 
 def build_bono_html(title, subtitle, pages_data):
+    cover_data_uri = COVER_BASE64.get("cover_taller_maestro.jpg", "")
     content_pages = ""
     for p in pages_data:
         content_pages += f"""
@@ -716,6 +793,11 @@ def build_bono_html(title, subtitle, pages_data):
     <span class="c-badge">BONO EXCLUSIVO VIP · GUÍA MAESTRA 2026</span>
     <h1 class="c-title">{title}</h1>
     <p class="c-sub">{subtitle}</p>
+  </div>
+
+  <div class="c-photo-box">
+    <img src="{cover_data_uri}" class="c-photo-img" alt="{title}">
+    <span class="c-photo-tag">MANUAL MAESTRO DE TALLER · EDICIÓN VIP 2026</span>
   </div>
 
   <div class="c-kpis">
@@ -1556,6 +1638,59 @@ PATTERNS = [
             "cadera": ["-", "-", "-", "-", "-", "-"],
             "largo": ["Alto: 40 cm", "Ancho: 30 cm", "Profundidad: 14 cm", "Volumen: 18L", "-", "-"]
         }
+    },
+    # 10 - Uniformes y Ropa de Trabajo
+    {
+        "folder": "10 - Uniformes de Trabajo, Batas y Delantales",
+        "file": "Molde_Uniforme_Scrub_Medico_Antifluidos.pdf",
+        "title": "Uniforme Quirúrgico Scrub Médico Antifluidos",
+        "category": "Uniformes y Ropa de Trabajo",
+        "code": "UNI-01",
+        "fabric": "Antifluido universal strech (Lafayette o similar), dril médico o microfibra.",
+        "consumption": "2.60 m total (1.20 m filipina + 1.40 m pantalón, ancho 1.50 m).",
+        "difficulty": "Intermedio (Nivel 2/5)",
+        "time_est": "3 horas y 30 minutos",
+        "steps": [
+            "Corta el delantero con escote en V reforzado y remata con vista interna fusionada.",
+            "Confecciona bolsillos de parche dobles en la filipina con atraques de seguridad en esquinas.",
+            "Une hombros y costados de la filipina con costura francesa o fileteadora de 4 hilos.",
+            "Monta las mangas cortas y realiza pespunte decorativo al canto en sisas.",
+            "Arma el pantalón uniendo tiros, costados y entrepierna con puntada de seguridad reforzada.",
+            "Inserta elástico de 4 cm en pretina y añade cordón de ajuste interno.",
+            "Cose dobladillos inferiores de 2.5 cm en filipina y pantalón, y plancha al vapor."
+        ],
+        "measurements": {
+            "busto": ["86-90", "91-96", "97-102", "103-108", "109-115", "116-122"],
+            "cintura": ["66-70", "71-76", "77-82", "83-88", "89-95", "96-102"],
+            "cadera": ["92-96", "97-102", "103-108", "109-114", "115-121", "122-128"],
+            "largo": ["70 cm", "72 cm", "74 cm", "76 cm", "78 cm", "80 cm"]
+        }
+    },
+    {
+        "folder": "10 - Uniformes de Trabajo, Batas y Delantales",
+        "file": "Molde_Delantal_Barista_Chef_Pechera.pdf",
+        "title": "Delantal Profesional Barista y Chef con Pechera",
+        "category": "Uniformes y Ropa de Trabajo",
+        "code": "UNI-02",
+        "fabric": "Lona pesada de algodón (10 a 12 oz), Dril grueso o Denim índigo con detalles en ecocuero.",
+        "consumption": "0.95 m (ancho 1.50 m) + 3.2 m de cinta reata de algodón de 2.5 cm.",
+        "difficulty": "Fácil / Principiante (Nivel 1/5)",
+        "time_est": "1 hora y 45 minutos",
+        "steps": [
+            "Corta el cuerpo del delantal con pechera al doblez de la lona respetando aplomos.",
+            "Realiza dobladillo doble de 1.2 cm en todo el contorno perimetral con puntada reforzada.",
+            "Confecciona bolsillo frontal multifunción con división para lápiz, libreta y celular.",
+            "Fija refuerzos triangulares en ecocuero o remaches metálicos en las esquinas superiores del bolsillo.",
+            "Instala ojales metálicos inoxidables o pasadores reforzados en la pechera y en la cintura.",
+            "Pasa las cintas reata cruzadas en X por la espalda para descanso ergonómico del cuello.",
+            "Planchado final con apresto para lona."
+        ],
+        "measurements": {
+            "busto": ["Universal", "Universal", "Universal", "Universal", "Universal", "Universal"],
+            "cintura": ["Universal", "Universal", "Universal", "Universal", "Universal", "Universal"],
+            "cadera": ["Universal", "Universal", "Universal", "Universal", "Universal", "Universal"],
+            "largo": ["Alto: 85 cm", "Ancho pechera: 28 cm", "Ancho base: 75 cm", "Tiras: 160 cm", "Bolsillo: 32x20", "Ajustable"]
+        }
     }
 ]
 
@@ -1812,7 +1947,7 @@ def main():
 
     # 2. Preparar HTMLs de los 4 Bonos VIP
     print(f"[2/3] Preparando HTMLs de 4 Libros Maestros / Bonos VIP...")
-    bono_folder = "10 - BONOS EXCLUSIVOS (Guias Tecnicas y Calculadora)"
+    bono_folder = "11 - BONOS EXCLUSIVOS (Guias Tecnicas y Calculadora)"
     for idx, b in enumerate(BONOS, 1):
         html_content = build_bono_html(b['title'], b['subtitle'], b['pages'])
         base_name = b['file'].replace(".pdf", "")
@@ -1825,6 +1960,15 @@ def main():
         target_public = os.path.join(PUBLIC_DIR, bono_folder, b['file'])
         tasks.append((html_file, pdf_tmp, target_drive, target_public, b['file']))
 
+    # Copiar Calculadora de Confección en Excel a la carpeta de bonos
+    calc_src = os.path.join(BASE_DIR, "moldes-pack", "bonos", "Calculadora_Costos_Confeccion_2026.xlsx")
+    if os.path.exists(calc_src):
+        for b_f in [bono_folder, "10 - BONOS EXCLUSIVOS (Guias Tecnicas y Calculadora)"]:
+            os.makedirs(os.path.join(DRIVE_DIR, b_f), exist_ok=True)
+            os.makedirs(os.path.join(PUBLIC_DIR, b_f), exist_ok=True)
+            shutil.copyfile(calc_src, os.path.join(DRIVE_DIR, b_f, "Calculadora_Costos_Confeccion_2026.xlsx"))
+            shutil.copyfile(calc_src, os.path.join(PUBLIC_DIR, b_f, "Calculadora_Costos_Confeccion_2026.xlsx"))
+
     def process_task(task):
         html_f, pdf_f, drive_f, public_f, fname = task
         compile_pdf(html_f, pdf_f)
@@ -1832,6 +1976,14 @@ def main():
         os.makedirs(os.path.dirname(public_f), exist_ok=True)
         shutil.copyfile(pdf_f, drive_f)
         shutil.copyfile(pdf_f, public_f)
+        # Compatibilidad hacia atrás si es bono
+        if "BONOS EXCLUSIVOS" in drive_f:
+            alt_drive = drive_f.replace("11 - BONOS EXCLUSIVOS", "10 - BONOS EXCLUSIVOS")
+            alt_public = public_f.replace("11 - BONOS EXCLUSIVOS", "10 - BONOS EXCLUSIVOS")
+            os.makedirs(os.path.dirname(alt_drive), exist_ok=True)
+            os.makedirs(os.path.dirname(alt_public), exist_ok=True)
+            shutil.copyfile(pdf_f, alt_drive)
+            shutil.copyfile(pdf_f, alt_public)
         sz = os.path.getsize(pdf_f) // 1024
         print(f"  ✔ {fname} ({sz} KB)")
         return fname

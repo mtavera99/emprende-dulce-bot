@@ -311,9 +311,9 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
     <div class="zip-card">
       <div style="font-size: 1.8rem; margin-bottom: 4px;">📦</div>
       <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 4px;">Descargar Todo el Paquete Completo</h3>
-      <p style="color: var(--muted); font-size: 0.85rem;">Las 10 carpetas clasificadas con todos los moldes en PDF + 4 guías técnicas + calculadora de confección en Excel.</p>
+      <p style="color: var(--muted); font-size: 0.85rem;">Las 11 carpetas clasificadas con todos los moldes en PDF + 4 guías técnicas + calculadora de confección en Excel.</p>
       <a href="/descargas/moldes/Mega_Pack_2000_Moldes_Costura_2026.zip" class="zip-btn" download>
-        ⬇️ Descargar Todo en ZIP (10 Carpetas)
+        ⬇️ Descargar Todo en ZIP (11 Carpetas)
       </a>
     </div>
 
@@ -432,6 +432,22 @@ app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
         <div class="file-meta">
           <div class="file-title">👜 Bolso Tote Bag en Lona con Forro</div>
           <div class="file-sub">Fácil armado · Con bolsillos internos</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+
+      <a href="/descargas/moldes/10%20-%20Uniformes%20de%20Trabajo,%20Batas%20y%20Delantales/Molde_Uniforme_Scrub_Medico_Antifluidos.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">🩺 Uniforme Scrub Médico Quirúrgico (XS a XXL)</div>
+          <div class="file-sub">Filipina y pantalón en antifluidos · Alta demanda</div>
+        </div>
+        <span class="dl-btn">Descargar PDF</span>
+      </a>
+
+      <a href="/descargas/moldes/10%20-%20Uniformes%20de%20Trabajo,%20Batas%20y%20Delantales/Molde_Delantal_Barista_Chef_Pechera.pdf" class="file-item" download>
+        <div class="file-meta">
+          <div class="file-title">☕ Delantal Barista y Chef con Pechera y Cuero</div>
+          <div class="file-sub">Tiras cruzadas ergonómicas en X · Fácil confección</div>
         </div>
         <span class="dl-btn">Descargar PDF</span>
       </a>

@@ -64,23 +64,27 @@ class ConversationFlow {
     const lead = store.getLead(phone);
     const t = text.toLowerCase();
     
-    // Si menciona explícitamente costura/moldes
-    if (/(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|a4|hoja carta)/i.test(t)) {
+    // 1. ÚNICA FORMA DE ASIGNAR MOLDES: Que el mensaje mencione explícitamente palabras de costura o moldes
+    if (/(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|hoja carta)/i.test(t)) {
       store.saveLead(phone, { producto: 'moldes' });
       return 'moldes';
     }
-    // Si menciona helados/postres
+
+    // 2. Si menciona explícitamente palabras de repostería o helados
     if (/(helad|postre|reposter|palet|vaso|torta|buñuel|natilla|dulce)/i.test(t)) {
       store.saveLead(phone, { producto: 'helados' });
       return 'helados';
     }
-    // Si ya tiene un producto asignado
+
+    // 3. Si el lead ya tiene un producto previamente guardado (por ejemplo, si entró por el anuncio de moldes antes)
     if (lead && lead.producto) {
       return lead.producto;
     }
-    // Por defecto para la nueva campaña activa de Moldes
-    store.saveLead(phone, { producto: 'moldes' });
-    return 'moldes';
+
+    // 4. POR DEFECTO TOTAL: HELADOS Y POSTRES (EMPRENDE DULCE)
+    // Jamás asumir moldes por defecto mientras no se mencione costura.
+    store.saveLead(phone, { producto: 'helados' });
+    return 'helados';
   }
 
   async handleTextMessage(phone, rawText) {
@@ -298,7 +302,7 @@ class ConversationFlow {
     return await this._responderConGemini(phone, rawText, settings, precioCOP, producto);
   }
 
-  async _responderConGemini(phone, userText, settings, precioCOP, producto = 'moldes') {
+  async _responderConGemini(phone, userText, settings, precioCOP, producto = 'helados') {
     try {
       const key = process.env.GEMINI_API_KEY;
       const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
@@ -363,7 +367,7 @@ Respuesta de Sofía:`;
     }
   }
 
-  async sendMainPitch(phone, settings, precioCOP, producto = 'moldes') {
+  async sendMainPitch(phone, settings, precioCOP, producto = 'helados') {
     if (producto === 'moldes') {
       const pitchMoldes =
         `¡Hola! Qué alegría saludarte 🧵✨\n\n` +
@@ -633,7 +637,7 @@ Respuesta de Sofía:`;
 
   async enviarEntregaProducto(phone, settings) {
     const lead = store.getLead(phone);
-    const producto = (lead && lead.producto) || 'moldes';
+    const producto = (lead && lead.producto) || 'helados';
     let confirmMsg = '';
 
     if (producto === 'moldes') {

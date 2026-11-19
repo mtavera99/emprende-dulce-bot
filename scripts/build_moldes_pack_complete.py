@@ -14,6 +14,9 @@ import subprocess
 import shutil
 import base64
 
+sys.path.insert(0, os.path.dirname(__file__))
+from moldes_svg_patterns import get_unique_pattern_svg, get_despiece_rows
+
 BASE_DIR = "/Users/santiagotavera/Desktop/Trabajos/lowticket-bot"
 DRIVE_DIR = os.path.join(BASE_DIR, "SUBIR_A_DRIVE_MOLDES_2000")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public", "descargas", "moldes")
@@ -516,7 +519,8 @@ def generate_pattern_svg(tipo):
         """
 
 def build_molde_html(title, category, code, fabric, consumption, difficulty, time_est, steps, measurements):
-    svg_diagram = generate_pattern_svg(title.lower() + " " + category.lower())
+    svg_diagram = get_unique_pattern_svg(code)
+    despiece_rows = get_despiece_rows(code)
     cover_img_file = get_cover_image_key(title, category)
     cover_data_uri = COVER_BASE64.get(cover_img_file, "")
     
@@ -588,7 +592,7 @@ def build_molde_html(title, category, code, fabric, consumption, difficulty, tim
 <!-- PÁGINA 2: FICHA TÉCNICA Y TABLA DE MEDIDAS ANTROPOMÉTRICAS -->
 <div class="page">
   <h2 class="sec-title">1. Ficha Técnica y Tabla Anatómica de Medidas</h2>
-  <p>Este patrón ha sido digitalizado siguiendo la tabla normalizada de medidas industriales de confección. La prenda cuenta con una holgura técnica de <b>2 a 4 cm</b> en contornos para garantizar máxima comodidad y movimiento sin deformar la silueta.</p>
+  <p>Este molde técnico forma parte del <b>Sistema Maestro Mega Pack +2.000 Moldes y Patrones de Costura 2026</b>: una biblioteca industrial de 34 modelos maestros profesionales graduados en 6 tallas anatómicas normalizadas (XS, S, M, L, XL y XXL), totalizando más de 1.400 piezas de corte a escala real y ampliables a más de 2.000 combinaciones con las guías de transformación modular. La prenda cuenta con una holgura técnica de <b>2 a 4 cm</b> en contornos para garantizar calce impecable y confort de movimiento.</p>
 
   <table class="t">
     <thead>
@@ -646,7 +650,7 @@ def build_molde_html(title, category, code, fabric, consumption, difficulty, tim
 <!-- PÁGINA 3: DESPIECE TÉCNICO Y PLANO DE CORTE -->
 <div class="page">
   <h2 class="sec-title">2. Despiece Técnico, Márgenes y Plano de Corte</h2>
-  <p>El patrón incluye todos los márgenes de costura necesarios integrados en las líneas de contorno. No necesitas agregar centímetros adicionales con tiza sobre la tela.</p>
+  <p>El patrón incluye todos los márgenes de costura necesarios integrados en las líneas de contorno. A continuación se detalla el listado exacto de piezas que componen este modelo:</p>
 
   <table class="t">
     <thead>
@@ -659,11 +663,7 @@ def build_molde_html(title, category, code, fabric, consumption, difficulty, tim
       </tr>
     </thead>
     <tbody>
-      <tr><td><b>Pieza 1: Delantero</b></td><td>1 pieza</td><td>Al doblez de la tela (⫾)</td><td>1.0 cm en uniones</td><td>No</td></tr>
-      <tr><td><b>Pieza 2: Espalda</b></td><td>2 piezas</td><td>Al hilo de la tela (al corte)</td><td>1.5 cm en centro espalda</td><td>No</td></tr>
-      <tr><td><b>Pieza 3: Mangas / Laterales</b></td><td>2 piezas (par)</td><td>Al hilo de la tela</td><td>1.0 cm en contornos</td><td>No</td></tr>
-      <tr><td><b>Pieza 4: Vistas de Escote / Pretina</b></td><td>2 piezas</td><td>Al doblez / hilo</td><td>1.0 cm en unión</td><td>Sí (100%)</td></tr>
-      <tr><td><b>Pieza 5: Bolsillos / Accesorios</b></td><td>2 o 4 piezas</td><td>Al hilo de la tela</td><td>1.0 cm (dobladillo 2.5 cm)</td><td>Opcional</td></tr>
+{despiece_rows}
     </tbody>
   </table>
 
@@ -1971,12 +1971,21 @@ def main():
 
     def process_task(task):
         html_f, pdf_f, drive_f, public_f, fname = task
-        compile_pdf(html_f, pdf_f)
+        success = compile_pdf(html_f, pdf_f)
+        if not success or not os.path.exists(pdf_f) or os.path.getsize(pdf_f) < 50000:
+            print(f"  ⚠️ Reintentando {fname}...")
+            compile_pdf(html_f, pdf_f)
+        
+        if not os.path.exists(pdf_f) or os.path.getsize(pdf_f) < 50000:
+            print(f"  ❌ ERROR CRÍTICO: {fname} no se pudo compilar correctamente.")
+            return fname
+
         os.makedirs(os.path.dirname(drive_f), exist_ok=True)
         os.makedirs(os.path.dirname(public_f), exist_ok=True)
         shutil.copyfile(pdf_f, drive_f)
         shutil.copyfile(pdf_f, public_f)
-        # Compatibilidad hacia atrás si es bono
+        
+        # Mantener ambas copias de bonos (10 y 11) para compatibilidad total
         if "BONOS EXCLUSIVOS" in drive_f:
             alt_drive = drive_f.replace("11 - BONOS EXCLUSIVOS", "10 - BONOS EXCLUSIVOS")
             alt_public = public_f.replace("11 - BONOS EXCLUSIVOS", "10 - BONOS EXCLUSIVOS")
@@ -1984,12 +1993,13 @@ def main():
             os.makedirs(os.path.dirname(alt_public), exist_ok=True)
             shutil.copyfile(pdf_f, alt_drive)
             shutil.copyfile(pdf_f, alt_public)
+            
         sz = os.path.getsize(pdf_f) // 1024
         print(f"  ✔ {fname} ({sz} KB)")
         return fname
 
-    print(f"\n[3/4] Compilando {len(tasks)} archivos PDF en paralelo con 6 trabajadores...")
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    print(f"\n[3/4] Compilando {len(tasks)} archivos PDF en paralelo con 4 trabajadores...")
+    with ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(process_task, tasks))
 
     # 4. Empacar el archivo ZIP completo

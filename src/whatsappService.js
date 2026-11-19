@@ -257,4 +257,10 @@ class WhatsAppService {
         mimeType
       };
     } catch (error) {
-      console.error(`[MEDIA ERROR] Error descarga
+      console.error(`[MEDIA ERROR] Error descargando mediaId ${mediaId}:`, error.message);
+      throw error;
+    }
+  }
+}
+
+module.exports = new WhatsAppService();

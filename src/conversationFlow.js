@@ -639,13 +639,14 @@ Respuesta de Sofía:`;
       const driveLink = (settings.driveLinkMoldes || '').trim();
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
-        `Bienvenido(a) al *Mega Pack de Moldes y Patrones de Costura 2026*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
+        `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura 2026*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
         `📥 *Enlace de Descarga Directa (Panel Web Oficial):*\n` +
         `https://emprende-dulce-bot.onrender.com/descargar-moldes\n\n` +
         (driveLink ? `🔗 *O en Google Drive:*\n${driveLink}\n\n` : '') +
         `📁 *Tu paquete contiene:*\n` +
-        `✓ 10 colecciones en ZIP con 34 patrones profesionales: vestidos, blusas, pantalones, faldas, deportiva, lencería, infantil y bebé, mascotas, bolsos y uniformes\n` +
-        `✓ Cada patrón con ficha técnica de 6 páginas y un PDF por talla para imprimir en hoja carta o A4 a escala real\n` +
+        `✓ 2.420 moldes listos para imprimir: 34 patrones profesionales con 1.210 moldes de pieza (cada pieza en cada talla), en hoja Carta y en A4\n` +
+        `✓ 10 colecciones en ZIP: vestidos, blusas, pantalones, faldas, deportiva, lencería, infantil y bebé, mascotas, bolsos y uniformes\n` +
+        `✓ Cada patrón con ficha técnica de 6 páginas y un PDF por talla a escala real\n` +
         `✓ 4 bonos: Manual Técnico de Costura, Guía de Telas y Agujas, Tabla de Medidas y Calculadora de Costos\n\n` +
         `Imprime al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm antes de unir las hojas. Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂`;
     } else {

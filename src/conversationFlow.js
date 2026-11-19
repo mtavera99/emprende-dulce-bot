@@ -60,11 +60,37 @@ class ConversationFlow {
     store.agregarMensaje(phone, { from: 'cliente', text: `📎 [Archivo tipo ${msgType}]`, type: msgType });
   }
 
+  detectarProducto(phone, text) {
+    const lead = store.getLead(phone);
+    const t = text.toLowerCase();
+    
+    // Si menciona explícitamente costura/moldes
+    if (/(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|a4|hoja carta)/i.test(t)) {
+      store.saveLead(phone, { producto: 'moldes' });
+      return 'moldes';
+    }
+    // Si menciona helados/postres
+    if (/(helad|postre|reposter|palet|vaso|torta|buñuel|natilla|dulce)/i.test(t)) {
+      store.saveLead(phone, { producto: 'helados' });
+      return 'helados';
+    }
+    // Si ya tiene un producto asignado
+    if (lead && lead.producto) {
+      return lead.producto;
+    }
+    // Por defecto para la nueva campaña activa de Moldes
+    store.saveLead(phone, { producto: 'moldes' });
+    return 'moldes';
+  }
+
   async handleTextMessage(phone, rawText) {
     const text = rawText.toLowerCase().trim();
     const settings = this.getSettings();
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
+
+    // Detección automática del producto de interés (Moldes vs Helados)
+    const producto = this.detectarProducto(phone, text);
 
     const lead = store.getLead(phone);
     const conv = store.obtenerConversacion(phone);
@@ -78,26 +104,26 @@ class ConversationFlow {
     if (esDudaSeguridad) {
       const titular = settings.nequiTitular || 'Manuel Tavera';
       const num = settings.nequiNumero || '3058742138';
-      const respuestaConfianza =
-        `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
-        `Para darte total tranquilidad y seguridad:\n` +
-        `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
-        `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo los 3 Libros Completos en PDF + la Plantilla Excel de Costeo + el acceso permanente a Google Drive.\n` +
-        `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de imprenta ni envíos físicos. Queremos que cualquier persona en Colombia pueda empezar su emprendimiento dulce desde casa sin una inversión gigante.\n\n` +
-        `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🍰`;
+      let respuestaConfianza = '';
+      if (producto === 'moldes') {
+        respuestaConfianza =
+          `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
+          `Para darte total tranquilidad y seguridad:\n` +
+          `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
+          `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo el acceso permanente a Google Drive con las 10 carpetas completas (+2.000 Moldes en PDF listos para imprimir en casa) + las 4 Guías Técnicas y la Calculadora de Costos.\n` +
+          `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de envío físico ni patronistas costosos. Queremos que cualquier persona en Colombia pueda coser y emprender su propio taller sin gastar de más.\n\n` +
+          `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🧵`;
+      } else {
+        respuestaConfianza =
+          `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
+          `Para darte total tranquilidad y seguridad:\n` +
+          `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
+          `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo los 3 Libros Completos en PDF + la Plantilla Excel de Costeo + el acceso permanente a Google Drive.\n` +
+          `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de imprenta ni envíos físicos. Queremos que cualquier persona en Colombia pueda empezar su emprendimiento dulce desde casa sin una inversión gigante.\n\n` +
+          `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🍰`;
+      }
       await waService.sendTextMessage(phone, respuestaConfianza);
       store.agregarMensaje(phone, { from: 'bot', text: respuestaConfianza, type: 'text' });
-
-      // Micro-muestreo: enviar inmediatamente muestra real de receta con tabla de costeo en COP
-      try {
-        const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
-        const sampleUrl = `${host}/descargas/muestra_receta_oficial.jpg`;
-        const captionSample = '📖 Mira, aquí te comparto una muestra real de una de las recetas del libro (con su fotografía gastronómica y su tabla de costeo en pesos colombianos) para que compruebes la calidad antes de transferir ✨';
-        await waService.sendImage(phone, sampleUrl, captionSample);
-        store.agregarMensaje(phone, { from: 'bot', text: `📷 [Muestra oficial de receta enviada]: ${captionSample}`, type: 'image' });
-      } catch (errSample) {
-        console.error('[FLOW] Error enviando imagen de muestra de receta:', errSample.message);
-      }
       return;
     }
 
@@ -108,19 +134,24 @@ class ConversationFlow {
       const num = settings.nequiNumero || '3058742138';
       const titular = settings.nequiTitular || 'Manuel Tavera';
       const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+      const portalUrl = `${host}/portal`;
+      const detalleHonestidad = producto === 'moldes'
+        ? `_(Allí puedes entrar al catálogo, revisar las muestras de patrones en PDF y la guía de impresión en casa)_`
+        : `_(Allí puedes entrar, abrir las guías en PDF y revisar las recetas de helados, postres en vaso y tablas de costos)_`;
+
       const replyHonestidad =
         `¡Trato hecho! 🤝✨ Aquí tienes tu acceso prioritario para que compruebes con tus propios ojos la calidad del material:\n\n` +
-        `👉 ${host}\n\n` +
-        `_(Allí puedes entrar, abrir las guías en PDF y revisar las recetas de helados, postres en vaso y tablas de costos)_\n\n` +
+        `👉 ${portalUrl}\n\n` +
+        `${detalleHonestidad}\n\n` +
         `📌 Cuando verifiques que es exactamente lo que prometimos, transfieres los *$7.000 COP* a cualquiera de nuestras cuentas oficiales:\n\n` +
         `🟢 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
         `🟡 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
         `👤 *Titular:* ${titular}\n\n` +
-        `Apenas transfieras, me envías la foto del comprobante por aquí para dejar tu acceso 100% permanente de por vida. ¡Confío plenamente en tu palabra! 🙌🍰`;
+        `Apenas transfieras, me envías la foto del comprobante por aquí para dejar tu acceso 100% permanente de por vida. ¡Confío plenamente en tu palabra! 🙌${producto === 'moldes' ? '🧵' : '🍰'}`;
 
       await waService.sendTextMessage(phone, replyHonestidad);
       store.agregarMensaje(phone, { from: 'bot', text: replyHonestidad, type: 'text' });
-      store.saveLead(phone, { status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000 });
+      store.saveLead(phone, { status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000, producto });
       return;
     }
 
@@ -190,15 +221,28 @@ class ConversationFlow {
 
     if (esDudaAclaracion) {
       if (pitchYaEnviado) {
-        const aclaracion =
-          `¡Con todo gusto te aclaro! 😊\n\n` +
-          `Es una colección digital completa con *3 Recetarios en PDF* de alta definición:\n` +
-          `🍦 *1. Helados Artesanales* (fórmulas cremosas que no se cristalizan sin máquinas costosas)\n` +
-          `🧁 *2. Postres en Vaso* (12 recetas listas para vender en vasito domo)\n` +
-          `🎄 *3. Recetario Navideño* (natillas, buñuelos, anchetas y torta negra)\n\n` +
-          `Más la plantilla de costeo en Excel para que calcules tus ganancias exactas.\n\n` +
-          `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a tu celular).\n\n` +
-          `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo?`;
+        let aclaracion = '';
+        if (producto === 'moldes') {
+          aclaracion =
+            `¡Con todo gusto te aclaro! 😊\n\n` +
+            `Es una colección digital gigante con *+2.000 Moldes y Patrones de Costura en PDF* organizados en 10 carpetas:\n` +
+            `👗 *1. Vestidos, Blusas y Moda Femenina* (XS a XXL)\n` +
+            `🏃‍♀️ *2. Ropa Deportiva, Pijamas y Lencería*\n` +
+            `👶 *3. Ropa Infantil, Mascotas y Bolsos/Accesorios*\n` +
+            `📐 *4. Catálogo Maestro, Guía de Impresión en Casa (hoja carta/A4) y Calculadora de Costos en Excel*\n\n` +
+            `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a Google Drive en tu celular).\n\n` +
+            `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo? 🧵`;
+        } else {
+          aclaracion =
+            `¡Con todo gusto te aclaro! 😊\n\n` +
+            `Es una colección digital completa con *3 Recetarios en PDF* de alta definición:\n` +
+            `🍦 *1. Helados Artesanales* (fórmulas cremosas que no se cristalizan sin máquinas costosas)\n` +
+            `🧁 *2. Postres en Vaso* (12 recetas listas para vender en vasito domo)\n` +
+            `🎄 *3. Recetario Navideño* (natillas, buñuelos, anchetas y torta negra)\n\n` +
+            `Más la plantilla de costeo en Excel para que calcules tus ganancias exactas.\n\n` +
+            `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a tu celular).\n\n` +
+            `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo?`;
+        }
         await waService.sendTextMessage(phone, aclaracion);
         store.agregarMensaje(phone, { from: 'bot', text: aclaracion, type: 'text' });
         return;
@@ -206,23 +250,40 @@ class ConversationFlow {
     }
 
     // 4. Duda: "¿Es físico o digital? / ¿Cómo se recibe?"
-    if (text.includes('fisico') || text.includes('físico') || text.includes('digital') || text.includes('pdf') || text.includes('libro')) {
-      const reply =
-        `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
-        `Los descargas directamente a tu celular, tablet o computador para verlos siempre sin necesidad de internet, o si prefieres también los puedes imprimir.\n\n` +
-        `Incluye los 3 Libros y los 3 Bonos por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
-        `¿Te paso los daticos de Nequi o Daviplata para aprovechar el descuento hoy?`;
+    if (text.includes('fisico') || text.includes('físico') || text.includes('digital') || text.includes('pdf') || text.includes('libro') || text.includes('imprimir')) {
+      let reply = '';
+      if (producto === 'moldes') {
+        reply =
+          `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
+          `Los descargas directamente a tu celular, tablet o computador. Vienen preparados para imprimirse en tu propia impresora de casa en hojas tamaño carta normales o A4 (sin necesidad de plotter ni programas raros).\n\n` +
+          `Incluye las 10 carpetas con los +2.000 moldes y los 4 bonos por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
+          `¿Te paso los daticos de Nequi o Daviplata para aprovechar el descuento hoy? ✂️`;
+      } else {
+        reply =
+          `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
+          `Los descargas directamente a tu celular, tablet o computador para verlos siempre sin necesidad de internet, o si prefieres también los puedes imprimir.\n\n` +
+          `Incluye los 3 Libros y los 3 Bonos por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
+          `¿Te paso los daticos de Nequi o Daviplata para aprovechar el descuento hoy?`;
+      }
       await waService.sendTextMessage(phone, reply);
       store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
       return;
     }
 
-    // 5. Duda: "Máquinas / experiencia / ingredientes"
-    if (text.includes('maquina') || text.includes('máquina') || text.includes('experiencia') || text.includes('dificil') || text.includes('difícil') || text.includes('ingrediente')) {
-      const reply =
-        `¡Cero complicaciones! 👩‍🍳 No necesitas ninguna máquina industrial costosa ni tener experiencia previa.\n\n` +
-        `Todas las recetas están formuladas para hacer en casa con batidora o licuadora tradicional, y los ingredientes se consiguen en cualquier supermercado o tienda de barrio de Colombia.\n\n` +
-        `¿Te gustaría asegurar tu acceso con la promo de *${precioCOP}*?`;
+    // 5. Duda: "Máquinas / experiencia / tela / ingredientes"
+    if (text.includes('maquina') || text.includes('máquina') || text.includes('experiencia') || text.includes('dificil') || text.includes('difícil') || text.includes('ingrediente') || text.includes('plotter')) {
+      let reply = '';
+      if (producto === 'moldes') {
+        reply =
+          `¡Cero complicaciones! 🧵 No necesitas ser modista experta ni tener plotter o máquinas industriales.\n\n` +
+          `Los moldes vienen listos para imprimir en cualquier impresora común de casa en hojas carta normales, traen márgenes de costura y líneas guía de ensamblado súper fáciles. Incluye además el manual técnico para principiantes paso a paso.\n\n` +
+          `¿Te gustaría asegurar tu acceso con la promo de *${precioCOP}*? ✂️`;
+      } else {
+        reply =
+          `¡Cero complicaciones! 👩‍🍳 No necesitas ninguna máquina industrial costosa ni tener experiencia previa.\n\n` +
+          `Todas las recetas están formuladas para hacer en casa con batidora o licuadora tradicional, y los ingredientes se consiguen en cualquier supermercado o tienda de barrio de Colombia.\n\n` +
+          `¿Te gustaría asegurar tu acceso con la promo de *${precioCOP}*?`;
+      }
       await waService.sendTextMessage(phone, reply);
       store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
       return;
@@ -230,14 +291,14 @@ class ConversationFlow {
 
     // 6. Lead inicial (nunca se le ha enviado el pitch)
     if (!pitchYaEnviado) {
-      return await this.sendMainPitch(phone, settings, precioCOP);
+      return await this.sendMainPitch(phone, settings, precioCOP, producto);
     }
 
     // 7. Fallback inteligente con IA Gemini para cualquier otra consulta
-    return await this._responderConGemini(phone, rawText, settings, precioCOP);
+    return await this._responderConGemini(phone, rawText, settings, precioCOP, producto);
   }
 
-  async _responderConGemini(phone, userText, settings, precioCOP) {
+  async _responderConGemini(phone, userText, settings, precioCOP, producto = 'moldes') {
     try {
       const key = process.env.GEMINI_API_KEY;
       const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
@@ -248,12 +309,19 @@ class ConversationFlow {
       const conv = store.obtenerConversacion(phone);
       const historial = (conv?.messages || []).slice(-6).map(m => `${m.from === 'bot' ? 'Asistente' : 'Cliente'}: ${m.text}`).join('\n');
 
-      const systemPrompt = `Eres Sofía, asesora experta de "Emprende Dulce" en Colombia.
+      let productDetails = '';
+      if (producto === 'moldes') {
+        productDetails = `El producto es digital: Mega Pack de +2.000 Moldes y Patrones de Costura en formato PDF descargable para imprimir en casa en hoja carta o A4 (sin necesidad de plotter ni programas raros), tallas XS a XXL, más 4 manuales técnicos y calculadora de costos por solo ${precioCOP} COP pago único. Si preguntan cómo se imprime: explica que viene configurado para imprimir en cualquier impresora común de casa en hojas tamaño carta normales y unirlas con cinta fácilmente.`;
+      } else {
+        productDetails = `El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.`;
+      }
+
+      const systemPrompt = `Eres Sofía, asesora experta comercial de "Creativos Digitales" en Colombia.
 Tu tono es cálido, colombiano, dulce, servicial, transparente y persuasivo.
 Reglas clave:
 - Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
-- El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.
-- Si el cliente expresa desconfianza, miedo o pregunta si es seguro: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital sin intermediarios.
+- ${productDetails}
+- Si el cliente expresa desconfianza, miedo o pregunta si es seguro: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital descargable sin intermediarios.
 - Si piden que se les envíe primero antes de pagar: diles amablemente que el sistema automático libera el paquete completo al registrar el comprobante con total garantía.
 - Si el cliente muestra interés o acuerdo, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
 - Cierra siempre invitándolo amablemente a adquirir el pack por Nequi o Daviplata.
@@ -295,7 +363,31 @@ Respuesta de Sofía:`;
     }
   }
 
-  async sendMainPitch(phone, settings, precioCOP) {
+  async sendMainPitch(phone, settings, precioCOP, producto = 'moldes') {
+    if (producto === 'moldes') {
+      const pitchMoldes =
+        `¡Hola! Qué alegría saludarte 🧵✨\n\n` +
+        `Te presento el *MEGA PACK DE +2.000 MOLDES Y PATRONES DE COSTURA 2026*, la colección digital más completa de Colombia para coser tu propia ropa o emprender tu taller desde casa:\n\n` +
+        `👗 *1. Vestidos, Blusas y Moda Femenina (XS a XXL)*\n` +
+        `Vestidos casuales, fiesta, gala, blusas, tops, faldas, pantalones y lencería con medidas exactas.\n\n` +
+        `🏃‍♀️ *2. Ropa Deportiva, Pijamas y Confort*\n` +
+        `Leggings, sudaderas, tops deportivos, pijamas enteras y batas.\n\n` +
+        `👶 *3. Moda Infantil, Ropa de Mascotas y Accesorios*\n` +
+        `Prendas para niños y bebés, disfraces, accesorios, bolsos y ropa para perros/gatos.\n\n` +
+        `🎁 *+ 4 SUPER BONOS TÉCNICOS HOY:*\n` +
+        `✓ Catálogo Maestro indexado con fotos y tablas de tallas\n` +
+        `✓ Manual Técnico de Escalamiento y Ajuste de Medidas\n` +
+        `✓ Guía de Impresión en Casa en Hoja Carta o A4 (¡sin plotter ni programas raros!)\n` +
+        `✓ Calculadora de Costos y Ganancias en Excel\n\n` +
+        `💥 *OFERTA ESPECIAL:* Todo el paquete (+2.000 moldes + 4 bonos) por solo *${precioCOP} COP* (pago único, acceso de por vida a Google Drive).\n\n` +
+        `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo hoy mismo? ✂️`;
+
+      await waService.sendTextMessage(phone, pitchMoldes);
+      store.agregarMensaje(phone, { from: 'bot', text: pitchMoldes, type: 'text' });
+      store.saveLead(phone, { status: 'INTERESADO', step: 'PITCH_ENVIADO', producto: 'moldes' });
+      return;
+    }
+
     const pitch =
       `¡Hola! Qué alegría saludarte 🍰✨\n\n` +
       `Te presento la colección completa *EMPRENDE DULCE 2026*, la guía definitiva para iniciar tu negocio de helados y postres gourmet de alta rentabilidad desde casa:\n\n` +
@@ -314,7 +406,7 @@ Respuesta de Sofía:`;
 
     await waService.sendTextMessage(phone, pitch);
     store.agregarMensaje(phone, { from: 'bot', text: pitch, type: 'text' });
-    store.saveLead(phone, { status: 'INTERESADO', step: 'PITCH_ENVIADO' });
+    store.saveLead(phone, { status: 'INTERESADO', step: 'PITCH_ENVIADO', producto: 'helados' });
   }
 
   async sendPaymentDetails(phone, settings, precioCOP) {
@@ -409,25 +501,7 @@ Respuesta de Sofía:`;
           aprobadoPor: `banco_${verification.bank.toLowerCase()}`
         });
 
-        const confirmMsg =
-          `¡Pago verificado con éxito en nuestra cuenta! 🎉🍰\n\n` +
-          `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-          `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
-          `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
-          `🔗 *O en Google Drive:*\n` +
-          `${settings.driveLink}\n\n` +
-          `📁 *Tu pack incluye:*\n` +
-          `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
-          `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
-          `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
-          `✓ Bono 1: Plantilla de Costeo en Excel y Web\n` +
-          `✓ Bono 2: Directorio de Proveedores en Colombia\n` +
-          `✓ Bono 3: Guía de Ventas por WhatsApp\n\n` +
-          `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
-
-        await waService.sendTextMessage(phone, confirmMsg);
-        store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
-        store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+        await this.enviarEntregaProducto(phone, settings);
         return;
       }
 
@@ -476,25 +550,7 @@ Respuesta de Sofía:`;
           aprobadoPor: 'ia_leona_auto'
         });
 
-        const confirmMsg =
-          `¡Comprobante verificado con éxito! 🎉🍰\n\n` +
-          `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-          `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
-          `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
-          `🔗 *O en Google Drive:*\n` +
-          `${settings.driveLink}\n\n` +
-          `📁 *Tu pack incluye:*\n` +
-          `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
-          `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
-          `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
-          `✓ Bono 1: Plantilla de Costeo en Excel y Web\n` +
-          `✓ Bono 2: Directorio de Proveedores en Colombia\n` +
-          `✓ Bono 3: Guía de Ventas por WhatsApp\n\n` +
-          `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
-
-        await waService.sendTextMessage(phone, confirmMsg);
-        store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
-        store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+        await this.enviarEntregaProducto(phone, settings);
         return;
       }
 
@@ -555,17 +611,7 @@ Respuesta de Sofía:`;
             aprobadoPor: `banco_${matchedTx.bank.toLowerCase()}`
           });
 
-          const autoMsg =
-            `¡Transferencia confirmada en nuestro banco! 🎉🍰\n\n` +
-            `Aquí tienes tu acceso oficial e inmediato a la colección *Emprende Dulce 2026*:\n\n` +
-            `🔗 *Enlace de Descarga Permanente (Google Drive):*\n` +
-            `${settings.driveLink}\n\n` +
-            `📁 *Incluye tus 3 Libros y 3 Bonos:* Helados Artesanales (47 pág), Postres en Vaso (41 pág), Recetario Navideño (35 pág) y Plantillas de Costeo.\n\n` +
-            `¡Muchos éxitos en tu emprendimiento dulce! 🚀`;
-
-          await waService.sendTextMessage(phone, autoMsg);
-          store.agregarMensaje(phone, { from: 'bot', text: autoMsg, type: 'text' });
-          store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+          await this.enviarEntregaProducto(phone, settings);
         } else {
           console.log(`[FLOW TIMEOUT] No llegó notificación automática en 90s para +${phone}. Queda en cola de panel.`);
         }
@@ -583,6 +629,47 @@ Respuesta de Sofía:`;
         notas: `Error en lectura automática: ${err.message}`
       });
     }
+  }
+
+  async enviarEntregaProducto(phone, settings) {
+    const lead = store.getLead(phone);
+    const producto = (lead && lead.producto) || 'moldes';
+    let confirmMsg = '';
+
+    if (producto === 'moldes') {
+      const driveLink = settings.driveLinkMoldes || settings.driveLink || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing';
+      confirmMsg =
+        `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
+        `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
+        `🔗 *Enlace de Acceso a Google Drive:*\n` +
+        `${driveLink}\n\n` +
+        `🌐 *O en nuestro Portal Web de Descargas:*\n` +
+        `https://emprende-dulce-bot.onrender.com/portal\n\n` +
+        `📁 *Tu paquete contiene 10 carpetas listas para descargar e imprimir en casa (hoja carta o A4):*\n` +
+        `✓ Carpetas 01 a 09: +2.000 Moldes en PDF clasificados (Vestidos, Blusas, Pantalones, Deportiva, Lencería, Niños, Mascotas, Accesorios)\n` +
+        `✓ Carpeta 10: Bonos Exclusivos (Catálogo Maestro, Manual de Escalamiento, Guía de Impresión y Calculadora de Costos)\n\n` +
+        `¡Muchos éxitos en tus proyectos de confección y costura! Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂️`;
+    } else {
+      confirmMsg =
+        `¡Comprobante verificado con éxito! 🎉🍰\n\n` +
+        `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
+        `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
+        `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
+        `🔗 *O en Google Drive:*\n` +
+        `${settings.driveLink}\n\n` +
+        `📁 *Tu pack incluye:*\n` +
+        `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
+        `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
+        `✓ Recetario Navideño y Cajas de Regalo (35 págs PDF)\n` +
+        `✓ Bono 1: Plantilla de Costeo en Excel y Web\n` +
+        `✓ Bono 2: Directorio de Proveedores en Colombia\n` +
+        `✓ Bono 3: Guía de Ventas por WhatsApp\n\n` +
+        `¡Muchos éxitos en tu emprendimiento dulce! Si tienes cualquier pregunta con alguna receta, aquí estamos para ayudarte 🙌`;
+    }
+
+    await waService.sendTextMessage(phone, confirmMsg);
+    store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
+    store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
   }
 
   async handleButtonReply(phone, btnId, btnTitle) {

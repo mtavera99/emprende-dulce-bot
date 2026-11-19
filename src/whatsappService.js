@@ -233,7 +233,10 @@ class WhatsAppService {
     try {
       const mediaInfoUrl = `https://graph.facebook.com/v21.0/${mediaId}`;
       const infoRes = await fetch(mediaInfoUrl, {
-        headers: { 'Authorization': `Bearer ${this.getAccessToken()}` }
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'User-Agent': 'curl/7.64.1'
+        }
       });
       if (!infoRes.ok) throw new Error(`Meta Media Info Error ${infoRes.status}`);
       const infoData = await infoRes.json();
@@ -241,7 +244,10 @@ class WhatsAppService {
       const mimeType = infoData.mime_type;
 
       const fileRes = await fetch(downloadUrl, {
-        headers: { 'Authorization': `Bearer ${this.getAccessToken()}` }
+        headers: {
+          'Authorization': `Bearer ${this.getAccessToken()}`,
+          'User-Agent': 'curl/7.64.1'
+        }
       });
       if (!fileRes.ok) throw new Error(`Meta Media Download Error ${fileRes.status}`);
       const arrayBuf = await fileRes.arrayBuffer();

@@ -242,11 +242,38 @@ const store = {
   },
 
   crearPedido(phone, orderData = {}) {
+    const lead = store.getLead(phone);
+    const prodId = orderData.producto || (lead && lead.producto) || 'helados';
+
+    // 1. Si ya existe un pedido PENDIENTE para este mismo teléfono, NO crear un duplicado;
+    // actualizar el existente con los nuevos datos recibidos.
+    const pedidoExistente = Object.values(orders).find(
+      o => o.phone === phone && o.status === 'PENDIENTE'
+    );
+    if (pedidoExistente) {
+      const actualizacion = {
+        ...orderData,
+        producto: prodId,
+        updatedAt: Date.now()
+      };
+      delete actualizacion.id;
+      delete actualizacion.createdAt;
+      return store.actualizarPedido(pedidoExistente.id, actualizacion);
+    }
+
     const id = `DULCE-${Date.now().toString().slice(-6)}`;
+    const nombreProd = prodId === 'moldes'
+      ? 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF'
+      : 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)';
+    const driveLink = prodId === 'moldes'
+      ? (settings.driveLinkMoldes || settings.driveLink)
+      : settings.driveLink;
+
     const order = {
       id,
       phone,
-      product: 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)',
+      producto: prodId,
+      product: nombreProd,
       amount: settings.precioOferta || 10000,
       status: 'PENDIENTE', // PENDIENTE, VERIFICADO, RECHAZADO, ENTREGADO
       createdAt: Date.now(),
@@ -255,12 +282,12 @@ const store = {
       comprobanteUrl: null,
       ocrData: null,
       aprobadoPor: null,
-      driveLink: settings.driveLink,
+      driveLink,
       ...orderData
     };
     orders[id] = order;
     saveJSON(ORDERS_FILE, orders);
-    store.saveLead(phone, { status: 'CON_CUENTA', activeOrderId: id });
+    store.saveLead(phone, { status: 'CON_CUENTA', activeOrderId: id, producto: prodId });
     return order;
   },
 
@@ -279,10 +306,22 @@ const store = {
       verifiedAt: Date.now()
     });
     if (ord) {
+      // Auto-descartar cualquier otro pedido PENDIENTE duplicado de este mismo teléfono
+      Object.values(orders).forEach(o => {
+        if (o.phone === ord.phone && o.id !== ord.id && o.status === 'PENDIENTE') {
+          o.status = 'DESCARTADO';
+          o.motivoDescarte = `Auto-resuelto tras aprobar pedido principal ${ord.id}`;
+          o.discardedAt = Date.now();
+        }
+      });
+      saveJSON(ORDERS_FILE, orders);
+
       store.saveLead(ord.phone, { status: 'PAGADO', paidAt: Date.now() });
       const conv = store.obtenerConversacion(ord.phone);
-      conv.esperaComprobante = false;
-      saveJSON(CONVS_FILE, conversations);
+      if (conv) {
+        conv.esperaComprobante = false;
+        saveJSON(CONVS_FILE, conversations);
+      }
     }
     return ord;
   },
@@ -313,9 +352,16 @@ const store = {
   },
 
   pedidosPendientes() {
+    // Deduplica por teléfono para que nunca se muestren múltiples tarjetas del mismo cliente
+    const seenPhones = new Set();
     return Object.values(orders)
       .filter(o => o.status === 'PENDIENTE')
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .filter(o => {
+        if (seenPhones.has(o.phone)) return false;
+        seenPhones.add(o.phone);
+        return true;
+      });
   },
 
   pedidosVerificados() {

@@ -93,7 +93,20 @@ Reglas:
 
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      const parsed = JSON.parse(text);
+      if (!text) {
+        return { isValid: false, reason: "Gemini no devolvió texto de análisis" };
+      }
+      let cleaned = text.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+      }
+      let parsed = {};
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch (parseErr) {
+        console.error("[OCR GEMINI PARSE ERROR]", parseErr.message, "Raw text:", text);
+        return { isValid: false, reason: "Error decodificando respuesta de Gemini: " + parseErr.message };
+      }
       console.log("[OCR GEMINI RESULT]", parsed);
 
       const minAmount = expected.minAmount || 7000;

@@ -308,15 +308,21 @@ class ConversationFlow {
         productDetails = `El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.`;
       }
 
+      const downloadUrl = producto === 'moldes'
+        ? 'https://emprende-dulce-bot.onrender.com/descargar-moldes'
+        : 'https://emprende-dulce-bot.onrender.com/descargar';
+
       const systemPrompt = `Eres Sofía, asesora experta comercial de "Creativos Digitales" en Colombia.
 Tu tono es cálido, colombiano, dulce, servicial, transparente y persuasivo.
 Reglas clave:
 - Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
 - ${productDetails}
-- Si el cliente expresa desconfianza, miedo o pregunta si es seguro: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital descargable sin intermediarios.
+- REGLA SUPREMA: JAMÁS inventes links falsos de Google Drive ni pongas corchetes o placeholders como "[Link de Acceso]". Si tienes que dar un enlace oficial, usa EXACTAMENTE este: ${downloadUrl}
+- REGLA SUPREMA: JAMÁS digas que enviaste archivos al correo electrónico ni pidas correos. TODO se entrega de inmediato por este chat de WhatsApp y en el enlace oficial.
+- REGLA DE RECLAMO: Si el cliente ya pagó, reclama por su dinero, pide reembolso o está angustiado: NUNCA le pidas que pague de nuevo ni le envíes datos de cuenta Nequi. Respóndele con máxima empatía y cariño, asegurándole que su dinero está seguro y que le estás confirmando su acceso oficial ya mismo.
+- Si el cliente expresa desconfianza, miedo o pregunta si es seguro antes de pagar: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital descargable sin intermediarios.
 - Si piden que se les envíe primero antes de pagar: diles amablemente que el sistema automático libera el paquete completo al registrar el comprobante con total garantía.
-- Si el cliente muestra interés o acuerdo, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
-- Cierra siempre invitándolo amablemente a adquirir el pack por Nequi o Daviplata.
+- Si el cliente muestra interés o acuerdo en comprar, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
 - No uses saludos repetitivos si ya estamos en medio de la conversación.
 
 Historial de la conversación:
@@ -625,7 +631,8 @@ Respuesta de Sofía:`;
 
   async enviarEntregaProducto(phone, settings) {
     const lead = store.getLead(phone);
-    const producto = (lead && lead.producto) || 'helados';
+    const pedido = store.obtenerPedidoPorTelefono(phone);
+    const producto = (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
     let confirmMsg = '';
 
     if (producto === 'moldes') {
@@ -633,13 +640,13 @@ Respuesta de Sofía:`;
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
         `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-        `🔗 *Enlace de Acceso a Google Drive:*\n` +
+        `📥 *Enlace de Descarga Directa (Panel Web Oficial):*\n` +
+        `https://emprende-dulce-bot.onrender.com/descargar-moldes\n\n` +
+        `🔗 *O en Google Drive:*\n` +
         `${driveLink}\n\n` +
-        `🌐 *O en nuestro Portal Web de Descargas:*\n` +
-        `https://emprende-dulce-bot.onrender.com/portal\n\n` +
         `📁 *Tu paquete contiene 10 carpetas listas para descargar e imprimir en casa (hoja carta o A4):*\n` +
         `✓ Carpetas 01 a 09: +2.000 Moldes en PDF clasificados (Vestidos, Blusas, Pantalones, Deportiva, Lencería, Niños, Mascotas, Accesorios)\n` +
-        `✓ Carpeta 10: Bonos Exclusivos (Catálogo Maestro, Manual de Escalamiento, Guía de Impresión y Calculadora de Costos)\n\n` +
+        `✓ Carpeta 10: Bonos Exclusivos (Catálogo Maestro, Manual de Escalamiento, Guía de Impresión y Calculadora de Costos en Excel)\n\n` +
         `¡Muchos éxitos en tus proyectos de confección y costura! Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂️`;
     } else {
       confirmMsg =

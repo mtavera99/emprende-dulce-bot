@@ -28,8 +28,8 @@ creatives/capcut_material_helados/
 moldes-pack/
 SUBIR_A_DRIVE_MOLDES_2000/
 SUBIR_A_DRIVE_HELADOS_Y_POSTRES/
-public/descargas/
-*.mp4
+# public/descargas ahora se trackea para descargas oficiales
+!public/descargas/**
 
 
 creatives/

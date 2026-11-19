@@ -36,4 +36,5 @@ creatives/
 *.jpg
 *.png
 *.mp4
+!public/portal/images/**
 test_nequi_comprobante.jpg

@@ -62,9 +62,14 @@ let settings = loadJSON(SETTINGS_FILE, {
   daviplataNumero: process.env.DAVIPLATA_NUMERO || '3058742138',
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
   driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing',
+  driveLinkMoldes: process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing',
   botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478',
   modoAutoEntregaLeona: true
 });
+
+if (!settings.driveLinkMoldes) {
+  settings.driveLinkMoldes = process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
+}
 
 const store = {
   getDir() {
@@ -266,7 +271,7 @@ const store = {
       ? 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF'
       : 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)';
     const driveLink = prodId === 'moldes'
-      ? (settings.driveLinkMoldes || settings.driveLink)
+      ? (settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing')
       : settings.driveLink;
 
     const order = {

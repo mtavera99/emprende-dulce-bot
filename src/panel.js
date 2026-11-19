@@ -1027,8 +1027,13 @@ function render(aviso = '') {
           </div>
 
           <div style="margin-top: 16px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE</label>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE (POSTRES Y HELADOS)</label>
             <input type="text" name="driveLink" value="${esc(settings.driveLink)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE (MOLDES DE COSTURA)</label>
+            <input type="text" name="driveLinkMoldes" value="${esc(settings.driveLinkMoldes || '')}" placeholder="https://drive.google.com/drive/folders/..." style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
           </div>
 
           <div style="margin-top: 20px;">
@@ -1169,22 +1174,4 @@ function renderFilaChat({ tel, c, msgs, cuando }, tk) {
       <div class="chat-row-top">
         <div class="chat-user-wrap">
           <span class="chat-user-name">${esc(nombre)}</span>
-          ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="badge badge-green" style="font-size: 0.68rem; padding: 1px 6px;">🟢 Activo</span>'}
-        </div>
-        <div class="chat-time-tag">
-          <span style="color: #cbd5e1;">${horaCorta(cuando)}</span>
-          <span style="font-size: 0.72rem; opacity: 0.75;"> · ${hace(cuando)}</span>
-        </div>
-      </div>
-      <div class="chat-row-bottom">
-        <div class="chat-preview">${esc(texto)}</div>
-        <span class="chat-msg-badge">${msgs.length} msgs</span>
-      </div>
-    </a>
-  `;
-}
-
-module.exports = {
-  render,
-  panelToken
-};
+          ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="

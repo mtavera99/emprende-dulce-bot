@@ -253,7 +253,7 @@ app.get(['/descargar', '/acceso'], (req, res) => {
 // Hub de descarga móvil para compradores (Mega Pack Moldes & Costura)
 app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
   const settings = store.getSettings();
-  const driveLink = settings.driveLinkMoldes || settings.driveLink || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing';
+  const driveLink = settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
   
   res.send(`<!DOCTYPE html>
 <html lang="es">
@@ -633,7 +633,7 @@ app.post('/api/chats/:id/pausar', authPanel, (req, res) => {
 
 // Actualizar configuración
 app.post('/api/settings', authPanel, (req, res) => {
-  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, botWhatsApp, modoAutoEntregaLeona } = req.body;
+  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, driveLinkMoldes, botWhatsApp, modoAutoEntregaLeona } = req.body;
   store.updateSettings({
     nequiNumero: nequiNumero || undefined,
     nequiTitular: nequiTitular || undefined,
@@ -641,6 +641,7 @@ app.post('/api/settings', authPanel, (req, res) => {
     llaveNumero: llaveNumero || undefined,
     precioOferta: precioOferta ? Number(precioOferta) : undefined,
     driveLink: driveLink || undefined,
+    driveLinkMoldes: driveLinkMoldes || undefined,
     botWhatsApp: botWhatsApp || undefined,
     modoAutoEntregaLeona: modoAutoEntregaLeona === '1' || modoAutoEntregaLeona === 'true' || modoAutoEntregaLeona === true || modoAutoEntregaLeona === 'on'
   });

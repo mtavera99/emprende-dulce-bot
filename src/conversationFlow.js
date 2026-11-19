@@ -636,7 +636,7 @@ Respuesta de Sofía:`;
     let confirmMsg = '';
 
     if (producto === 'moldes') {
-      const driveLink = settings.driveLinkMoldes || settings.driveLink || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing';
+      const driveLink = settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
         `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +

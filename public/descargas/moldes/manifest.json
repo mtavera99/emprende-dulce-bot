@@ -8,25 +8,34 @@
    "prendas": [
     {
      "carpeta": "01_Vestido_Camisero_Cinturon",
-     "nombre": "Vestido Camisero Cinturon",
-     "n_tallas": 6
+     "nombre": "Vestido Camisero Clásico con Cinturón",
+     "n_tallas": 6,
+     "moldes": 66,
+     "hojas_carta": 216
     },
     {
      "carpeta": "01_Vestido_Casual_Manga_Corta",
      "nombre": "Vestido Casual Manga Corta",
-     "n_tallas": 6
+     "n_tallas": 6,
+     "moldes": 30,
+     "hojas_carta": 155
     },
     {
      "carpeta": "01_Vestido_Evase_Linea_A",
-     "nombre": "Vestido Evase Linea A",
-     "n_tallas": 6
+     "nombre": "Vestido Evasé Casual en A",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 156
     },
     {
      "carpeta": "01_Vestido_Fiesta_V_Cruzado",
-     "nombre": "Vestido Fiesta V Cruzado",
-     "n_tallas": 6
+     "nombre": "Vestido de Fiesta Escote en V Cruzado",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 183
     }
-   ]
+   ],
+   "moldes": 144
   },
   {
    "id": "02",
@@ -36,25 +45,34 @@
    "prendas": [
     {
      "carpeta": "02_Blusa_Basica_Pinzas_Busto",
-     "nombre": "Blusa Basica Pinzas Busto",
-     "n_tallas": 6
+     "nombre": "Blusa Básica con Pinzas de Busto",
+     "n_tallas": 6,
+     "moldes": 30,
+     "hojas_carta": 96
     },
     {
      "carpeta": "02_Blusa_Olanes_Mangas_Campana",
-     "nombre": "Blusa Olanes Mangas Campana",
-     "n_tallas": 6
+     "nombre": "Blusa con Olanes y Mangas Campana",
+     "n_tallas": 6,
+     "moldes": 42,
+     "hojas_carta": 148
     },
     {
      "carpeta": "02_Blusa_Wrap_Cruzada",
      "nombre": "Blusa Wrap Cruzada",
-     "n_tallas": 6
+     "n_tallas": 6,
+     "moldes": 36,
+     "hojas_carta": 111
     },
     {
      "carpeta": "02_Camisa_Clasica_Manga_Larga",
-     "nombre": "Camisa Clasica Manga Larga",
-     "n_tallas": 6
+     "nombre": "Camisa Clásica Manga Larga",
+     "n_tallas": 6,
+     "moldes": 54,
+     "hojas_carta": 140
     }
-   ]
+   ],
+   "moldes": 162
   },
   {
    "id": "03",
@@ -64,25 +82,34 @@
    "prendas": [
     {
      "carpeta": "03_Bermuda_Clasica_Hombre",
-     "nombre": "Bermuda Clasica Hombre",
-     "n_tallas": 6
+     "nombre": "Bermuda Clásica Formal (Hombre)",
+     "n_tallas": 6,
+     "moldes": 66,
+     "hojas_carta": 161
     },
     {
      "carpeta": "03_Pantalon_Palazzo_Tiro_Alto",
-     "nombre": "Pantalon Palazzo Tiro Alto",
-     "n_tallas": 6
+     "nombre": "Pantalón Palazzo Tiro Alto",
+     "n_tallas": 6,
+     "moldes": 36,
+     "hojas_carta": 151
     },
     {
      "carpeta": "03_Pantalon_Recto_de_Vestir",
-     "nombre": "Pantalon Recto de Vestir",
-     "n_tallas": 6
+     "nombre": "Pantalón Recto de Vestir",
+     "n_tallas": 6,
+     "moldes": 66,
+     "hojas_carta": 190
     },
     {
      "carpeta": "03_Short_Veraniego",
-     "nombre": "Short Veraniego",
-     "n_tallas": 6
+     "nombre": "Short Veraniego con Bolsillos",
+     "n_tallas": 6,
+     "moldes": 48,
+     "hojas_carta": 92
     }
-   ]
+   ],
+   "moldes": 216
   },
   {
    "id": "04",
@@ -92,20 +119,27 @@
    "prendas": [
     {
      "carpeta": "04_Falda_Evase_Linea_A",
-     "nombre": "Falda Evase Linea A",
-     "n_tallas": 6
+     "nombre": "Falda Evasé Línea A con Vuelo",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 101
     },
     {
      "carpeta": "04_Falda_Lapiz_Tubo",
-     "nombre": "Falda Lapiz Tubo",
-     "n_tallas": 6
+     "nombre": "Falda Lápiz de Tubo Formal",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 75
     },
     {
      "carpeta": "04_Falda_Media_Campana_Vuelo",
-     "nombre": "Falda Media Campana Vuelo",
-     "n_tallas": 6
+     "nombre": "Falda Media Campana con Vuelo",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 129
     }
-   ]
+   ],
+   "moldes": 72
   },
   {
    "id": "05",
@@ -115,25 +149,34 @@
    "prendas": [
     {
      "carpeta": "05_Hoodie_Canguro_Capucha",
-     "nombre": "Hoodie Canguro Capucha",
-     "n_tallas": 6
+     "nombre": "Hoodie Canguro con Capucha (Unisex)",
+     "n_tallas": 6,
+     "moldes": 48,
+     "hojas_carta": 187
     },
     {
      "carpeta": "05_Jogger_Deportivo_Casual",
      "nombre": "Jogger Deportivo Casual",
-     "n_tallas": 6
+     "n_tallas": 6,
+     "moldes": 36,
+     "hojas_carta": 155
     },
     {
      "carpeta": "05_Legging_Deportiva_Tiro_Alto",
      "nombre": "Legging Deportiva Tiro Alto",
-     "n_tallas": 6
+     "n_tallas": 6,
+     "moldes": 30,
+     "hojas_carta": 103
     },
     {
      "carpeta": "05_Top_Deportivo_Racerback",
      "nombre": "Top Deportivo Racerback",
-     "n_tallas": 6
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 61
     }
-   ]
+   ],
+   "moldes": 138
   },
   {
    "id": "06",
@@ -143,25 +186,34 @@
    "prendas": [
     {
      "carpeta": "06_BabyDoll_Tul_Copas_Suaves",
-     "nombre": "BabyDoll Tul Copas Suaves",
-     "n_tallas": 6
+     "nombre": "BabyDoll de Tul con Copas Suaves",
+     "n_tallas": 6,
+     "moldes": 42,
+     "hojas_carta": 75
     },
     {
      "carpeta": "06_Bralette_Encaje_Copas_Triangulares",
-     "nombre": "Bralette Encaje Copas Triangulares",
-     "n_tallas": 6
+     "nombre": "Bralette de Encaje con Copas Triangulares",
+     "n_tallas": 6,
+     "moldes": 24,
+     "hojas_carta": 24
     },
     {
      "carpeta": "06_Panty_Tiro_Alto_Refuerzo_Algodon",
-     "nombre": "Panty Tiro Alto Refuerzo Algodon",
-     "n_tallas": 6
+     "nombre": "Panty Tiro Alto con Refuerzo de Algodón",
+     "n_tallas": 6,
+     "moldes": 18,
+     "hojas_carta": 31
     },
     {
      "carpeta": "06_Pijama_Camisera_Saten",
-     "nombre": "Pijama Camisera Saten",
-     "n_tallas": 6
+     "nombre": "Pijama Camisera de Satén",
+     "n_tallas": 6,
+     "moldes": 54,
+     "hojas_carta": 181
     }
-   ]
+   ],
+   "moldes": 138
   },
   {
    "id": "07",
@@ -171,25 +223,34 @@
    "prendas": [
     {
      "carpeta": "07_Body_Bebe_Hombro_Americano",
-     "nombre": "Body Bebe Hombro Americano",
-     "n_tallas": 5
+     "nombre": "Body de Bebé con Hombro Americano",
+     "n_tallas": 5,
+     "moldes": 45,
+     "hojas_carta": 46
     },
     {
      "carpeta": "07_Conjunto_Nino_Bermuda_Camisa_Mao",
-     "nombre": "Conjunto Nino Bermuda Camisa Mao",
-     "n_tallas": 5
+     "nombre": "Conjunto Niño: Bermuda + Camisa Cuello Mao",
+     "n_tallas": 5,
+     "moldes": 45,
+     "hojas_carta": 91
     },
     {
      "carpeta": "07_Mameluco_Bebe_Broches_Entrepierna",
-     "nombre": "Mameluco Bebe Broches Entrepierna",
-     "n_tallas": 5
+     "nombre": "Mameluco Enterito de Bebé con Broches",
+     "n_tallas": 5,
+     "moldes": 40,
+     "hojas_carta": 74
     },
     {
      "carpeta": "07_Vestido_Nina_Corte_Imperio",
-     "nombre": "Vestido Nina Corte Imperio",
-     "n_tallas": 5
+     "nombre": "Vestido de Niña con Corte Imperio",
+     "n_tallas": 5,
+     "moldes": 25,
+     "hojas_carta": 70
     }
-   ]
+   ],
+   "moldes": 155
   },
   {
    "id": "08",
@@ -199,15 +260,20 @@
    "prendas": [
     {
      "carpeta": "08_Buzo_Invierno_Capucha_Canina",
-     "nombre": "Buzo Invierno Capucha Canina",
-     "n_tallas": 4
+     "nombre": "Buzo de Invierno con Capucha Canina",
+     "n_tallas": 4,
+     "moldes": 24,
+     "hojas_carta": 51
     },
     {
      "carpeta": "08_Capa_Impermeable_Perro",
-     "nombre": "Capa Impermeable Perro",
-     "n_tallas": 4
+     "nombre": "Capa Impermeable para Perro",
+     "n_tallas": 4,
+     "moldes": 20,
+     "hojas_carta": 35
     }
-   ]
+   ],
+   "moldes": 44
   },
   {
    "id": "09",
@@ -217,20 +283,27 @@
    "prendas": [
     {
      "carpeta": "09_Mochila_Urbana_Fuelle_3D",
-     "nombre": "Mochila Urbana Fuelle 3D",
-     "n_tallas": 3
+     "nombre": "Mochila Urbana con Fuelle 3D",
+     "n_tallas": 3,
+     "moldes": 27,
+     "hojas_carta": 60
     },
     {
      "carpeta": "09_Neceser_Prismatico_Cremallera",
-     "nombre": "Neceser Prismatico Cremallera",
-     "n_tallas": 3
+     "nombre": "Neceser Prismático con Cremallera",
+     "n_tallas": 3,
+     "moldes": 12,
+     "hojas_carta": 15
     },
     {
      "carpeta": "09_Tote_Bag_Lona_Forro",
-     "nombre": "Tote Bag Lona Forro",
-     "n_tallas": 3
+     "nombre": "Bolso Tote Bag en Lona con Forro",
+     "n_tallas": 3,
+     "moldes": 12,
+     "hojas_carta": 54
     }
-   ]
+   ],
+   "moldes": 51
   },
   {
    "id": "10",
@@ -240,15 +313,20 @@
    "prendas": [
     {
      "carpeta": "10_Delantal_Barista_Tirantes_X",
-     "nombre": "Delantal Barista Tirantes X",
-     "n_tallas": 3
+     "nombre": "Delantal Barista con Tirantes en X",
+     "n_tallas": 3,
+     "moldes": 12,
+     "hojas_carta": 73
     },
     {
      "carpeta": "10_Scrub_Medico_Filipina_V_Jogger",
-     "nombre": "Scrub Medico Filipina V Jogger",
-     "n_tallas": 6
+     "nombre": "Scrub Médico: Filipina Cuello V + Jogger",
+     "n_tallas": 6,
+     "moldes": 78,
+     "hojas_carta": 274
     }
-   ]
+   ],
+   "moldes": 90
   }
  ],
  "bonos": [
@@ -268,5 +346,11 @@
    "archivo": "11_Bonos/Bono_04_Calculadora_Costos_Precios_Confeccion.html",
    "mb": 0.02
   }
- ]
+ ],
+ "totales": {
+  "patrones": 34,
+  "moldes": 1210,
+  "hojas_carta": 3764,
+  "moldes_imprimibles": 2420
+ }
 }

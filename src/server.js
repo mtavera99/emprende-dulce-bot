@@ -421,6 +421,14 @@ app.get('/panel', authPanel, (req, res) => {
 });
 
 // 5. Visor de Chat Individual
+// Comprobantes e imágenes recibidas por WhatsApp (solo con el token del panel)
+app.get('/panel/media/:file', authPanel, (req, res) => {
+  const f = store.rutaMedia(req.params.file);
+  if (!f) return res.status(404).send('Imagen no encontrada');
+  res.set('Cache-Control', 'private, max-age=86400');
+  res.sendFile(f);
+});
+
 app.get('/panel/chat', authPanel, (req, res) => {
   const phone = req.query.id;
   if (!phone) return res.redirect(`/panel?token=${PANEL_TOKEN}#chats`);
@@ -549,10 +557,12 @@ app.post('/api/settings/toggle-leona', authPanel, (req, res) => {
 // Exportar CSV de pedidos confirmados
 app.get('/api/pedidos/csv', authPanel, (req, res) => {
   const confirmados = store.pedidosVerificados();
-  let csv = 'ID,Fecha,Telefono,Producto,Monto,Referencia,AprobadoPor\n';
+  let csv = 'ID,Fecha,Telefono,ProductoId,Producto,Origen,DetalleOrigen,Monto,Referencia,AprobadoPor\n';
+  const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
   for (const p of confirmados) {
     const f = new Date(p.verifiedAt || p.createdAt).toISOString();
-    csv += `"${p.id}","${f}","+${p.phone}","${p.product}","${p.amount}","${p.reference || ''}","${p.aprobadoPor || ''}"\n`;
+    const o = p.origen || store.origenDeLead(store.getLead(p.phone));
+    csv += [p.id, f, `+${p.phone}`, p.producto || 'helados', p.product, o.canal, o.detalle, p.amount, p.reference, p.aprobadoPor].map(q).join(',') + '\n';
   }
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="ventas_emprende_dulce.csv"');

@@ -55,6 +55,18 @@ function horaCorta(ms) {
   });
 }
 
+function conToken(url, tk) {
+  if (!url || !String(url).startsWith('/panel/media/')) return url;
+  return `${url}?token=${encodeURIComponent(tk)}`;
+}
+
+const NOMBRE_PRODUCTO = { moldes: '🧵 Moldes de costura', helados: '🍦 Helados y postres' };
+
+function origenTexto(p) {
+  const o = p.origen || store.origenDeLead(store.getLead(p.phone));
+  return { canal: o.canal || 'Directo / sin dato', detalle: o.detalle || '' };
+}
+
 function render(aviso = '') {
   const tk = panelToken();
   const numBot = numeroDelBot() || 'Línea de WhatsApp no configurada (poné BOT_WHATSAPP en Render)';
@@ -620,9 +632,9 @@ function render(aviso = '') {
                 </button>
               </form>
 
-              <div class="thumb-wrap" onclick="abrirZoom('${esc(p.comprobanteUrl || '')}')">
+              <div class="thumb-wrap" onclick="abrirZoom('${esc(conToken(p.comprobanteUrl || '', tk))}')">
                 ${p.comprobanteUrl ? `
-                  <img src="${esc(p.comprobanteUrl)}" alt="Comprobante" loading="lazy">
+                  <img src="${esc(conToken(p.comprobanteUrl, tk))}" alt="Comprobante" loading="lazy">
                   <span class="thumb-badge">🔍 Toca para ampliar</span>
                 ` : `
                   <div class="no-img">📷 Sin imagen adjunta</div>
@@ -686,6 +698,31 @@ function render(aviso = '') {
         <a href="/api/pedidos/csv?token=${esc(tk)}" class="btn btn-ghost" style="font-size: 0.78rem;">⬇️ Exportar CSV</a>
       </div>
 
+      ${(() => {
+        const R = store.resumenVentas();
+        const prods = ['moldes', 'helados'];
+        return `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px;">
+        ${prods.map(k => {
+          const v = R.porProducto[k] || { ventas: 0, recaudo: 0, manuales: 0 };
+          return `<div style="background: var(--card, #151c28); border: 1px solid var(--border); border-radius: 12px; padding: 14px;">
+            <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">${NOMBRE_PRODUCTO[k]}</div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: var(--green);">${v.ventas} <span style="font-size: 0.85rem; color: var(--muted); font-weight: 600;">ventas</span></div>
+            <div style="font-size: 0.85rem; color: var(--muted);">Recaudo: <b style="color: #fff;">${fmtCOP(v.recaudo)}</b> · Conversaciones: ${R.leadsPorProducto[k] || 0} · Aprobadas a mano: ${v.manuales}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="table-wrap" style="margin-bottom: 16px;">
+        <table>
+          <thead><tr><th>Producto</th><th>De dónde vino la venta</th><th>Ventas</th><th>Recaudo</th></tr></thead>
+          <tbody>
+            ${R.porOrigen.length === 0 ? '<tr><td colspan="4" style="text-align: center; padding: 16px; color: var(--muted);">Sin ventas todavía.</td></tr>' : R.porOrigen.map(o => `
+              <tr><td data-label="Producto">${esc(NOMBRE_PRODUCTO[o.producto] || o.producto)}</td><td data-label="Origen">${esc(o.origen)}</td><td data-label="Ventas"><b>${o.ventas}</b></td><td data-label="Recaudo">${fmtCOP(o.recaudo)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+      })()}
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -693,15 +730,17 @@ function render(aviso = '') {
               <th>Fecha</th>
               <th>Cliente</th>
               <th>Producto</th>
+              <th>Origen</th>
               <th>Monto</th>
               <th>Referencia</th>
+              <th>Comprobante</th>
               <th>Aprobado Por</th>
               <th>Acción</th>
             </tr>
           </thead>
           <tbody>
             ${confirmados.length === 0 ? `
-              <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--muted);">No hay ventas confirmadas registradas aún.</td></tr>
+              <tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--muted);">No hay ventas confirmadas registradas aún.</td></tr>
             ` : confirmados.map(p => `
               <tr>
                 <td data-label="Fecha">${fechaHora(p.verifiedAt || p.createdAt)}</td>
@@ -710,9 +749,11 @@ function render(aviso = '') {
                     +${esc(p.phone)}
                   </a>
                 </td>
-                <td data-label="Producto">${esc(p.product)}</td>
+                <td data-label="Producto">${esc(NOMBRE_PRODUCTO[p.producto] || p.product)}</td>
+                <td data-label="Origen">${esc(origenTexto(p).canal)}${origenTexto(p).detalle ? `<div style="font-size: 0.72rem; color: var(--muted);">${esc(origenTexto(p).detalle)}</div>` : ''}</td>
                 <td data-label="Monto" style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
                 <td data-label="Referencia"><code>${esc(p.reference || 'MANUAL-OK')}</code></td>
+                <td data-label="Comprobante">${p.comprobanteUrl ? `<a href="${esc(conToken(p.comprobanteUrl, tk))}" target="_blank"><img src="${esc(conToken(p.comprobanteUrl, tk))}" alt="Comprobante" loading="lazy" style="width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border);"></a>` : '<span style="color: var(--muted); font-size: 0.75rem;">Sin imagen</span>'}</td>
                 <td data-label="Aprobado Por">
                   <span class="badge ${p.aprobadoPor === 'ia_leona_auto' ? 'badge-green' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? 'badge-blue' : 'badge-amber'}">
                     ${p.aprobadoPor === 'ia_leona_auto' ? '🦁 IA Leona (Auto)' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? '💰 ' + esc(p.aprobadoPor.replace('banco_', '').toUpperCase()) : esc(p.aprobadoPor || 'Operador')}

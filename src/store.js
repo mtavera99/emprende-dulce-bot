@@ -24,6 +24,27 @@ const ORDERS_FILE = path.join(DIR, 'pedidos.json');
 const CONVS_FILE = path.join(DIR, 'conversations.json');
 const SETTINGS_FILE = path.join(DIR, 'settings.json');
 const DELIVERY_FILE = path.join(DIR, 'delivery-statuses.json');
+const MEDIA_DIR = path.join(DIR, 'media');
+if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
+const EXT_MIME = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+
+// Origen de una venta, a partir de la atribución guardada en el lead
+function origenDeLead(lead) {
+  if (!lead) return { canal: 'Directo / sin dato', detalle: '' };
+  const ref = lead.referral || {};
+  const metodo = lead.metodoDeteccion || '';
+  if (ref.source_id || ref.source_url || ref.headline || metodo.startsWith('META')) {
+    return {
+      canal: 'Anuncio de Meta',
+      detalle: [ref.headline, ref.source_id ? `ID ${ref.source_id}` : (lead.adId ? `ID ${lead.adId}` : '')].filter(Boolean).join(' · '),
+      adId: ref.source_id || lead.adId || null,
+      metodo
+    };
+  }
+  if (metodo.startsWith('TEXT_KEYWORD')) return { canal: 'Mensaje con palabra clave', detalle: metodo.replace('TEXT_KEYWORD_', '').toLowerCase(), metodo };
+  if (metodo) return { canal: 'Directo / sin dato', detalle: metodo, metodo };
+  return { canal: 'Directo / sin dato', detalle: '' };
+}
 
 function loadJSON(filePath, defaultVal = {}) {
   try {
@@ -277,6 +298,7 @@ const store = {
     const order = {
       id,
       phone,
+      origen: origenDeLead(lead),
       producto: prodId,
       product: nombreProd,
       amount: settings.precioOferta || 10000,
@@ -424,6 +446,48 @@ const store = {
     lead.seguimientosEnviados = paso;
     lead.ultimoSeguimiento = Date.now();
     saveJSON(LEADS_FILE, leads);
+  },
+
+  // --------------------------------------------------------------------------
+  // Comprobantes (imágenes recibidas por WhatsApp)
+  // --------------------------------------------------------------------------
+  guardarMedia(phone, buffer, mimeType = 'image/jpeg') {
+    if (!buffer || !buffer.length) return null;
+    const ext = EXT_MIME[String(mimeType).toLowerCase()] || 'jpg';
+    const nombre = `${String(phone).replace(/\D/g, '')}_${Date.now()}.${ext}`;
+    fs.writeFileSync(path.join(MEDIA_DIR, nombre), buffer);
+    return `/panel/media/${nombre}`;
+  },
+
+  rutaMedia(nombre) {
+    const limpio = path.basename(String(nombre || ''));
+    if (!/^[0-9]+_[0-9]+\.(jpg|png|webp|gif)$/.test(limpio)) return null;
+    const f = path.join(MEDIA_DIR, limpio);
+    return fs.existsSync(f) ? f : null;
+  },
+
+  origenDeLead,
+
+  // Ventas confirmadas agrupadas por producto y por origen
+  resumenVentas() {
+    const ventas = Object.values(orders).filter(o => o.status === 'VERIFICADO' || o.status === 'ENTREGADO');
+    const porProducto = {};
+    const porOrigen = {};
+    for (const o of ventas) {
+      const prod = o.producto || 'helados';
+      const origen = (o.origen && o.origen.canal) || origenDeLead(leads[o.phone]).canal;
+      porProducto[prod] = porProducto[prod] || { ventas: 0, recaudo: 0, manuales: 0 };
+      porProducto[prod].ventas += 1;
+      porProducto[prod].recaudo += Number(o.amount) || 0;
+      if (!o.aprobadoPor || o.aprobadoPor === 'operador' || o.aprobadoPor === 'panel') porProducto[prod].manuales += 1;
+      const k = `${prod}|${origen}`;
+      porOrigen[k] = porOrigen[k] || { producto: prod, origen, ventas: 0, recaudo: 0 };
+      porOrigen[k].ventas += 1;
+      porOrigen[k].recaudo += Number(o.amount) || 0;
+    }
+    const leadsPorProducto = {};
+    Object.values(leads).forEach(l => { const p = l.producto || 'helados'; leadsPorProducto[p] = (leadsPorProducto[p] || 0) + 1; });
+    return { porProducto, porOrigen: Object.values(porOrigen).sort((a, b) => b.ventas - a.ventas), leadsPorProducto, total: ventas.length };
   },
 
   // --------------------------------------------------------------------------

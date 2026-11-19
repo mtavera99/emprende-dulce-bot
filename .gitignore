@@ -31,3 +31,9 @@ SUBIR_A_DRIVE_HELADOS_Y_POSTRES/
 public/descargas/
 *.mp4
 
+
+creatives/
+*.jpg
+*.png
+*.mp4
+test_nequi_comprobante.jpg

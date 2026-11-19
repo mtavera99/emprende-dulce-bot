@@ -3,6 +3,7 @@ const waService = require('./whatsappService');
 const ocrValidator = require('./ocrValidator');
 const paymentVerifier = require('./paymentVerifier');
 const audioService = require('./audioService');
+const productCatalog = require('./productCatalog');
 
 class ConversationFlow {
   constructor() {
@@ -34,7 +35,7 @@ class ConversationFlow {
     if (msgType === 'text') {
       const text = (message.text?.body || '').trim();
       store.agregarMensaje(phone, { from: 'cliente', text, type: 'text' });
-      return await this.handleTextMessage(phone, text);
+      return await this.handleTextMessage(phone, text, message);
     }
 
     // 2. Mensaje de AUDIO / NOTA DE VOZ (Transcripción inteligente con IA)
@@ -60,41 +61,28 @@ class ConversationFlow {
     store.agregarMensaje(phone, { from: 'cliente', text: `📎 [Archivo tipo ${msgType}]`, type: msgType });
   }
 
-  detectarProducto(phone, text) {
+  detectarProducto(phone, text, message = null) {
     const lead = store.getLead(phone);
-    const t = text.toLowerCase();
+    const detection = productCatalog.identificarProducto(phone, text, message, lead);
     
-    // 1. ÚNICA FORMA DE ASIGNAR MOLDES: Que el mensaje mencione explícitamente palabras de costura o moldes
-    if (/(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|hoja carta)/i.test(t)) {
-      store.saveLead(phone, { producto: 'moldes' });
-      return 'moldes';
-    }
+    // Guardar el producto y la atribución del anuncio en el lead
+    const updates = { producto: detection.producto };
+    if (detection.adId) updates.adId = detection.adId;
+    if (detection.metodo) updates.metodoDeteccion = detection.metodo;
+    if (detection.referral) updates.referral = detection.referral;
 
-    // 2. Si menciona explícitamente palabras de repostería o helados
-    if (/(helad|postre|reposter|palet|vaso|torta|buñuel|natilla|dulce)/i.test(t)) {
-      store.saveLead(phone, { producto: 'helados' });
-      return 'helados';
-    }
-
-    // 3. Si el lead ya tiene un producto previamente guardado (por ejemplo, si entró por el anuncio de moldes antes)
-    if (lead && lead.producto) {
-      return lead.producto;
-    }
-
-    // 4. POR DEFECTO TOTAL: HELADOS Y POSTRES (EMPRENDE DULCE)
-    // Jamás asumir moldes por defecto mientras no se mencione costura.
-    store.saveLead(phone, { producto: 'helados' });
-    return 'helados';
+    store.saveLead(phone, updates);
+    return detection.producto;
   }
 
-  async handleTextMessage(phone, rawText) {
+  async handleTextMessage(phone, rawText, message = null) {
     const text = rawText.toLowerCase().trim();
     const settings = this.getSettings();
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
 
-    // Detección automática del producto de interés (Moldes vs Helados)
-    const producto = this.detectarProducto(phone, text);
+    // Detección automática infalible (Prioridad 1: Meta Ad Referral ID, Prioridad 2: Keywords, Prioridad 3: Historial)
+    const producto = this.detectarProducto(phone, text, message);
 
     const lead = store.getLead(phone);
     const conv = store.obtenerConversacion(phone);

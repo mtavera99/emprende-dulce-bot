@@ -92,8 +92,14 @@ app.get('/privacidad', (req, res) => {
 </html>`);
 });
 
-// Servir archivos descargables
+// Servir archivos descargables y portal
 app.use('/descargas', express.static(path.join(__dirname, '../public/descargas')));
+app.use('/portal', express.static(path.join(__dirname, '../public/portal')));
+
+// Portal Multi-Nicho de Superpacks Digitales (Estilo Creativos A-Z)
+app.get(['/portal', '/catalogo', '/tienda'], (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/portal/index.html'));
+});
 
 // Hub de descarga móvil para compradores
 app.get(['/descargar', '/acceso'], (req, res) => {

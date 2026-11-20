@@ -343,7 +343,7 @@ const store = {
       });
       saveJSON(ORDERS_FILE, orders);
 
-      store.saveLead(ord.phone, { status: 'PAGADO', paidAt: Date.now() });
+      store.saveLead(ord.phone, { status: 'PAGADO', paidAt: Date.now(), producto: ord.producto || 'helados', productoFijado: true });
       const conv = store.obtenerConversacion(ord.phone);
       if (conv) {
         conv.esperaComprobante = false;

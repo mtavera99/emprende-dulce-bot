@@ -248,7 +248,7 @@ app.post('/api/pedidos/:id/aprobar', authPanel, async (req, res) => {
 
   // Enviar mensaje de confirmación y entrega por WhatsApp usando la lógica centralizada
   try {
-    await conversationFlow.enviarEntregaProducto(pedido.phone, settings);
+    await conversationFlow.enviarEntregaProducto(pedido.phone, settings, { pedidoId: pedido.id, producto: pedido.producto });
   } catch (err) {
     console.error('[APROBAR ERROR] Error enviando mensaje de entrega a WhatsApp:', err.message);
   }
@@ -266,7 +266,10 @@ app.post('/api/pedidos/:id/producto', authPanel, async (req, res) => {
   try {
     const anterior = pedido.producto || 'helados';
     store.actualizarPedido(pedido.id, { producto: nuevo, product: productCatalog.PRODUCTOS[nuevo].nombre, productoCorregido: `${anterior} → ${nuevo}` });
-    store.saveLead(pedido.phone, { producto: nuevo });
+    store.saveLead(pedido.phone, { producto: nuevo, productoFijado: true });
+    // los demás pedidos abiertos de este cliente también pasan al producto correcto
+    store.pedidosDeTelefono(pedido.phone).filter((p) => p.id !== pedido.id && p.status === 'PENDIENTE')
+      .forEach((p) => store.actualizarPedido(p.id, { producto: nuevo, product: productCatalog.PRODUCTOS[nuevo].nombre }));
     if (anterior !== nuevo) {
       const viejo = accesos.completoDe(pedido.phone, anterior);
       if (viejo) accesos.desactivar(viejo.token);
@@ -381,13 +384,13 @@ app.post('/api/chats/:id/dar-acceso', authPanel, async (req, res) => {
   const producto = req.body?.producto || lead.producto || 'helados';
   const volver = (msg) => res.redirect(`/panel/chat?id=${phone}&token=${PANEL_TOKEN}&aviso=${encodeURIComponent(msg)}`);
   try {
-    if (producto !== lead.producto) store.saveLead(phone, { producto });
+    store.saveLead(phone, { producto, productoFijado: true });
     const pend = store.pedidosDeTelefono(phone).filter((p) => p.status === 'PENDIENTE').pop();
     if (req.body?.venta === '1') {
       const ped = pend || store.crearPedido(phone, { producto, amount: lead.precioOfrecido || store.getSettings().precioOferta || 10000, notas: 'Venta registrada a mano desde el chat' });
       store.actualizarPedido(ped.id, { producto });
       store.aprobarPedido(ped.id, { aprobadoPor: 'operador' });
-      await conversationFlow.enviarEntregaProducto(phone, store.getSettings());
+      await conversationFlow.enviarEntregaProducto(phone, store.getSettings(), { pedidoId: ped.id, producto });
       return volver('✅ Venta registrada y acceso completo enviado por WhatsApp');
     }
     const a = accesos.crear(phone, producto, 'completo', { manual: true });

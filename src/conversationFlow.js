@@ -66,7 +66,14 @@ class ConversationFlow {
 
   detectarProducto(phone, text, message = null) {
     const lead = store.getLead(phone);
+    // Si el cliente ya compró o el producto se corrigió a mano en el panel, el producto queda fijo.
+    if (lead && lead.producto && (lead.productoFijado || lead.status === 'PAGADO')) return lead.producto;
     const detection = productCatalog.identificarProducto(phone, text, message, lead);
+    // Las palabras clave solo eligen producto si el cliente todavía no tenía uno.
+    // Un anuncio nuevo (referral) sí puede cambiarlo.
+    if (lead && lead.producto && detection.metodo && detection.metodo.startsWith('TEXT_KEYWORD') && detection.producto !== lead.producto) {
+      return lead.producto;
+    }
     
     // Guardar el producto y la atribución del anuncio en el lead
     const updates = { producto: detection.producto };
@@ -659,10 +666,12 @@ Respuesta de Sofía:`;
     }
   }
 
-  async enviarEntregaProducto(phone, settings) {
+  async enviarEntregaProducto(phone, settings, opciones = {}) {
     const lead = store.getLead(phone);
-    const pedido = store.obtenerPedidoPorTelefono(phone);
-    const producto = (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    // Pedido que se está entregando: el indicado, o el último VERIFICADO de este cliente
+    const verificados = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
+    const pedido = (opciones.pedidoId && store.obtenerPedido(opciones.pedidoId)) || verificados[verificados.length - 1] || store.obtenerPedidoPorTelefono(phone);
+    const producto = opciones.producto || (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
     const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
     const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id });
     const enlace = `${host}/acceso/${acceso.token}`;

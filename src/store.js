@@ -433,6 +433,10 @@ const store = {
     return candidatos;
   },
 
+  leadsConPrueba() {
+    return Object.entries(leads).filter(([, l]) => l.prueba && l.prueba.token).map(([phone, lead]) => ({ phone, lead }));
+  },
+
   setLeadPrecio(phone, precio) {
     const lead = store.getLead(phone);
     if (!lead) return;
@@ -451,6 +455,8 @@ const store = {
   // --------------------------------------------------------------------------
   // Comprobantes (imágenes recibidas por WhatsApp)
   // --------------------------------------------------------------------------
+  dataDir() { return DIR; },
+
   guardarMedia(phone, buffer, mimeType = 'image/jpeg') {
     if (!buffer || !buffer.length) return null;
     const ext = EXT_MIME[String(mimeType).toLowerCase()] || 'jpg';

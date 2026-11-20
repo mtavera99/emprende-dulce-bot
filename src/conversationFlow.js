@@ -3,6 +3,7 @@ const waService = require('./whatsappService');
 const ocrValidator = require('./ocrValidator');
 const paymentVerifier = require('./paymentVerifier');
 const audioService = require('./audioService');
+const accesos = require('./accesos');
 const productCatalog = require('./productCatalog');
 
 class ConversationFlow {
@@ -128,10 +129,12 @@ class ConversationFlow {
       const num = settings.nequiNumero || '3058742138';
       const titular = settings.nequiTitular || 'Manuel Tavera';
       const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
-      const portalUrl = `${host}/portal`;
+      const prueba = accesos.crear(phone, producto, 'prueba');
+      const portalUrl = `${host}/prueba/${prueba.token}`;
+      const minutos = accesos.MINUTOS_PRUEBA;
       const detalleHonestidad = producto === 'moldes'
-        ? `_(Allí puedes entrar al catálogo, revisar las muestras de patrones en PDF y la guía de impresión en casa)_`
-        : `_(Allí puedes entrar, abrir las guías en PDF y revisar las recetas de helados, postres en vaso y tablas de costos)_`;
+        ? `_(Tienes ${minutos} minutos para ver el pack por dentro y descargar gratis un patrón completo en todas sus tallas, la tabla de medidas y la calculadora. El resto se desbloquea con el pago)_`
+        : `_(Tienes ${minutos} minutos para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
 
       const replyHonestidad =
         `¡Trato hecho! 🤝✨ Aquí tienes tu acceso prioritario para que compruebes con tus propios ojos la calidad del material:\n\n` +
@@ -145,7 +148,12 @@ class ConversationFlow {
 
       await waService.sendTextMessage(phone, replyHonestidad);
       store.agregarMensaje(phone, { from: 'bot', text: replyHonestidad, type: 'text' });
-      store.saveLead(phone, { status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000, producto });
+      const leadH = store.getLead(phone) || {};
+      store.saveLead(phone, {
+        status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000, producto,
+        prueba: { token: prueba.token, inicio: prueba.createdAt, vence: prueba.expiresAt, pasos: 0 },
+        seguimientosEnviados: Math.max(leadH.seguimientosEnviados || 0, 3),
+      });
       return;
     }
 
@@ -655,16 +663,18 @@ Respuesta de Sofía:`;
     const lead = store.getLead(phone);
     const pedido = store.obtenerPedidoPorTelefono(phone);
     const producto = (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+    const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id });
+    const enlace = `${host}/acceso/${acceso.token}`;
+    if (pedido) store.actualizarPedido(pedido.id, { accesoToken: acceso.token });
     let confirmMsg = '';
 
     if (producto === 'moldes') {
-      const driveLink = (settings.driveLinkMoldes || '').trim();
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
         `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura 2026*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-        `📥 *Enlace de Descarga Directa (Panel Web Oficial):*\n` +
-        `https://emprende-dulce-bot.onrender.com/descargar-moldes\n\n` +
-        (driveLink ? `🔗 *O en Google Drive:*\n${driveLink}\n\n` : '') +
+        `📥 *Tu enlace personal de descarga (guárdalo, es solo tuyo):*\n` +
+        `${enlace}\n\n` +
         `📁 *Tu paquete contiene:*\n` +
         `✓ 2.420 moldes listos para imprimir: 34 patrones profesionales con 1.210 moldes de pieza (cada pieza en cada talla), en hoja Carta y en A4\n` +
         `✓ 10 colecciones en ZIP: vestidos, blusas, pantalones, faldas, deportiva, lencería, infantil y bebé, mascotas, bolsos y uniformes\n` +
@@ -675,10 +685,8 @@ Respuesta de Sofía:`;
       confirmMsg =
         `¡Comprobante verificado con éxito! 🎉🍰\n\n` +
         `Bienvenido(a) a la familia de *Emprende Dulce*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +
-        `📥 *Enlace de Descarga Directa (Web Oficial):*\n` +
-        `https://emprende-dulce-bot.onrender.com/descargar\n\n` +
-        `🔗 *O en Google Drive:*\n` +
-        `${settings.driveLink}\n\n` +
+        `📥 *Tu enlace personal de descarga (guárdalo, es solo tuyo):*\n` +
+        `${enlace}\n\n` +
         `📁 *Tu pack incluye:*\n` +
         `✓ Guía Maestra de Helados Artesanales (47 págs PDF)\n` +
         `✓ Postres en Vaso para Emprender (41 págs PDF)\n` +
@@ -691,7 +699,8 @@ Respuesta de Sofía:`;
 
     await waService.sendTextMessage(phone, confirmMsg);
     store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
-    store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO' });
+    store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO', accesoToken: acceso.token });
+    return acceso;
   }
 
   async handleButtonReply(phone, btnId, btnTitle) {

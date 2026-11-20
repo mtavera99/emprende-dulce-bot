@@ -1,4 +1,6 @@
 const store = require('./store');
+const productCatalog = require('./productCatalog');
+const accesos = require('./accesos');
 
 function panelToken() {
   return process.env.PANEL_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN || 'lowticket_panel_token_2026';
@@ -139,6 +141,18 @@ function renderChat(phone, aviso = '') {
           ${esPausado ? '<span style="font-size: 0.75rem; color: var(--amber); background: var(--amber-bg); padding: 2px 8px; border-radius: 999px;">⏸️ Bot Silenciado</span>' : '<span style="font-size: 0.75rem; color: var(--green); background: var(--green-bg); padding: 2px 8px; border-radius: 999px;">🟢 Bot Activo</span>'}
         </h2>
         <span>Teléfono: +${esc(phone)}</span>
+        ${(() => {
+          const lead = store.getLead(phone) || {};
+          const i = productCatalog.infoProducto(lead.producto);
+          const o = store.origenDeLead(lead);
+          const a = accesos.deTelefono(phone)[0];
+          const host = process.env.RENDER_EXTERNAL_URL || '';
+          return `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 0.75rem;">
+            <span style="background:${i.color}22;color:${i.color};border:1px solid ${i.color}66;padding:2px 8px;border-radius:999px;font-weight:700;">${i.emoji} ${esc(i.etiqueta)}</span>
+            <span style="background:#1e293b;color:#93c5fd;border:1px solid #334155;padding:2px 8px;border-radius:999px;">${esc(o.canal)}${o.detalle ? ' · ' + esc(o.detalle) : ''}</span>
+            ${a ? `<span style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:2px 8px;border-radius:999px;">${a.tipo === 'prueba' ? '🤝 Prueba' : '🔑 Acceso'} ${a.activo ? '' : '(desactivado) '}· ${a.vistas || 0} visitas · ${a.descargas || 0} descargas · <a style="color:#c4b5fd" target="_blank" href="${host}/${a.tipo === 'prueba' ? 'prueba' : 'acceso'}/${esc(a.token)}">abrir</a></span>` : ''}
+          </div>`;
+        })()}
       </div>
     </div>
 

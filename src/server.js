@@ -8,6 +8,9 @@ const panel = require('./panel');
 const panelChat = require('./panel-chat');
 const seguimiento = require('./seguimiento');
 const paymentVerifier = require('./paymentVerifier');
+const fs = require('fs');
+const accesos = require('./accesos');
+const paginaAcceso = require('./paginaAcceso');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -93,7 +96,11 @@ app.get('/privacidad', (req, res) => {
 });
 
 // Servir archivos descargables y portal
-app.use('/descargas', express.static(path.join(__dirname, '../public/descargas')));
+// En /descargas solo quedan públicas las imágenes; los PDF, ZIP y planillas requieren enlace personal
+app.use('/descargas', (req, res, next) => {
+  if (/\.(jpe?g|png|webp|gif|svg)$/i.test(req.path)) return next();
+  res.status(403).send(paginaAcceso.paginaNoValida('bloqueado'));
+}, express.static(path.join(__dirname, '../public/descargas')));
 app.use('/portal', express.static(path.join(__dirname, '../public/portal')));
 
 // Portal Multi-Nicho de Superpacks Digitales (Estilo Creativos A-Z)
@@ -101,266 +108,33 @@ app.get(['/portal', '/catalogo', '/tienda'], (req, res) => {
   res.sendFile(path.join(__dirname, '../public/portal/index.html'));
 });
 
-// Hub de descarga móvil para compradores (Helados & Postres)
+// Páginas del comprador. Los archivos del pack ya no son públicos: se descargan con un
+// enlace personal (/acceso/<token>) o de prueba (HONESTIDAD), que se revisa en cada descarga.
 app.get(['/descargar', '/acceso'], (req, res) => {
-  if (req.query.p === 'moldes' || req.query.producto === 'moldes') {
-    return res.redirect('/descargar-moldes');
-  }
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>🍰 Emprende Dulce · Descarga de Tu Pack Completo</title>
-  <style>
-    :root {
-      --bg: #0b0f19;
-      --card: #151c28;
-      --border: #222f44;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --primary: #f43f5e;
-      --green: #10b981;
-      --blue: #38bdf8;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 24px 16px 60px; display: flex; justify-content: center; }
-    .wrap { width: 100%; max-width: 640px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    .badge { display: inline-block; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; border: 1px solid rgba(16, 185, 129, 0.3); }
-    h1 { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
-    p.sub { color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
-    
-    .zip-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid var(--primary); border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.15); }
-    .zip-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--primary); color: #fff; font-weight: 700; font-size: 1.05rem; padding: 14px 20px; border-radius: 10px; text-decoration: none; margin-top: 12px; transition: 0.2s ease; }
-    .zip-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-    
-    .section-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-    .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
-    .file-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; transition: 0.15s ease; }
-    .file-item:hover { border-color: var(--blue); background: #1c2637; }
-    .file-meta { flex: 1; }
-    .file-title { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
-    .file-sub { font-size: 0.78rem; color: var(--muted); }
-    .dl-btn { background: #222f44; color: var(--blue); padding: 8px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
-    .file-item:hover .dl-btn { background: var(--blue); color: #000; }
-    
-    .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; }
-    .drive-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: 0.95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
-    .footer-note { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 24px; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <span class="badge">✅ PAGO CONFIRMADO · ACCESO OFICIAL</span>
-      <h1>¡Bienvenido(a) a Emprende Dulce! 🍰</h1>
-      <p class="sub">Aquí tienes acceso permanente e ilimitado a todo tu material digital en alta definición para ver o descargar en tu celular, tablet o computador.</p>
-    </div>
+  const prod = (req.query.p === 'moldes' || req.query.producto === 'moldes') ? 'moldes' : 'helados';
+  res.send(paginaAcceso.paginaPublica(prod));
+});
+app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => res.send(paginaAcceso.paginaPublica('moldes')));
 
-    <!-- Descargar todo en ZIP -->
-    <div class="zip-card">
-      <div style="font-size: 1.8rem; margin-bottom: 4px;">📦</div>
-      <h3 style="color: #fff; font-size: 1.15rem; margin-bottom: 4px;">Descargar Todo el Paquete Completo</h3>
-      <p style="color: var(--muted); font-size: 0.85rem;">Los 3 libros PDF + 3 bonos + calculadora de costos en un solo archivo comprimido.</p>
-      <a href="/descargas/Pack_Completo_Emprende_Dulce_2026.zip" class="zip-btn" download>
-        ⬇️ Descargar Todo en ZIP (30 MB)
-      </a>
-    </div>
-
-    <!-- Descargas Individuales -->
-    <div class="section-title">📚 Descargar Libros en PDF Individuales</div>
-    <div class="file-list">
-      <a href="/descargas/01_Helados_Artesanales_Guia_Maestra.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🍦 1. Guía Maestra de Helados Artesanales</div>
-          <div class="file-sub">47 páginas · PDF HD · Fórmulas cremosas y paletas</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/02_Postres_en_Vaso_Para_Emprender.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🧁 2. Postres en Vaso para Emprender</div>
-          <div class="file-sub">41 páginas · PDF HD · 12 recetas top en vasito domo</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/03_Recetario_Navideno_Postres_y_Cajas_Regalo.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🎄 3. Recetario Navideño y Cajas de Regalo</div>
-          <div class="file-sub">35 páginas · PDF HD · Natillas, buñuelos y anchetas</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-    </div>
-
-    <!-- Bonos y Herramientas -->
-    <div class="section-title">🎁 Bonos de Regalo y Herramientas de Costeo</div>
-    <div class="file-list">
-      <a href="/descargas/Bono_01_Calculadora_Costos_y_Precios.xlsx" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">📊 Plantilla de Costeo en Excel (.xlsx)</div>
-          <div class="file-sub">Fórmulas automáticas de costos y precio de venta</div>
-        </div>
-        <span class="dl-btn">Descargar Excel</span>
-      </a>
-
-      <a href="/descargas/Bono_01_Calculadora_Costos_y_Precios.html" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">🌐 Calculadora Interactiva Móvil (.html)</div>
-          <div class="file-sub">Funciona sin internet en cualquier celular o computador</div>
-        </div>
-        <span class="dl-btn">Abrir App</span>
-      </a>
-
-      <a href="/descargas/Bono_02_Directorio_Proveedores_Colombia.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">📦 Directorio de Proveedores Colombia</div>
-          <div class="file-sub">Empaques, vasitos domo e insumos al por mayor</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-
-      <a href="/descargas/Bono_03_Guia_Ventas_WhatsApp_Postres.pdf" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">💬 Guía de Ventas por WhatsApp</div>
-          <div class="file-sub">Estrategias y guiones de venta para conseguir clientes</div>
-        </div>
-        <span class="dl-btn">Descargar PDF</span>
-      </a>
-    </div>
-
-    <!-- Carpeta en Google Drive -->
-    <div class="drive-box">
-      <h3 style="color: #fff; font-size: 1rem; margin-bottom: 4px;">📁 También disponible en Google Drive</h3>
-      <p style="color: var(--muted); font-size: 0.82rem;">Puedes guardar la carpeta en tu Google Drive para verla siempre online.</p>
-      <a href="https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing" target="_blank" class="drive-btn">
-        Abrir en Google Drive
-      </a>
-    </div>
-
-    <div class="footer-note">
-      Emprende Dulce 2026 · Soporte oficial en WhatsApp: +57 310 5652478<br>
-      Acceso garantizado de por vida para el comprador.
-    </div>
-  </div>
-</body>
-</html>`);
+app.get(['/acceso/:token', '/prueba/:token'], (req, res) => {
+  const st = accesos.estado(req.params.token);
+  res.set('Cache-Control', 'no-store');
+  if (!st.ok) return res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
+  accesos.registrarUso(st.acceso.token, 'vistas');
+  res.send(st.acceso.tipo === 'prueba' ? paginaAcceso.paginaPrueba(st.acceso) : paginaAcceso.paginaCompleta(st.acceso));
 });
 
-// Hub de descarga para compradores (Mega Pack Moldes de Costura).
-// La lista se arma desde public/descargas/moldes/manifest.json: si se reemplazan los zips, la página se actualiza sola.
-const MOLDES_DIR = path.join(__dirname, '../public/descargas/moldes');
-function cargarManifestMoldes() {
-  try {
-    return JSON.parse(require('fs').readFileSync(path.join(MOLDES_DIR, 'manifest.json'), 'utf8'));
-  } catch (e) {
-    console.error('No se pudo leer el manifest de moldes:', e.message);
-    return { colecciones: [], bonos: [] };
-  }
-}
-const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const NOMBRES_BONOS = {
-  'Bono_01_Manual_Tecnico_de_Costura.pdf': ['📘 Manual Técnico de Costura', 'Del patrón impreso a la prenda terminada · 9 páginas'],
-  'Bono_02_Guia_Telas_Agujas_Prensatelas.pdf': ['🧵 Guía de Telas, Agujas y Prensatelas', 'Qué tela, aguja y prensatelas usar en cada prenda'],
-  'Bono_03_Tabla_Antropometrica_y_Medicion.pdf': ['📏 Tabla de Medidas y Cómo Medir', 'Mujer, hombre, niños, bebé y perro'],
-  'Bono_04_Calculadora_Costos_Precios_Confeccion.html': ['🧮 Calculadora de Costos y Precios', 'Ábrela en el navegador: consumo de tela de cada patrón ya cargado'],
-};
-
-app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => {
-  const settings = store.getSettings();
-  const driveLink = (settings.driveLinkMoldes || '').trim();
-  const man = cargarManifestMoldes();
-  const totalPrendas = man.colecciones.reduce((n, c) => n + c.prendas.length, 0);
-  const T = man.totales || { patrones: totalPrendas, moldes: 0, moldes_imprimibles: 0, hojas_carta: 0 };
-  const mil = (n) => Number(n || 0).toLocaleString('es-CO');
-  const colecciones = man.colecciones.map((c) => `
-      <a href="/descargas/moldes/${encodeURIComponent(c.zip)}" class="file-item" download>
-        <div class="file-meta">
-          <div class="file-title">${escHtml(c.id)} · ${escHtml(c.titulo)}</div>
-          <div class="file-sub">${c.prendas.map((p) => escHtml(p.nombre)).join(' · ')}</div>
-          <div class="file-sub">ZIP · ${String(c.mb).replace('.', ',')} MB · ${c.prendas.length} patrones · ${mil(c.moldes)} moldes por talla (${mil(c.moldes * 2)} en Carta y A4)</div>
-        </div>
-        <span class="dl-btn">Descargar</span>
-      </a>`).join('');
-  const bonos = man.bonos.map((b) => {
-    const base = b.archivo.split('/').pop();
-    const [t, s] = NOMBRES_BONOS[base] || [base, ''];
-    const esHtml = base.endsWith('.html');
-    return `
-      <a href="/descargas/moldes/${b.archivo.split('/').map(encodeURIComponent).join('/')}" class="file-item" ${esHtml ? 'target="_blank"' : 'download'}>
-        <div class="file-meta"><div class="file-title">${escHtml(t)}</div><div class="file-sub">${escHtml(s)}</div></div>
-        <span class="dl-btn">${esHtml ? 'Abrir' : 'Descargar PDF'}</span>
-      </a>`;
-  }).join('');
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>🧵 Mega Pack Moldes de Costura · Descarga Oficial</title>
-  <style>
-    :root { --bg: #0b0f19; --card: #151c28; --border: #222f44; --text: #f1f5f9; --muted: #94a3b8; --primary: #8b5cf6; --blue: #38bdf8; }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 24px 16px 60px; display: flex; justify-content: center; }
-    .wrap { width: 100%; max-width: 640px; }
-    .header { text-align: center; margin-bottom: 22px; }
-    .badge { display: inline-block; background: rgba(16,185,129,.15); color: #34d399; font-size: .8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; border: 1px solid rgba(16,185,129,.3); }
-    h1 { font-size: 1.55rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
-    p.sub { color: var(--muted); font-size: .92rem; line-height: 1.5; }
-    .steps { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 22px; font-size: .85rem; color: var(--muted); line-height: 1.55; }
-    .steps b { color: #fff; }
-    .section-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 4px 0 12px; }
-    .file-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
-    .file-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: inherit; }
-    .file-item:hover { border-color: var(--primary); background: #1c2637; }
-    .file-meta { flex: 1; min-width: 0; }
-    .file-title { font-size: .95rem; font-weight: 700; color: #fff; margin-bottom: 3px; }
-    .file-sub { font-size: .78rem; color: var(--muted); line-height: 1.4; }
-    .dl-btn { background: var(--primary); color: #fff; padding: 9px 14px; border-radius: 8px; font-size: .82rem; font-weight: 700; white-space: nowrap; }
-    .drive-box { background: #0c1829; border: 1px solid #1e3a8a; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 22px; }
-    .drive-btn { display: inline-flex; justify-content: center; background: #2563eb; color: #fff; text-decoration: none; font-weight: 700; font-size: .95rem; padding: 12px 20px; border-radius: 8px; width: 100%; margin-top: 10px; }
-    .cuenta { background: linear-gradient(135deg, #1e1b4b, #0f172a); border: 2px solid var(--primary); border-radius: 14px; padding: 16px; margin-bottom: 22px; }
-    .cuenta-t { font-weight: 800; color: #fff; font-size: 1rem; margin-bottom: 10px; text-align: center; }
-    .cuenta-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .cuenta-g div { background: rgba(255,255,255,.05); border-radius: 10px; padding: 10px; text-align: center; }
-    .cuenta-g b { display: block; font-size: 1.35rem; color: #c4b5fd; }
-    .cuenta-g span { font-size: .75rem; color: var(--muted); line-height: 1.35; display: block; }
-    .cuenta p { font-size: .78rem; color: var(--muted); line-height: 1.5; }
-    .footer-note { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 20px; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <span class="badge">✅ PAGO CONFIRMADO · ACCESO OFICIAL</span>
-      <h1>Tu Mega Pack de +2.000 Moldes de Costura 🧵</h1>
-      <p class="sub">${mil(T.moldes_imprimibles)} moldes listos para imprimir a escala real, de ${T.patrones} patrones profesionales en ${man.colecciones.length} colecciones, más 4 bonos técnicos.</p>
-    </div>
-    <div class="cuenta">
-      <div class="cuenta-t">¿Cómo se cuentan los +2.000 moldes?</div>
-      <div class="cuenta-g">
-        <div><b>${T.patrones}</b><span>patrones (prendas completas)</span></div>
-        <div><b>${mil(T.moldes)}</b><span>moldes de pieza: cada pieza en cada talla</span></div>
-        <div><b>${mil(T.moldes_imprimibles)}</b><span>moldes imprimibles: en hoja Carta y en A4</span></div>
-        <div><b>${mil(T.hojas_carta)}</b><span>hojas de molde para armar (versión Carta)</span></div>
-      </div>
-      <p>Un molde es una pieza de corte (delantero, espalda, manga, cuello, pretina…) trazada para una talla. Cada patrón trae todas sus piezas en todas sus tallas (XS a XXL, 2 a 10 años, 0 a 24 meses o S a XL), con márgenes de costura, piquetes y recto hilo.</p>
-    </div>
-    <div class="steps">
-      <b>Cómo descargar:</b> toca una colección para bajar su ZIP. Cada carpeta trae la ficha técnica de 6 páginas de cada prenda y un PDF por talla para imprimir al <b>100 % (tamaño real)</b>. Mide primero el cuadro de 5 × 5 cm de la hoja de inicio.
-    </div>
-    ${driveLink ? `<div class="drive-box"><h3 style="color:#fff;font-size:1rem;margin-bottom:4px;">📁 Todo el pack en Google Drive</h3><p style="color:var(--muted);font-size:.82rem;">Ábrelo y usa «Descargar» o «Agregar a Mi unidad».</p><a href="${escHtml(driveLink)}" target="_blank" rel="noopener" class="drive-btn">Abrir en Google Drive</a></div>` : ''}
-    <div class="section-title">👗 Colecciones de moldes (ZIP)</div>
-    <div class="file-list">${colecciones}</div>
-    <div class="section-title">🎁 Bonos técnicos</div>
-    <div class="file-list">${bonos}</div>
-    <div class="footer-note">Mega Pack +2.000 Moldes de Costura 2026 · Soporte por WhatsApp: +57 310 5652478<br>Acceso de por vida para el comprador.</div>
-  </div>
-</body>
-</html>`);
+app.get('/d/:token/:id', (req, res) => {
+  const st = accesos.estado(req.params.token);
+  if (!st.ok) return res.status(410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
+  const it = accesos.archivoPermitido(st.acceso, req.params.id);
+  if (!it) return res.status(403).send(paginaAcceso.paginaNoValida('bloqueado', st.acceso));
+  const f = path.join(accesos.PUBLIC, it.archivo);
+  if (!f.startsWith(accesos.PUBLIC) || !fs.existsSync(f)) return res.status(404).send('Archivo no encontrado');
+  accesos.registrarUso(st.acceso.token, 'descargas');
+  res.set('Cache-Control', 'private, no-store');
+  if (it.abrir) return res.sendFile(f);
+  res.download(f, path.basename(f));
 });
 
 // ----------------------------------------------------------------------------
@@ -479,6 +253,27 @@ app.post('/api/pedidos/:id/aprobar', authPanel, async (req, res) => {
   }
 
   res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=¡Pedido+${id}+aprobado+y+entregado+con+éxito!#pendientes`);
+});
+
+// Enlaces personales: reenviar por WhatsApp o desactivar
+app.post('/api/accesos/reenviar', authPanel, async (req, res) => {
+  const phone = String(req.body?.phone || '').replace(/\D/g, '');
+  const producto = req.body?.producto || (store.getLead(phone) || {}).producto || 'helados';
+  try {
+    const a = accesos.crear(phone, producto, 'completo');
+    const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+    const txt = `Aquí tienes de nuevo tu enlace personal de descarga 🙌\n\n${host}/acceso/${a.token}\n\nGuárdalo: es solo tuyo y no vence.`;
+    await waService.sendTextMessage(phone, txt);
+    store.agregarMensaje(phone, { from: 'operador', text: txt, type: 'text' });
+    res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Enlace+reenviado+a+%2B${phone}#pedidos`);
+  } catch (e) {
+    res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=Error+al+reenviar:+${encodeURIComponent(e.message)}#pedidos`);
+  }
+});
+
+app.post('/api/accesos/:tok/desactivar', authPanel, (req, res) => {
+  const a = accesos.desactivar(req.params.tok);
+  res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=${a ? 'Enlace+desactivado.+Puedes+reenviar+uno+nuevo.' : 'Enlace+no+encontrado'}#pedidos`);
 });
 
 // Rechazo de un pedido
@@ -659,6 +454,7 @@ app.listen(PORT, () => {
 
   // Iniciar motor de remarketing / seguimiento automático cada 5 minutos
   seguimiento.iniciarScheduler();
+  try { accesos.migrarVentas(); } catch (e) { console.error('[ACCESOS] Migración:', e.message); }
 });
 
 module.exports = app;

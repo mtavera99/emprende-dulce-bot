@@ -342,6 +342,54 @@ app.post('/api/chats/:id/pausar', authPanel, (req, res) => {
   res.redirect(`/panel/chat?id=${phone}&token=${PANEL_TOKEN}`);
 });
 
+// Desbloquear el acceso completo a un cliente desde su chat.
+// Si hay un pedido pendiente y se marca «registrar venta», se aprueba y se entrega como una venta normal.
+app.post('/api/chats/:id/dar-acceso', authPanel, async (req, res) => {
+  const phone = String(req.params.id).replace(/\D/g, '');
+  const lead = store.getLead(phone) || {};
+  const producto = req.body?.producto || lead.producto || 'helados';
+  const volver = (msg) => res.redirect(`/panel/chat?id=${phone}&token=${PANEL_TOKEN}&aviso=${encodeURIComponent(msg)}`);
+  try {
+    if (producto !== lead.producto) store.saveLead(phone, { producto });
+    const pend = store.pedidosDeTelefono(phone).filter((p) => p.status === 'PENDIENTE').pop();
+    if (req.body?.venta === '1') {
+      const ped = pend || store.crearPedido(phone, { producto, amount: lead.precioOfrecido || store.getSettings().precioOferta || 10000, notas: 'Venta registrada a mano desde el chat' });
+      store.actualizarPedido(ped.id, { producto });
+      store.aprobarPedido(ped.id, { aprobadoPor: 'operador' });
+      await conversationFlow.enviarEntregaProducto(phone, store.getSettings());
+      return volver('✅ Venta registrada y acceso completo enviado por WhatsApp');
+    }
+    const a = accesos.crear(phone, producto, 'completo', { manual: true });
+    store.saveLead(phone, { status: 'PAGADO', accesoToken: a.token });
+    const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+    const txt = `¡Listo! 🔓 Te desbloqueamos el acceso completo. Este es tu enlace personal de descarga (guárdalo, es solo tuyo y no vence):\n\n${host}/acceso/${a.token}`;
+    await waService.sendTextMessage(phone, txt);
+    store.agregarMensaje(phone, { from: 'operador', text: txt, type: 'text' });
+    volver('🔓 Acceso completo desbloqueado y enviado por WhatsApp');
+  } catch (e) {
+    volver('Error: ' + e.message);
+  }
+});
+
+// Extender o reabrir la prueba HONESTIDAD de un cliente
+app.post('/api/chats/:id/extender-prueba', authPanel, async (req, res) => {
+  const phone = String(req.params.id).replace(/\D/g, '');
+  const lead = store.getLead(phone) || {};
+  const producto = req.body?.producto || lead.producto || 'helados';
+  const minutos = Math.max(10, Math.min(24 * 60, Number(req.body?.minutos) || accesos.MINUTOS_PRUEBA));
+  try {
+    const a = accesos.extenderPrueba(phone, producto, minutos);
+    store.saveLead(phone, { prueba: { token: a.token, inicio: Date.now(), vence: a.expiresAt, pasos: 0 } });
+    const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+    const txt = `Te reabrí el acceso de prueba por ${minutos >= 60 ? (minutos / 60) + (minutos === 60 ? ' hora' : ' horas') : minutos + ' minutos'} 🙌\n\n${host}/prueba/${a.token}`;
+    await waService.sendTextMessage(phone, txt);
+    store.agregarMensaje(phone, { from: 'operador', text: txt, type: 'text' });
+    res.redirect(`/panel/chat?id=${phone}&token=${PANEL_TOKEN}&aviso=${encodeURIComponent('⏱ Prueba reabierta y enviada')}`);
+  } catch (e) {
+    res.redirect(`/panel/chat?id=${phone}&token=${PANEL_TOKEN}&aviso=${encodeURIComponent('Error: ' + e.message)}`);
+  }
+});
+
 // Actualizar configuración
 app.post('/api/settings', authPanel, (req, res) => {
   const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, driveLinkMoldes, botWhatsApp, modoAutoEntregaLeona } = req.body;

@@ -132,6 +132,7 @@ function renderChat(phone, aviso = '') {
 </head>
 <body>
 
+  ${aviso ? `<div style="background: #064e3b; color: #d1fae5; padding: 10px 16px; font-size: 0.9rem; font-weight: 600;">${esc(aviso)}</div>` : ''}
   <header>
     <div class="header-left">
       <a href="/panel?token=${esc(tk)}#chats" class="back-btn">← Volver al Panel</a>
@@ -156,7 +157,23 @@ function renderChat(phone, aviso = '') {
       </div>
     </div>
 
-    <div class="header-actions">
+    <div class="header-actions" style="flex-wrap: wrap; gap: 8px;">
+      ${(() => {
+        const lead = store.getLead(phone) || {};
+        const opts = Object.keys(productCatalog.PRODUCTOS).map((id) => { const i = productCatalog.infoProducto(id); return `<option value="${esc(id)}" ${id === (lead.producto || 'helados') ? 'selected' : ''}>${i.emoji} ${esc(i.etiqueta)}</option>`; }).join('');
+        const pend = store.pedidosDeTelefono(phone).some((p) => p.status === 'PENDIENTE');
+        return `
+      <form method="POST" action="/api/chats/${esc(phone)}/dar-acceso?token=${esc(tk)}" onsubmit="return confirm('¿Desbloquear el acceso completo y enviarle su enlace personal por WhatsApp?');" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <select name="producto" style="background: #0b0f17; color: #fff; border: 1px solid #334155; border-radius: 8px; padding: 8px;">${opts}</select>
+        <label style="font-size: 0.75rem; color: #cbd5e1; display: flex; gap: 4px; align-items: center;"><input type="checkbox" name="venta" value="1" ${pend ? 'checked' : ''}> Registrar como venta${pend ? ' (tiene pedido pendiente)' : ''}</label>
+        <button type="submit" class="btn btn-green">🔓 Dar acceso completo</button>
+      </form>
+      <form method="POST" action="/api/chats/${esc(phone)}/extender-prueba?token=${esc(tk)}" style="display: flex; gap: 6px; align-items: center;">
+        <input type="hidden" name="producto" value="${esc(lead.producto || 'helados')}">
+        <select name="minutos" style="background: #0b0f17; color: #fff; border: 1px solid #334155; border-radius: 8px; padding: 8px;"><option value="60">1 hora</option><option value="1440">24 horas</option></select>
+        <button type="submit" class="btn btn-amber">⏱ Reabrir prueba</button>
+      </form>`;
+      })()}
       <form method="POST" action="/api/chats/${esc(phone)}/pausar?token=${esc(tk)}">
         <input type="hidden" name="pausar" value="${esPausado ? '0' : '1'}">
         <button type="submit" class="btn ${esPausado ? 'btn-green' : 'btn-amber'}">

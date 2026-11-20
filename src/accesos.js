@@ -136,6 +136,18 @@ function desactivar(token) {
   return accesos[token];
 }
 
+// Reabre (o crea) la prueba de un cliente por N minutos más
+function extenderPrueba(phone, producto, minutos = MINUTOS_PRUEBA) {
+  let a = Object.values(accesos).filter((x) => x.phone === phone && x.tipo === 'prueba' && (!producto || x.producto === producto))
+    .sort((x, y) => y.createdAt - x.createdAt)[0];
+  if (!a) return crear(phone, producto, 'prueba');
+  a.activo = true;
+  a.expiresAt = Date.now() + minutos * 60 * 1000;
+  a.extendidaAt = Date.now();
+  guardar();
+  return a;
+}
+
 function completoDe(phone, producto) {
   return Object.values(accesos).find((a) => a.phone === phone && a.tipo === 'completo' && a.activo && (!producto || a.producto === producto)) || null;
 }
@@ -165,4 +177,4 @@ function migrarVentas() {
   if (n) console.log(`[ACCESOS] Enlaces personales creados para ${n} ventas anteriores.`);
 }
 
-module.exports = { crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };
+module.exports = { extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };

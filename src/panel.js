@@ -1,5 +1,30 @@
 const store = require('./store');
 const paymentVerifier = require('./paymentVerifier');
+const productCatalog = require('./productCatalog');
+const accesos = require('./accesos');
+
+// Etiqueta de color del producto (chats, pagos y ventas). Productos nuevos: agregarlos en productCatalog.js
+function chipProducto(id) {
+  const i = productCatalog.infoProducto(id);
+  return `<span class="chip-prod" style="background:${i.color}22;color:${i.color};border:1px solid ${i.color}66;">${i.emoji} ${esc(i.etiqueta)}</span>`;
+}
+
+// Estado de la configuración en Render (solo dice si cada clave existe, nunca su valor)
+function diagnostico() {
+  const env = process.env;
+  const ia = !!(env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.IA_API_KEY);
+  const tokenPropio = !!env.PANEL_TOKEN && env.PANEL_TOKEN !== 'lowticket_panel_token_2026';
+  return [
+    { ok: !!env.META_ACCESS_TOKEN, nombre: 'META_ACCESS_TOKEN', que: 'Enviar y recibir mensajes y fotos de WhatsApp', grave: true },
+    { ok: !!env.META_PHONE_NUMBER_ID, nombre: 'META_PHONE_NUMBER_ID', que: 'Número de WhatsApp del bot en Meta', grave: true },
+    { ok: !!env.BOT_WHATSAPP, nombre: 'BOT_WHATSAPP', que: 'Número que aparece en los botones «Escribir por WhatsApp»', grave: false },
+    { ok: ia, nombre: 'GEMINI_API_KEY u OPENAI_API_KEY', que: ia ? 'La IA lee los comprobantes' : 'Sin clave de IA: se aprueba CUALQUIER imagen sin leerla', grave: true },
+    { ok: tokenPropio, nombre: 'PANEL_TOKEN', que: tokenPropio ? 'Clave propia del panel' : 'Usa la clave por defecto, que es pública en GitHub: cualquiera puede entrar al panel', grave: true },
+    { ok: store.esDiscoPersistente(), nombre: 'Disco persistente', que: store.esDiscoPersistente() ? `Datos guardados en ${store.dataDir()}` : 'Sin disco: pedidos, chats y fotos se borran en cada despliegue', grave: true },
+    { ok: env.SEGUIMIENTO_ACTIVO !== '0', nombre: 'SEGUIMIENTO_ACTIVO', que: 'Mensajes de remarketing y de la prueba HONESTIDAD', grave: false },
+  ];
+}
+
 
 function panelToken() {
   return process.env.PANEL_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN || 'lowticket_panel_token_2026';
@@ -215,6 +240,13 @@ function render(aviso = '') {
       overflow: hidden;
     }
     .chat-row:hover { background: var(--card-hover); border-color: #334155; }
+    .chip-prod { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+    .filtros-prod { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+    .filtros-prod button { background: var(--card); border: 1px solid var(--border); color: #cbd5e1; padding: 6px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+    .filtros-prod button.on { border-color: #fff; color: #fff; }
+    .diag { display: grid; gap: 8px; margin-bottom: 18px; }
+    .diag div { display: flex; gap: 10px; align-items: flex-start; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.84rem; }
+    .diag b { color: #fff; } .diag .mal { border-color: #b91c1c; background: rgba(185,28,28,0.12); }
     .chat-row-top {
       display: flex;
       justify-content: space-between;
@@ -647,6 +679,7 @@ function render(aviso = '') {
                     +${esc(p.phone)}
                   </a>
                   <span class="badge badge-amber">Revisar</span>
+                  ${chipProducto(p.producto || (store.getLead(p.phone) || {}).producto)}
                 </h3>
                 <div style="font-size: 0.85rem; color: var(--muted);">
                   Pedido: <b>${esc(p.id)}</b> · Monto: <b style="color: var(--green); font-size: 0.95rem;">${fmtCOP(p.amount)}</b> · Registrado ${hace(p.createdAt)}
@@ -700,13 +733,13 @@ function render(aviso = '') {
 
       ${(() => {
         const R = store.resumenVentas();
-        const prods = ['moldes', 'helados'];
+        const prods = [...new Set([...Object.keys(productCatalog.PRODUCTOS), ...Object.keys(R.porProducto)])];
         return `
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px;">
         ${prods.map(k => {
           const v = R.porProducto[k] || { ventas: 0, recaudo: 0, manuales: 0 };
-          return `<div style="background: var(--card, #151c28); border: 1px solid var(--border); border-radius: 12px; padding: 14px;">
-            <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">${NOMBRE_PRODUCTO[k]}</div>
+          return `<div style="background: var(--card, #151c28); border: 1px solid var(--border); border-left: 4px solid ${productCatalog.infoProducto(k).color}; border-radius: 12px; padding: 14px;">
+            <div style="margin-bottom: 6px;">${chipProducto(k)}</div>
             <div style="font-size: 1.6rem; font-weight: 800; color: var(--green);">${v.ventas} <span style="font-size: 0.85rem; color: var(--muted); font-weight: 600;">ventas</span></div>
             <div style="font-size: 0.85rem; color: var(--muted);">Recaudo: <b style="color: #fff;">${fmtCOP(v.recaudo)}</b> · Conversaciones: ${R.leadsPorProducto[k] || 0} · Aprobadas a mano: ${v.manuales}</div>
           </div>`;
@@ -717,7 +750,7 @@ function render(aviso = '') {
           <thead><tr><th>Producto</th><th>De dónde vino la venta</th><th>Ventas</th><th>Recaudo</th></tr></thead>
           <tbody>
             ${R.porOrigen.length === 0 ? '<tr><td colspan="4" style="text-align: center; padding: 16px; color: var(--muted);">Sin ventas todavía.</td></tr>' : R.porOrigen.map(o => `
-              <tr><td data-label="Producto">${esc(NOMBRE_PRODUCTO[o.producto] || o.producto)}</td><td data-label="Origen">${esc(o.origen)}</td><td data-label="Ventas"><b>${o.ventas}</b></td><td data-label="Recaudo">${fmtCOP(o.recaudo)}</td></tr>`).join('')}
+              <tr><td data-label="Producto">${chipProducto(o.producto)}</td><td data-label="Origen">${esc(o.origen)}</td><td data-label="Ventas"><b>${o.ventas}</b></td><td data-label="Recaudo">${fmtCOP(o.recaudo)}</td></tr>`).join('')}
           </tbody>
         </table>
       </div>`;
@@ -735,12 +768,13 @@ function render(aviso = '') {
               <th>Referencia</th>
               <th>Comprobante</th>
               <th>Aprobado Por</th>
+              <th>Enlace personal</th>
               <th>Acción</th>
             </tr>
           </thead>
           <tbody>
             ${confirmados.length === 0 ? `
-              <tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--muted);">No hay ventas confirmadas registradas aún.</td></tr>
+              <tr><td colspan="10" style="text-align: center; padding: 30px; color: var(--muted);">No hay ventas confirmadas registradas aún.</td></tr>
             ` : confirmados.map(p => `
               <tr>
                 <td data-label="Fecha">${fechaHora(p.verifiedAt || p.createdAt)}</td>
@@ -749,7 +783,7 @@ function render(aviso = '') {
                     +${esc(p.phone)}
                   </a>
                 </td>
-                <td data-label="Producto">${esc(NOMBRE_PRODUCTO[p.producto] || p.product)}</td>
+                <td data-label="Producto">${chipProducto(p.producto || 'helados')}</td>
                 <td data-label="Origen">${esc(origenTexto(p).canal)}${origenTexto(p).detalle ? `<div style="font-size: 0.72rem; color: var(--muted);">${esc(origenTexto(p).detalle)}</div>` : ''}</td>
                 <td data-label="Monto" style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
                 <td data-label="Referencia"><code>${esc(p.reference || 'MANUAL-OK')}</code></td>
@@ -759,6 +793,13 @@ function render(aviso = '') {
                     ${p.aprobadoPor === 'ia_leona_auto' ? '🦁 IA Leona (Auto)' : (p.aprobadoPor && p.aprobadoPor.startsWith('banco_')) ? '💰 ' + esc(p.aprobadoPor.replace('banco_', '').toUpperCase()) : esc(p.aprobadoPor || 'Operador')}
                   </span>
                 </td>
+                <td data-label="Enlace personal">${(() => {
+                  const a = accesos.completoDe(p.phone, p.producto || 'helados');
+                  if (!a) return '<span style="color: var(--muted); font-size: 0.75rem;">Sin enlace</span>';
+                  return `<div style="font-size: 0.72rem; color: var(--muted);">${a.vistas || 0} visitas · ${a.descargas || 0} descargas</div>
+                    <form method="POST" action="/api/accesos/reenviar?token=${esc(tk)}" style="display: inline;"><input type="hidden" name="phone" value="${esc(p.phone)}"><input type="hidden" name="producto" value="${esc(p.producto || 'helados')}"><button class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.72rem;">📤 Reenviar</button></form>
+                    <form method="POST" action="/api/accesos/${esc(a.token)}/desactivar?token=${esc(tk)}" style="display: inline;" onsubmit="return confirm('¿Desactivar este enlace? El cliente ya no podrá descargar con él (se le puede reenviar uno nuevo).');"><button class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.72rem;">⛔ Desactivar</button></form>`;
+                })()}</td>
                 <td data-label="Acción">
                   <a href="/panel/chat?id=${esc(p.phone)}&token=${esc(tk)}" class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem;">
                     💬 Chat
@@ -906,6 +947,12 @@ function render(aviso = '') {
         </div>
       </div>
 
+      <div class="filtros-prod">
+        <button type="button" class="on" onclick="filtrarProducto('todos', this)">Todos</button>
+        ${Object.keys(productCatalog.PRODUCTOS).map(id => { const i = productCatalog.infoProducto(id); const n = chatsLista.filter(x => (store.getLead(x.tel) || {}).producto === id).length; return `<button type="button" style="border-left: 4px solid ${i.color};" onclick="filtrarProducto('${esc(id)}', this)">${i.emoji} ${esc(i.etiqueta)} (${n})</button>`; }).join('')}
+        <button type="button" onclick="filtrarProducto('ninguno', this)">❔ Sin identificar</button>
+      </div>
+
       <div style="font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; margin: 16px 0 8px;">
         Hoy (${chatsHoy.length})
       </div>
@@ -1012,6 +1059,9 @@ function render(aviso = '') {
 
     <!-- SECCIÓN: CONFIGURACIÓN -->
     <div id="sec-config" class="tab-sec" style="display: none;">
+      <div class="section-title"><span>🩺 Diagnóstico de Render</span></div>
+      <p style="font-size: 0.82rem; color: var(--muted); margin: -6px 0 10px;">Revisa si cada clave está configurada en Render → Environment. No muestra los valores.</p>
+      <div class="diag">${diagnostico().map(d => `<div class="${d.ok ? '' : 'mal'}"><span>${d.ok ? '✅' : (d.grave ? '❌' : '⚠️')}</span><span><b>${esc(d.nombre)}</b><br>${esc(d.que)}</span></div>`).join('')}</div>
       <div class="section-title">
         <span>⚙️ Configuración del Bot y Parámetros de Venta</span>
       </div>
@@ -1179,13 +1229,25 @@ function render(aviso = '') {
     }
 
     // Filtro de chats
+    let filtroProd = localStorage.getItem('filtroProd') || 'todos';
     function filtrarChats() {
       const q = (document.getElementById('chatSearch').value || '').toLowerCase();
       document.querySelectorAll('.chat-row').forEach(row => {
         const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(q) ? 'flex' : 'none';
+        const okProd = filtroProd === 'todos' || row.dataset.prod === filtroProd;
+        row.style.display = text.includes(q) && okProd ? 'flex' : 'none';
       });
     }
+    function filtrarProducto(id, btn) {
+      filtroProd = id; localStorage.setItem('filtroProd', id);
+      document.querySelectorAll('.filtros-prod button').forEach(b => b.classList.remove('on'));
+      if (btn) btn.classList.add('on');
+      filtrarChats();
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const b = [...document.querySelectorAll('.filtros-prod button')].find(x => (x.getAttribute('onclick') || '').includes("'" + filtroProd + "'"));
+      filtrarProducto(filtroProd, b);
+    });
 
     // Auto-refresh cada 45 segundos (nunca mientras el operador escribe)
     let typing = false;
@@ -1205,16 +1267,23 @@ function render(aviso = '') {
 }
 
 function renderFilaChat({ tel, c, msgs, cuando }, tk) {
+  const lead = store.getLead(tel) || {};
+  const info = productCatalog.infoProducto(lead.producto);
+  const anuncio = lead.referral && (lead.referral.source_id || lead.referral.headline);
   const ultimo = msgs.length ? msgs[msgs.length - 1] : null;
   const texto = ultimo ? ultimo.text || (ultimo.type === 'image' ? '📷 [Comprobante/Imagen]' : 'Archivo') : 'Sin mensajes';
   const nombre = c.perfil?.nombre || c.perfil?.username || `+${tel}`;
   const esPausado = c.pausado;
 
   return `
-    <a href="/panel/chat?id=${esc(tel)}&token=${esc(tk)}" class="chat-row">
+    <a href="/panel/chat?id=${esc(tel)}&token=${esc(tk)}" class="chat-row" data-prod="${esc(info.id || 'ninguno')}" style="border-left: 4px solid ${info.color};">
       <div class="chat-row-top">
         <div class="chat-user-wrap">
           <span class="chat-user-name">${esc(nombre)}</span>
+          ${chipProducto(lead.producto)}
+          ${anuncio ? '<span class="chip-prod" style="background:#1e293b;color:#93c5fd;border:1px solid #334155;">📣 Anuncio</span>' : ''}
+          ${lead.status === 'PAGADO' ? '<span class="chip-prod" style="background:#064e3b;color:#6ee7b7;border:1px solid #065f46;">💰 Pagó</span>' : ''}
+          ${lead.prueba && lead.status !== 'PAGADO' ? '<span class="chip-prod" style="background:#451a03;color:#fbbf24;border:1px solid #78350f;">🤝 En prueba</span>' : ''}
           ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="badge badge-green" style="font-size: 0.68rem; padding: 1px 6px;">🟢 Activo</span>'}
         </div>
         <div class="chat-time-tag">

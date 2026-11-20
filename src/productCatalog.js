@@ -23,6 +23,8 @@ const PRODUCTOS = {
     id: 'moldes',
     nombre: 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF',
     emoji: '🧵',
+    etiqueta: 'Moldes',
+    color: '#8b5cf6',   // color del producto en el panel (chats, pagos y ventas)
     precio: 10000,
     // IDs de Meta Ads vinculados a Moldes (Anuncios, Conjuntos y Campañas)
     metaIds: [
@@ -43,6 +45,8 @@ const PRODUCTOS = {
     id: 'helados',
     nombre: 'Guía Maestra de Helados Artesanales & Postres en Vaso Domo',
     emoji: '🍨',
+    etiqueta: 'Postres',
+    color: '#ec4899',
     precio: 10000,
     metaIds: [
       '120257885854810091' // Campaña histórica Emprende Dulce
@@ -129,7 +133,19 @@ function identificarProducto(phone, text = '', message = null, lead = null) {
   return { producto: 'helados', metodo: 'DEFAULT' };
 }
 
+// Etiqueta y color de un producto para el panel. Para agregar un producto nuevo basta con
+// sumarlo a PRODUCTOS con su emoji, etiqueta y color: el panel lo muestra solo.
+const COLORES_EXTRA = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#14b8a6', '#a855f7'];
+function infoProducto(id) {
+  if (!id) return { id: null, emoji: '❔', etiqueta: 'Sin identificar', color: '#64748b' };
+  const p = PRODUCTOS[id];
+  if (p) return { id, emoji: p.emoji || '📦', etiqueta: p.etiqueta || p.nombre, color: p.color || '#64748b', nombre: p.nombre };
+  const i = [...String(id)].reduce((n, c) => n + c.charCodeAt(0), 0) % COLORES_EXTRA.length;
+  return { id, emoji: '📦', etiqueta: id, color: COLORES_EXTRA[i] };
+}
+
 module.exports = {
   PRODUCTOS,
-  identificarProducto
+  identificarProducto,
+  infoProducto
 };

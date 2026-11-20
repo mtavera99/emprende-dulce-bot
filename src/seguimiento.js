@@ -70,7 +70,60 @@ async function ejecutarSeguimientos() {
   }
 }
 
-// Iniciar cron / intervalo en segundo plano (cada 5 minutos)
+// ----------------------------------------------------------------------------
+// Seguimiento del acceso de prueba (estrategia HONESTIDAD)
+// 1) a los 10 minutos: ¿qué te pareció? + cuentas
+// 2) 10 minutos antes de vencer: aviso de cierre
+// 3) al vencer: se cerró la prueba, la oferta sigue hasta mañana
+// Se detiene solo cuando el cliente paga (lead PAGADO) o el chat está pausado.
+// ----------------------------------------------------------------------------
+function textoPrueba(paso, lead, settings) {
+  const precio = Number(lead.precioOfrecido || 7000).toLocaleString('es-CO');
+  const moldes = lead.producto === 'moldes';
+  const num = settings.nequiNumero || '3058742138';
+  const cuentas =
+    `🟢 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
+    `🟡 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
+    `👤 *Titular:* ${settings.nequiTitular || 'Manuel Tavera'}`;
+  if (paso === 1) {
+    return `¿Qué tal te pareció? 😊 Ya pudiste ver por dentro la calidad ${moldes ? 'de los moldes' : 'de las recetas'}.\n\n` +
+      `Si es lo que buscabas, te dejo las cuentas para tus *$${precio} COP*:\n\n${cuentas}\n\n` +
+      `Apenas me envíes la foto del comprobante te desbloqueo ${moldes ? 'las 10 colecciones completas' : 'los 3 libros y todos los bonos'} al instante ${moldes ? '🧵' : '🍰'}`;
+  }
+  if (paso === 2) {
+    return `Tu acceso de prueba se cierra en 10 minutos ⏳\n\n` +
+      `Si ya te convenció, envíame el comprobante de *$${precio}* y te dejo todo el pack desbloqueado de por vida 🙌`;
+  }
+  return `Se cerró tu acceso de prueba. Confié en tu palabra 🤝\n\n` +
+    `Si todavía lo quieres, la oferta de *$${precio} COP* sigue en pie hasta mañana; solo envíame la foto del comprobante por aquí y te llega tu enlace personal con todo.`;
+}
+
+async function ejecutarSeguimientoPruebas() {
+  if (!ACTIVO) return;
+  const settings = store.getSettings();
+  const ahora = Date.now();
+  for (const { phone, lead } of store.leadsConPrueba()) {
+    try {
+      const pr = lead.prueba;
+      if (lead.status === 'PAGADO' || lead.paused || store.isPaused(phone)) continue;
+      const pasos = pr.pasos || 0;
+      let paso = 0;
+      if (pasos === 0 && ahora >= pr.inicio + 10 * 60 * 1000 && ahora < pr.vence - 5 * 60 * 1000) paso = 1;
+      else if (pasos <= 1 && ahora >= pr.vence - 10 * 60 * 1000 && ahora < pr.vence) paso = 2;
+      else if (pasos <= 2 && ahora >= pr.vence && ahora < pr.vence + 6 * 60 * 60 * 1000) paso = 3;
+      if (!paso) continue;
+      const texto = textoPrueba(paso, lead, settings);
+      await waService.sendTextMessage(phone, texto);
+      store.agregarMensaje(phone, { from: 'bot', text: `[PRUEBA HONESTIDAD ${paso}/3] ${texto}`, type: 'text' });
+      store.saveLead(phone, { prueba: { ...pr, pasos: paso } });
+      console.log(`[SEGUIMIENTO PRUEBA] Paso ${paso} enviado a +${phone}`);
+    } catch (err) {
+      console.error(`[SEGUIMIENTO PRUEBA ERROR] +${phone}:`, err.message);
+    }
+  }
+}
+
+// Iniciar cron / intervalo en segundo plano (cada 5 minutos; la prueba se revisa cada minuto)
 function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
   console.log(`[SEGUIMIENTO] Scheduler iniciado (revisa cada ${intervaloMs / 60000} minutos).`);
   setInterval(() => {
@@ -78,9 +131,14 @@ function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
       console.error('[SEGUIMIENTO CRON ERROR]:', err);
     });
   }, intervaloMs);
+  setInterval(() => {
+    ejecutarSeguimientoPruebas().catch(err => console.error('[SEGUIMIENTO PRUEBA CRON ERROR]:', err));
+  }, 60 * 1000);
 }
 
 module.exports = {
   ejecutarSeguimientos,
+  ejecutarSeguimientoPruebas,
+  textoPrueba,
   iniciarScheduler
 };

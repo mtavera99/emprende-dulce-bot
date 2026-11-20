@@ -11,6 +11,7 @@ const paymentVerifier = require('./paymentVerifier');
 const fs = require('fs');
 const accesos = require('./accesos');
 const paginaAcceso = require('./paginaAcceso');
+const productCatalog = require('./productCatalog');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -253,6 +254,36 @@ app.post('/api/pedidos/:id/aprobar', authPanel, async (req, res) => {
   }
 
   res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=¡Pedido+${id}+aprobado+y+entregado+con+éxito!#pendientes`);
+});
+
+// Corregir el producto de una venta (p. ej. quedó como postres y era moldes).
+// Desactiva el enlace del producto equivocado, crea el del correcto y, si se pide, lo envía por WhatsApp.
+app.post('/api/pedidos/:id/producto', authPanel, async (req, res) => {
+  const pedido = store.obtenerPedido(req.params.id);
+  const nuevo = req.body?.producto;
+  const volver = (m) => res.redirect(`/panel?token=${PANEL_TOKEN}&aviso=${encodeURIComponent(m)}#pedidos`);
+  if (!pedido || !productCatalog.PRODUCTOS[nuevo]) return volver('Pedido o producto no válido');
+  try {
+    const anterior = pedido.producto || 'helados';
+    store.actualizarPedido(pedido.id, { producto: nuevo, product: productCatalog.PRODUCTOS[nuevo].nombre, productoCorregido: `${anterior} → ${nuevo}` });
+    store.saveLead(pedido.phone, { producto: nuevo });
+    if (anterior !== nuevo) {
+      const viejo = accesos.completoDe(pedido.phone, anterior);
+      if (viejo) accesos.desactivar(viejo.token);
+    }
+    const a = accesos.crear(pedido.phone, nuevo, 'completo', { pedidoId: pedido.id });
+    store.actualizarPedido(pedido.id, { accesoToken: a.token });
+    if (req.body?.reenviar === '1') {
+      const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
+      const info = productCatalog.infoProducto(nuevo);
+      const txt = `Aquí tienes tu enlace personal de descarga del *${productCatalog.PRODUCTOS[nuevo].nombre}* ${info.emoji}\n\n${host}/acceso/${a.token}\n\nGuárdalo: es solo tuyo y no vence 🙌`;
+      await waService.sendTextMessage(pedido.phone, txt);
+      store.agregarMensaje(pedido.phone, { from: 'operador', text: txt, type: 'text' });
+    }
+    volver(`Venta ${pedido.id} corregida a ${productCatalog.infoProducto(nuevo).etiqueta}${req.body?.reenviar === '1' ? ' y enlace enviado' : ''}`);
+  } catch (e) {
+    volver('Error: ' + e.message);
+  }
 });
 
 // Enlaces personales: reenviar por WhatsApp o desactivar

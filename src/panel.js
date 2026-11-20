@@ -783,7 +783,15 @@ function render(aviso = '') {
                     +${esc(p.phone)}
                   </a>
                 </td>
-                <td data-label="Producto">${chipProducto(p.producto || 'helados')}</td>
+                <td data-label="Producto">${chipProducto(p.producto || 'helados')}
+                  <form method="POST" action="/api/pedidos/${esc(p.id)}/producto?token=${esc(tk)}" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;" onsubmit="return confirm('¿Cambiar el producto de esta venta y enviarle al cliente el enlace del producto correcto?');">
+                    <select name="producto" style="background: #0b0f17; color: #fff; border: 1px solid #334155; border-radius: 6px; padding: 3px; font-size: 0.72rem;">
+                      ${Object.keys(productCatalog.PRODUCTOS).map(id => `<option value="${esc(id)}" ${id === (p.producto || 'helados') ? 'selected' : ''}>${productCatalog.infoProducto(id).emoji} ${esc(productCatalog.infoProducto(id).etiqueta)}</option>`).join('')}
+                    </select>
+                    <input type="hidden" name="reenviar" value="1">
+                    <button class="btn btn-ghost" style="padding: 3px 8px; font-size: 0.72rem;">✏️ Corregir y reenviar</button>
+                  </form>
+                </td>
                 <td data-label="Origen">${esc(origenTexto(p).canal)}${origenTexto(p).detalle ? `<div style="font-size: 0.72rem; color: var(--muted);">${esc(origenTexto(p).detalle)}</div>` : ''}</td>
                 <td data-label="Monto" style="font-weight: 700; color: var(--green);">${fmtCOP(p.amount)}</td>
                 <td data-label="Referencia"><code>${esc(p.reference || 'MANUAL-OK')}</code></td>

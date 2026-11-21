@@ -1,6 +1,7 @@
 const store = require('./store');
 const waService = require('./whatsappService');
 const ventas = require('./ventas');
+const accesos = require('./accesos');
 
 const ACTIVO = process.env.SEGUIMIENTO_ACTIVO !== '0'; // Activo por defecto
 
@@ -26,7 +27,7 @@ async function ejecutarSeguimientos() {
     try {
       // Doble verificación justo antes de enviar
       const actual = store.getLead(phone) || {};
-      if (actual.status === 'PAGADO' || actual.paused || actual.optOut || store.yaCompro(phone) || store.isPaused(phone)) continue;
+      if (actual.status === 'PAGADO' || actual.paused || actual.optOut || store.yaCompro(phone) || accesos.completoDe(phone) || store.isPaused(phone)) continue;
       const producto = actual.producto || lead.producto || 'helados';
 
       // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva

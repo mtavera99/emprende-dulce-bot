@@ -1,69 +1,70 @@
 const store = require('./store');
 const waService = require('./whatsappService');
+const ventas = require('./ventas');
 
 const ACTIVO = process.env.SEGUIMIENTO_ACTIVO !== '0'; // Activo por defecto
 
+async function enviarImagen(phone, url) {
+  try {
+    await waService.sendImage(phone, url);
+    store.agregarMensaje(phone, { from: 'bot', text: `🖼️ [Imagen] ${url.split('/').pop()}`, type: 'image', mediaUrl: url });
+  } catch (e) {
+    console.error(`[SEGUIMIENTO] No se pudo enviar la imagen a +${phone}:`, e.message);
+  }
+}
+
 async function ejecutarSeguimientos() {
   if (!ACTIVO) return;
+  if (ventas.enHorarioSilencio()) return; // de 9 p. m. a 7 a. m. no se escribe
 
   const candidatos = store.obtenerCandidatosSeguimiento();
   if (candidatos.length === 0) return;
 
-  console.log(`[SEGUIMIENTO] Evaluando ${candidatos.length} prospectos para remarketing...`);
+  console.log(`[SEGUIMIENTO] Evaluando ${candidatos.length} prospectos para seguimiento...`);
 
-  for (const { phone, paso, lead, conv } of candidatos) {
+  for (const { phone, paso, lead } of candidatos) {
     try {
-      // Doble verificación de seguridad
-      if (lead.status === 'PAGADO' || lead.paused) continue;
+      // Doble verificación justo antes de enviar
+      const actual = store.getLead(phone) || {};
+      if (actual.status === 'PAGADO' || actual.paused || actual.optOut || store.yaCompro(phone) || store.isPaused(phone)) continue;
+      const producto = actual.producto || lead.producto || 'helados';
 
-      let texto = '';
-      if (paso === 1) {
-        // PASO 1 (Downsell a $7.000 COP con urgencia de 2 horas - Creativo A-Z)
-        texto =
-          `No quiero que te quedes fuera por el precio 🙌\n\n` +
-          `Por ser de los primeros interesados, he desbloqueado para ti un *descuento exclusivo válido por 2 horas.* ⏳\n\n` +
-          `Puedes llevarte TODO el Superpack completo por solo *$7.000 COP*. Es un pequeño empujón para que empieces hoy mismo.\n\n` +
-          `¡Dime y te envío los datos actualizados! 🍰`;
-        store.setLeadPrecio(phone, 7000);
-      } else if (paso === 2) {
-        // PASO 2 (Prueba transparente / Tour por dentro - Creativo A-Z)
-        const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
-        texto =
-          `Quiero que veas exactamente lo que vas a recibir antes de decidir 👀\n\n` +
-          `En este enlace te muestro el Pack completo por dentro: cada carpeta, cada archivo, cada guía. Sin sorpresas, todo clarito:\n` +
-          `👉 ${host}\n\n` +
-          `Son recursos que van a llevarte de la mano paso a paso, para que no tengas que adivinar nada ni empezar desde cero.\n\n` +
-          `¿Te gustaría aprovechar la promo de *$7.000* antes de que vuelva a subir? 🙌`;
-      } else if (paso === 3) {
-        // PASO 3 (Inversión total del riesgo / "Te doy acceso primero" / Palabra Clave "HONESTIDAD" - Creativo A-Z)
-        texto =
-          `Te hago una propuesta: te damos acceso primero a todo el pack en modo vista previa en tu plataforma para que lo revises y confirmes que es lo que prometimos 🙌\n\n` +
-          `Cuando verifiques que es lo que buscas, nos envías el pago de *$7.000* y se abre el pack completo. Sin trucos, solo honestidad ✨\n\n` +
-          `Si te interesa la oferta:\n\n` +
-          `Escribe acá la palabra *“HONESTIDAD”* , te doy acceso primero 📲`;
-        store.setLeadPrecio(phone, 7000);
-      } else if (paso === 4) {
-        // PASO 4 (Último aviso de expiración antes del cierre de 24 horas)
+      // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva
+      if (paso === 1 || paso === 3) {
+        if (!actual.precioOfrecido || actual.precioOfrecido >= ventas.precioNormal()) store.setLeadPrecio(phone, ventas.precioDescuento());
+      }
+      const precio = ventas.precioDe(store.getLead(phone));
+
+      if (paso === 4 && process.env.META_TEMPLATE_REMARKETING) {
         const templateName = process.env.META_TEMPLATE_REMARKETING;
-        if (templateName) {
-          await waService.sendTemplate(phone, templateName);
-          store.agregarMensaje(phone, { from: 'bot', text: `[PLANTILLA HSM REMARKETING: ${templateName}]`, type: 'text' });
-          store.registrarSeguimientoEnviado(phone, paso);
-          console.log(`[SEGUIMIENTO] Plantilla HSM ${templateName} enviada con éxito a +${phone}`);
-          continue;
-        } else {
-          texto =
-            `¡Hola de nuevo! ✨ Te escribo porque tu cupo especial con descuento de *$7.000 COP* está a punto de cerrarse para volver a su precio regular de $10.000.\n\n` +
-            `Si todavía quieres asegurar tus 3 Guías Maestras (Helados Artesanales, Postres en Vaso y Recetario Navideño) con acceso permanente, solo avísame por aquí antes de que expire 🙌`;
-        }
+        await waService.sendTemplate(phone, templateName);
+        store.agregarMensaje(phone, { from: 'bot', text: `[PLANTILLA HSM REMARKETING: ${templateName}]`, type: 'text' });
+        store.registrarSeguimientoEnviado(phone, paso);
+        continue;
       }
 
-      if (texto) {
-        await waService.sendTextMessage(phone, texto);
-        store.agregarMensaje(phone, { from: 'bot', text: `[REMARKETING CREATIVO A-Z PASO ${paso}] ${texto}`, type: 'text' });
-        store.registrarSeguimientoEnviado(phone, paso);
-        console.log(`[SEGUIMIENTO] Remarketing Paso ${paso} enviado con éxito a +${phone}`);
+      if (paso === 2) {
+        const img = ventas.imagenes(producto);
+        if (producto === 'moldes') {
+          await enviarImagen(phone, img.portada);
+          await enviarImagen(phone, img.mapa);
+        } else {
+          await enviarImagen(phone, img.catalogo);
+        }
+        if (!actual.muestraEnviada) store.saveLead(phone, { step: 'MUESTRA_OFRECIDA' });
+      } else {
+        // Un "sí" a este mensaje significa "pásame los datos" (ver conversationFlow, punto J)
+        store.saveLead(phone, { step: `SEGUIMIENTO_${paso}` });
       }
+
+      let texto = ventas.textoSeguimiento(paso, producto, precio);
+      if (paso === 2 && actual.muestraEnviada) {
+        texto = texto.split('\n\n')[0] + `\n\nLa muestra gratis te la envié arriba. ¿Te paso los datos para el pack completo por *${ventas.cop(precio)}*?`;
+      }
+      await waService.sendTextMessage(phone, texto);
+      store.agregarMensaje(phone, { from: 'bot', text: `[SEGUIMIENTO ${paso}/4] ${texto}`, type: 'text' });
+      store.registrarSeguimientoEnviado(phone, paso);
+      console.log(`[SEGUIMIENTO] Paso ${paso} enviado a +${phone}`);
     } catch (err) {
       console.error(`[SEGUIMIENTO ERROR] Falló envío a +${phone}:`, err.message);
     }
@@ -78,13 +79,10 @@ async function ejecutarSeguimientos() {
 // Se detiene solo cuando el cliente paga (lead PAGADO) o el chat está pausado.
 // ----------------------------------------------------------------------------
 function textoPrueba(paso, lead, settings) {
-  const precio = Number(lead.precioOfrecido || 7000).toLocaleString('es-CO');
+  const precio = Number(ventas.precioDe(lead)).toLocaleString('es-CO');
   const moldes = lead.producto === 'moldes';
   const num = settings.nequiNumero || '3058742138';
-  const cuentas =
-    `🟢 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
-    `🟡 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
-    `👤 *Titular:* ${settings.nequiTitular || 'Manuel Tavera'}`;
+  const cuentas = ventas.cuentas(settings);
   if (paso === 1) {
     return `¿Qué tal te pareció? 😊 Ya pudiste ver por dentro la calidad ${moldes ? 'de los moldes' : 'de las recetas'}.\n\n` +
       `Si es lo que buscabas, te dejo las cuentas para tus *$${precio} COP*:\n\n${cuentas}\n\n` +
@@ -105,7 +103,8 @@ async function ejecutarSeguimientoPruebas() {
   for (const { phone, lead } of store.leadsConPrueba()) {
     try {
       const pr = lead.prueba;
-      if (lead.status === 'PAGADO' || lead.paused || store.isPaused(phone)) continue;
+      if (lead.status === 'PAGADO' || lead.paused || lead.optOut || store.isPaused(phone) || store.yaCompro(phone)) continue;
+      if (ventas.enHorarioSilencio()) continue;
       const pasos = pr.pasos || 0;
       let paso = 0;
       if (pasos === 0 && ahora >= pr.inicio + 10 * 60 * 1000 && ahora < pr.vence - 5 * 60 * 1000) paso = 1;

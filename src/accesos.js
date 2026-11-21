@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const store = require('./store');
+const zipLector = require('./zipLector');
 
 const FILE = path.join(store.dataDir(), 'accesos.json');
 const PUBLIC = path.join(__dirname, '../public/descargas');
@@ -51,6 +52,7 @@ function contenidoMoldes() {
       id: `c${c.id}`, grupo: 'Colecciones de moldes (ZIP)', titulo: `${c.id} · ${c.titulo}`,
       sub: `${c.prendas.map((p) => p.nombre).join(' · ')} — ${c.prendas.length} patrones · ${(c.moldes || 0).toLocaleString('es-CO')} moldes por talla`,
       archivo: `moldes/${c.zip}`,
+      prendas: c.prendas.map((p) => ({ carpeta: p.carpeta, nombre: p.nombre })),
     });
   }
   man.bonos.forEach((b, i) => {
@@ -165,6 +167,42 @@ function archivoPermitido(acceso, itemId) {
   return it.gratis ? it : null;
 }
 
+// PDF sueltos dentro del ZIP de una colección, agrupados por patrón (para abrirlos en el celular)
+function pdfsDe(item) {
+  if (!item || !/\.zip$/i.test(item.archivo || '') || !item.prendas) return [];
+  let entradas = [];
+  try { entradas = zipLector.leerDirectorio(path.join(PUBLIC, item.archivo)); } catch (e) { console.error('[ACCESOS] ZIP ilegible', item.archivo, e.message); return []; }
+  const nombres = Object.fromEntries(item.prendas.map((p) => [p.carpeta, p.nombre]));
+  const grupos = {};
+  for (const en of entradas) {
+    if (!/\.pdf$/i.test(en.nombre)) continue;
+    const [carpeta, archivo] = en.nombre.split('/');
+    const g = grupos[carpeta] || (grupos[carpeta] = { carpeta, nombre: nombres[carpeta] || carpeta.replace(/^\d+_/, '').replace(/_/g, ' '), ficha: null, carta: [], a4: [] });
+    const m = /^Talla_(.+)_(Carta|A4)\.pdf$/i.exec(archivo || '');
+    const ref = { n: en.n, archivo, mb: Math.round(en.tamano / 1e5) / 10 };
+    if (/^00_Ficha/i.test(archivo)) g.ficha = ref;
+    else if (m) (m[2].toLowerCase() === 'carta' ? g.carta : g.a4).push({ ...ref, talla: m[1].replace(/-/g, '–') });
+  }
+  // Tallas en orden de menor a mayor (XS, S, M… / 0-3, 3-6… / 2, 4, 6…)
+  const ORDEN = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'MINI', 'MEDIANO', 'MEDIANA', 'GRANDE'];
+  const clave = (t) => {
+    const u = String(t.talla).toUpperCase();
+    const i = ORDEN.indexOf(u);
+    if (i >= 0) return i;
+    const num = parseFloat(u);
+    return Number.isNaN(num) ? 100 : 20 + num;
+  };
+  for (const g of Object.values(grupos)) { g.carta.sort((a, b) => clave(a) - clave(b)); g.a4.sort((a, b) => clave(a) - clave(b)); }
+  return Object.values(grupos);
+}
+
+function entradaPdf(item, n) {
+  try {
+    const en = zipLector.leerDirectorio(path.join(PUBLIC, item.archivo)).find((x) => x.n === Number(n));
+    return en && /\.pdf$/i.test(en.nombre) ? en : null;
+  } catch (_) { return null; }
+}
+
 // Al arrancar: cada venta confirmada sin enlace personal recibe uno (para poder reenviarlo desde el panel)
 function migrarVentas() {
   let n = 0;
@@ -177,4 +215,4 @@ function migrarVentas() {
   if (n) console.log(`[ACCESOS] Enlaces personales creados para ${n} ventas anteriores.`);
 }
 
-module.exports = { extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };
+module.exports = { pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };

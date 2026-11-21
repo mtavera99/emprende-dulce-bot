@@ -128,6 +128,7 @@ Reglas:
         reference: parsed.referencia || "",
         date: parsed.fecha || "",
         titularValido: titularOk,
+        esComprobante: Boolean(parsed.es_comprobante),
         reason
       };
     } catch (error) {
@@ -183,6 +184,7 @@ Reglas:
         recipient: parsed.destinatario || "",
         reference: parsed.referencia || "",
         date: parsed.fecha || "",
+        esComprobante: Boolean(parsed.es_comprobante),
         reason: isValid ? "Comprobante verificado con éxito por OpenAI" : "Monto inferior o no es comprobante"
       };
     } catch (error) {

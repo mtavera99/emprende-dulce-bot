@@ -49,7 +49,8 @@ const PRODUCTOS = {
     color: '#ec4899',
     precio: 10000,
     metaIds: [
-      '120257885854810091' // Campaña histórica Emprende Dulce
+      '120257885854810091', // Campaña histórica Emprende Dulce
+      '120250521905500743'  // Anuncio "Chatea con nosotros" (postres)
     ],
     keywords: /(helad|postre|reposter|palet|vaso|torta|buñuel|natilla|dulce)/i
   }
@@ -129,8 +130,10 @@ function identificarProducto(phone, text = '', message = null, lead = null) {
     return { producto: lead.producto, metodo: 'LEAD_HISTORY' };
   }
 
-  // 4. Fallback por defecto: helados (Emprende Dulce)
-  return { producto: 'helados', metodo: 'DEFAULT' };
+  // 4. Sin dato: el producto por defecto de la configuración (la campaña activa)
+  let porDefecto = 'helados';
+  try { porDefecto = require('./store').getSettings().productoPorDefecto || 'helados'; } catch (_) {}
+  return { producto: PRODUCTOS[porDefecto] ? porDefecto : 'helados', metodo: 'DEFAULT' };
 }
 
 // Etiqueta y color de un producto para el panel. Para agregar un producto nuevo basta con

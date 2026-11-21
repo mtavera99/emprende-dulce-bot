@@ -183,7 +183,7 @@ class PaymentVerifier {
    */
   verifyPayment({ reference, amount, bank }, customerPhone) {
     const lead = customerPhone ? store.getLead(customerPhone) : null;
-    const minAmount = (lead && lead.precioOfrecido) ? lead.precioOfrecido : (store.getSettings().precioOferta || 7000);
+    const minAmount = Math.min(require('./ventas').precioDe(lead), Number(store.getSettings().precioOferta) || 10000);
     // Referencia normalizada (sin espacios, en mayúsculas). Faltaba esta declaración y cada comprobante
     // terminaba en un ReferenceError, que dejaba el pedido PENDIENTE para aprobación manual.
     const cleanRef = reference ? String(reference).replace(/\s+/g, '').toUpperCase() : null;

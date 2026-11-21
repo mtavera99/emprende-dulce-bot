@@ -2,6 +2,7 @@ const store = require('./store');
 const paymentVerifier = require('./paymentVerifier');
 const productCatalog = require('./productCatalog');
 const accesos = require('./accesos');
+const exportarChats = require('./exportarChats');
 
 // Etiqueta de color del producto (chats, pagos y ventas). Productos nuevos: agregarlos en productCatalog.js
 function chipProducto(id) {
@@ -751,6 +752,36 @@ function render(aviso = '') {
           <tbody>
             ${R.porOrigen.length === 0 ? '<tr><td colspan="4" style="text-align: center; padding: 16px; color: var(--muted);">Sin ventas todavía.</td></tr>' : R.porOrigen.map(o => `
               <tr><td data-label="Producto">${chipProducto(o.producto)}</td><td data-label="Origen">${esc(o.origen)}</td><td data-label="Ventas"><b>${o.ventas}</b></td><td data-label="Recaudo">${fmtCOP(o.recaudo)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+      })()}
+
+      ${(() => {
+        const A = exportarChats.resumenPorAnuncio();
+        const url = (anuncio, solo) => `/api/chats/exportar?anuncio=${encodeURIComponent(anuncio)}${solo ? '&solo=compradores' : ''}&token=${encodeURIComponent(tk)}`;
+        return `
+      <div class="section-title" style="margin-top: 6px;">
+        <span>💬 Exportar chats por anuncio</span>
+        <a href="${esc(url('todos'))}" class="btn btn-ghost" style="font-size: 0.78rem;">⬇️ Todos los chats</a>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--muted); margin: -4px 0 10px;">Archivo de texto con el embudo y las conversaciones completas. Los teléfonos salen con los últimos 4 dígitos y los enlaces de acceso ocultos.</p>
+      <div class="table-wrap" style="margin-bottom: 16px;">
+        <table>
+          <thead><tr><th>Anuncio</th><th>Conversaciones</th><th>Compradores</th><th>Cierre</th><th>Recaudo</th><th>Descargar</th></tr></thead>
+          <tbody>
+            ${A.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 16px; color: var(--muted);">Sin conversaciones todavía.</td></tr>' : A.map(g => `
+              <tr>
+                <td data-label="Anuncio">${esc(g.anuncio)}${g.adId !== exportarChats.SIN_ANUNCIO ? `<div style="font-size: 0.72rem; color: var(--muted);">ID ${esc(g.adId)}</div>` : ''}</td>
+                <td data-label="Conversaciones">${g.conversaciones}</td>
+                <td data-label="Compradores"><b>${g.compradores}</b></td>
+                <td data-label="Cierre">${g.conversaciones ? Math.round((g.compradores / g.conversaciones) * 100) : 0} %</td>
+                <td data-label="Recaudo">${fmtCOP(g.recaudo)}</td>
+                <td data-label="Descargar" style="white-space: nowrap;">
+                  <a href="${esc(url(g.adId))}" class="btn btn-ghost" style="font-size: 0.75rem;">⬇️ Todos</a>
+                  <a href="${esc(url(g.adId, true))}" class="btn btn-ghost" style="font-size: 0.75rem;">⬇️ Compradores</a>
+                </td>
+              </tr>`).join('')}
           </tbody>
         </table>
       </div>`;

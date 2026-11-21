@@ -76,10 +76,10 @@ class AudioService {
         'Eres un asistente de transcripción para atención al cliente en WhatsApp Colombia.\n' +
         'Transcribe EXACTAMENTE lo que dice esta nota de voz al español, palabra por palabra, tal cual lo que el cliente expresa.\n' +
         'NO agregues introducciones, NO respondas la pregunta del cliente y NO des explicaciones.\n' +
-        'Contexto: Es un cliente interesado en comprar un mega pack digital de recetas de helados, postres para emprender o moldes de costura por $10.000 COP en Colombia. Puede preguntar por medios de pago (Nequi, Daviplata), precios, contenido, cómo se descarga o pedir asesoría.\n' +
+        'Contexto: Es un cliente interesado en comprar un pack digital de moldes de costura o de recetas de postres y helados en Colombia. Puede preguntar por medios de pago (Nequi, Daviplata), precios, contenido, cómo se descarga o pedir asesoría.\n' +
         'Si el audio no tiene voz humana, solo tiene ruido blanco, silencio o es totalmente incomprensible, responde exactamente: INAUDIBLE';
 
-      const res = await fetch(url, {
+      const pedir = (conThinking) => fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,10 +99,14 @@ class AudioService {
           ],
           generationConfig: {
             temperature: 0.0,
-            maxOutputTokens: 600
+            maxOutputTokens: 1024,
+            // Sin "thinking": en los modelos 2.5 el razonamiento gastaba los tokens y el texto llegaba vacío
+            ...(conThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {})
           }
         })
       });
+      let res = await pedir(true);
+      if (!res.ok && res.status === 400) res = await pedir(false);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
@@ -116,7 +120,12 @@ class AudioService {
         .join('')
         .trim();
 
-      if (!rawText || /^INAUDIBLE$/i.test(rawText)) {
+      if (!rawText) {
+        const motivo = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || 'sin texto';
+        console.error('[AUDIO ERROR] Gemini no devolvió transcripción:', motivo);
+        return { ok: false, error: `Gemini sin transcripción (${motivo})` };
+      }
+      if (/^INAUDIBLE\.?$/i.test(rawText)) {
         return { ok: false, inaudible: true, error: 'Audio inaudible o sin voz humana' };
       }
 

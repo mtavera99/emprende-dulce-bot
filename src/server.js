@@ -13,6 +13,7 @@ const accesos = require('./accesos');
 const paginaAcceso = require('./paginaAcceso');
 const productCatalog = require('./productCatalog');
 const exportarChats = require('./exportarChats');
+const zipLector = require('./zipLector');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -137,6 +138,36 @@ app.get('/d/:token/:id', (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   if (it.abrir) return res.sendFile(f);
   res.download(f, path.basename(f));
+});
+
+// Un PDF suelto dentro del ZIP de una colección (solo con acceso completo)
+app.get('/d/:token/:id/:n', (req, res) => {
+  const st = accesos.estado(req.params.token);
+  if (!st.ok || st.acceso.tipo !== 'completo') return res.status(410).send(paginaAcceso.paginaNoValida(st.ok ? 'bloqueado' : st.motivo, st.acceso));
+  const it = accesos.archivoPermitido(st.acceso, req.params.id);
+  const en = it && accesos.entradaPdf(it, req.params.n);
+  if (!en) return res.status(404).send('Archivo no encontrado');
+  try {
+    const flujo = zipLector.abrirEntrada(path.join(accesos.PUBLIC, it.archivo), en);
+    accesos.registrarUso(st.acceso.token, 'descargas');
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Length': en.tamano, 'Cache-Control': 'private, no-store',
+      'Content-Disposition': `inline; filename="${path.basename(en.nombre).replace(/"/g, '')}"` });
+    flujo.on('error', (e) => { console.error('[ZIP] Error leyendo', en.nombre, e.message); res.destroy(e); });
+    flujo.pipe(res);
+  } catch (e) {
+    console.error('[ZIP]', e.message);
+    res.status(500).send('No se pudo abrir el archivo');
+  }
+});
+
+// Muestras gratis que el bot envía por WhatsApp (solo los PDF de public/descargas/muestras)
+app.get('/muestra/:file', (req, res) => {
+  const nombre = path.basename(String(req.params.file || ''));
+  if (!/^Muestra_[\w-]+\.pdf$/.test(nombre)) return res.status(404).send('No encontrado');
+  const f = path.join(accesos.PUBLIC, 'muestras', nombre);
+  if (!fs.existsSync(f)) return res.status(404).send('No encontrado');
+  res.set('Content-Disposition', `inline; filename="${nombre}"`);
+  res.sendFile(f);
 });
 
 // ----------------------------------------------------------------------------
@@ -427,13 +458,15 @@ app.post('/api/chats/:id/extender-prueba', authPanel, async (req, res) => {
 
 // Actualizar configuración
 app.post('/api/settings', authPanel, (req, res) => {
-  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, driveLink, driveLinkMoldes, botWhatsApp, modoAutoEntregaLeona } = req.body;
+  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, precioDescuento, productoPorDefecto, driveLink, driveLinkMoldes, botWhatsApp, modoAutoEntregaLeona } = req.body;
   store.updateSettings({
     nequiNumero: nequiNumero || undefined,
     nequiTitular: nequiTitular || undefined,
     daviplataNumero: daviplataNumero || undefined,
     llaveNumero: llaveNumero || undefined,
     precioOferta: precioOferta ? Number(precioOferta) : undefined,
+    precioDescuento: precioDescuento ? Number(precioDescuento) : undefined,
+    productoPorDefecto: productCatalog.PRODUCTOS[productoPorDefecto] ? productoPorDefecto : undefined,
     driveLink: driveLink || undefined,
     driveLinkMoldes: driveLinkMoldes || undefined,
     botWhatsApp: botWhatsApp || undefined,

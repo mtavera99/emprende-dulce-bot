@@ -33,6 +33,11 @@ a.item:hover{border-color:var(--primary);background:#1c2637}
 .cta{display:block;text-align:center;background:var(--green);color:#fff;text-decoration:none;font-weight:800;padding:14px;border-radius:10px;margin:6px 0 18px}
 .drive{display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:12px;border-radius:8px;margin-top:10px}
 .foot{text-align:center;color:var(--muted);font-size:.8rem;margin-top:16px;line-height:1.5}
+details.sueltos{background:#111827;border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-top:-4px}
+details.sueltos summary{cursor:pointer;font-size:.86rem;font-weight:700;color:#c4b5fd}
+.pat{padding:10px 0;border-bottom:1px solid var(--border);font-size:.84rem}.pat:last-child{border-bottom:0}.pat b{display:block;color:#fff;margin-bottom:6px}
+.pat a{display:inline-block;color:#fff;background:#334155;border-radius:6px;padding:5px 9px;margin:0 6px 6px 0;text-decoration:none;font-weight:600}
+.pat .tl{color:var(--muted);margin-top:2px}
 </style></head><body><div class="wrap">${cuerpo}</div></body></html>`;
 }
 
@@ -50,8 +55,16 @@ function lista(c, token, modo) {
     if (!libre) {
       return `<div class="item lock"><div class="meta"><div class="t">🔒 ${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">Se desbloquea al pagar</span></div>`;
     }
-    return `<a class="item" href="/d/${encodeURIComponent(token)}/${encodeURIComponent(it.id)}" ${it.abrir ? 'target="_blank"' : 'download'}>
-      <div class="meta"><div class="t">${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">${it.abrir ? 'Abrir' : 'Descargar'}</span></a>`;
+    const enlace = `<a class="item" href="/d/${encodeURIComponent(token)}/${encodeURIComponent(it.id)}" ${it.abrir ? 'target="_blank"' : 'download'}>
+      <div class="meta"><div class="t">${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">${it.abrir ? 'Abrir' : modo === 'completo' && it.prendas ? 'ZIP' : 'Descargar'}</span></a>`;
+    if (modo !== 'completo' || !it.prendas) return enlace;
+    // PDF sueltos de cada patrón: abren directo en el celular, sin descomprimir el ZIP
+    const base = `/d/${encodeURIComponent(token)}/${encodeURIComponent(it.id)}/`;
+    const pdfs = accesos.pdfsDe(it).map((g) => `<div class="pat"><b>${esc(g.nombre)}</b>
+      ${g.ficha ? `<a href="${base}${g.ficha.n}" target="_blank">📄 Ficha técnica</a>` : ''}
+      ${g.carta.length ? `<div class="tl">Carta: ${g.carta.map((t) => `<a href="${base}${t.n}" target="_blank">${esc(t.talla)}</a>`).join('')}</div>` : ''}
+      ${g.a4.length ? `<div class="tl">A4: ${g.a4.map((t) => `<a href="${base}${t.n}" target="_blank">${esc(t.talla)}</a>`).join('')}</div>` : ''}</div>`).join('');
+    return pdfs ? `${enlace}<details class="sueltos"><summary>📱 Abrir los PDF sueltos (sin descomprimir)</summary>${pdfs}</details>` : enlace;
   }).join('')}</div>`).join('');
 }
 
@@ -62,6 +75,7 @@ function paginaCompleta(a) {
   return base(`${c.emoji} ${c.titulo} · Tu acceso`, `
     <div class="header"><span class="badge b-ok">✅ PAGO CONFIRMADO · ACCESO PERSONAL</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="box"><b>Este enlace es solo tuyo.</b> Guárdalo para volver a descargar cuando quieras. ${esc(c.nota)}
+      ${a.producto === 'moldes' ? '<br><br><b>📱 En el celular:</b> abre los PDF sueltos de cada patrón (botón «Abrir los PDF sueltos»). Los ZIP traen la colección completa: en Android ábrelos con la app <b>Files de Google</b> y en iPhone con <b>Archivos</b>.' : ''}
       ${drive ? `<a class="drive" href="${esc(drive)}" target="_blank" rel="noopener">📁 Abrir también en Google Drive</a>` : ''}</div>
     ${lista(c, a.token, 'completo')}
     <div class="foot">¿Dudas con la impresión o la descarga? <a style="color:#c4b5fd" href="${waLink('Hola, necesito ayuda con mi acceso')}">Escríbenos por WhatsApp</a><br>Acceso de por vida para el comprador.</div>`);
@@ -69,7 +83,7 @@ function paginaCompleta(a) {
 
 function paginaPrueba(a) {
   const c = accesos.contenido(a.producto);
-  const precio = (store.getLead(a.phone) || {}).precioOfrecido || 7000;
+  const precio = require('./ventas').precioDe(store.getLead(a.phone));
   return base(`${c.emoji} Prueba gratis · ${c.titulo}`, `
     <div class="header"><span class="badge b-prueba">🤝 ACCESO DE PRUEBA · HONESTIDAD</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="timer">Tu acceso de prueba vence en<b id="t">--:--</b><span style="font-size:.8rem;color:#fcd34d">Descarga la muestra gratis y mira por dentro todo lo que trae el pack.</span></div>

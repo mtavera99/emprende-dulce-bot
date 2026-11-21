@@ -1154,6 +1154,16 @@ function render(aviso = '') {
               <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO OFERTA (COP)</label>
               <input type="number" name="precioOferta" value="${esc(settings.precioOferta)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
             </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO CON DESCUENTO EN SEGUIMIENTOS (COP)</label>
+              <input type="number" name="precioDescuento" value="${esc(settings.precioDescuento || 8000)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRODUCTO SI EL CLIENTE NO VIENE DE UN ANUNCIO</label>
+              <select name="productoPorDefecto" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
+                ${Object.keys(productCatalog.PRODUCTOS).map((k) => `<option value="${esc(k)}" ${settings.productoPorDefecto === k ? 'selected' : ''}>${esc(productCatalog.infoProducto(k).etiqueta)}</option>`).join('')}
+              </select>
+            </div>
           </div>
 
           <div style="margin-top: 16px;">

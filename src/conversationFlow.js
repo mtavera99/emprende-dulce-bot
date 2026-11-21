@@ -5,6 +5,21 @@ const paymentVerifier = require('./paymentVerifier');
 const audioService = require('./audioService');
 const accesos = require('./accesos');
 const productCatalog = require('./productCatalog');
+const ventas = require('./ventas');
+
+// Limpia la respuesta de la IA: sin enlaces inventados, sin [placeholders] y sin frases cortadas
+function limpiarRespuestaIA(texto, finishReason) {
+  const host = ventas.host().replace(/^https?:\/\//, '');
+  let t = String(texto || '')
+    .replace(/https?:\/\/\S+/g, (u) => (u.includes(host) || u.includes('wa.me/') ? u : ''))
+    .replace(/\[[^\]]{0,60}\]/g, '')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (finishReason === 'MAX_TOKENS' || !/[.!?…)\p{Extended_Pictographic}]$/u.test(t)) {
+    const corte = Math.max(t.lastIndexOf('. '), t.lastIndexOf('! '), t.lastIndexOf('? '), t.lastIndexOf('\n'));
+    if (corte > 40) t = t.slice(0, corte + 1).trim();
+  }
+  return t;
+}
 
 class ConversationFlow {
   constructor() {
@@ -85,361 +100,256 @@ class ConversationFlow {
     return detection.producto;
   }
 
-  async handleTextMessage(phone, rawText, message = null) {
-    const text = rawText.toLowerCase().trim();
-    const settings = this.getSettings();
-    const precio = settings.precioOferta || this.defaultPrice;
-    const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
-
-    // Detección automática infalible (Prioridad 1: Meta Ad Referral ID, Prioridad 2: Keywords, Prioridad 3: Historial)
-    const producto = this.detectarProducto(phone, text, message);
-
-    const lead = store.getLead(phone);
-    const conv = store.obtenerConversacion(phone);
-    const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
-    const pitchYaEnviado = (lead && lead.step !== 'INICIO') || botMessages.length > 0;
-
-    // Detección de Objeción de Desconfianza / Seguridad / Estafa / Garantía / "Mándalo primero"
-    const patronesDesconfianza = /(estaf|robo|roban|engañ|segur[oa]|confi|garant|miedo|desconfi|c[oó]mo\s+s[eé]|es\s+(algo\s+)?real|sospech|tan\s+barat|primer.*(m[aá]nd|env[ií]|pas)|(m[aá]nd|env[ií]|pas).*primer|pago\s+despu[eé]s)/i;
-    const esDudaSeguridad = patronesDesconfianza.test(text);
-
-    if (esDudaSeguridad) {
-      const titular = settings.nequiTitular || 'Manuel Tavera';
-      const num = settings.nequiNumero || '3058742138';
-      let respuestaConfianza = '';
-      if (producto === 'moldes') {
-        respuestaConfianza =
-          `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
-          `Para darte total tranquilidad y seguridad:\n` +
-          `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
-          `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo el acceso permanente a Google Drive con las 10 carpetas completas (+2.000 Moldes en PDF listos para imprimir en casa) + las 4 Guías Técnicas y la Calculadora de Costos.\n` +
-          `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de envío físico ni patronistas costosos. Queremos que cualquier persona en Colombia pueda coser y emprender su propio taller sin gastar de más.\n\n` +
-          `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🧵`;
-      } else {
-        respuestaConfianza =
-          `¡Te entiendo 100%! Es completamente normal y prudente tener precaución al comprar por internet hoy en día 🙏✨\n\n` +
-          `Para darte total tranquilidad y seguridad:\n` +
-          `✅ *Cuenta Personal Verificada:* Nequi y Daviplata están directamente a nombre de ${titular} (${num}).\n` +
-          `✅ *Entrega Automática e Inmediata:* Apenas envíes la foto o captura de tu comprobante, nuestro sistema te libera en menos de 10 segundos aquí mismo los 3 Libros Completos en PDF + la Plantilla Excel de Costeo + el acceso permanente a Google Drive.\n` +
-          `✅ *¿Por qué solo ${precioCOP}?* Porque es 100% digital descargable, sin intermediarios ni gastos de imprenta ni envíos físicos. Queremos que cualquier persona en Colombia pueda empezar su emprendimiento dulce desde casa sin una inversión gigante.\n\n` +
-          `¿Te gustaría que te comparta los daticos para asegurar tu cupo con total confianza? 🍰`;
-      }
-      await waService.sendTextMessage(phone, respuestaConfianza);
-      store.agregarMensaje(phone, { from: 'bot', text: respuestaConfianza, type: 'text' });
-      return;
-    }
-
-    // 0. Detección especial de palabra clave "HONESTIDAD" (Inversión de Riesgo / Acceso Primero - Estilo Creativo A-Z)
-    const esHonestidad = /\b(honestidad|honesto|acceso\s+primero|dame\s+el\s+acceso|env[ií]alo\s+primero|verificar\s+primero|p[aá]salo\s+primero|mu[eé]stramelo\s+primero)\b/i.test(text);
-    if (esHonestidad) {
-      store.setLeadPrecio(phone, 7000);
-      const num = settings.nequiNumero || '3058742138';
-      const titular = settings.nequiTitular || 'Manuel Tavera';
-      const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
-      const prueba = accesos.crear(phone, producto, 'prueba');
-      const portalUrl = `${host}/prueba/${prueba.token}`;
-      const minutos = accesos.MINUTOS_PRUEBA;
-      const detalleHonestidad = producto === 'moldes'
-        ? `_(Tienes ${minutos} minutos para ver el pack por dentro y descargar gratis un patrón completo en todas sus tallas, la tabla de medidas y la calculadora. El resto se desbloquea con el pago)_`
-        : `_(Tienes ${minutos} minutos para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
-
-      const replyHonestidad =
-        `¡Trato hecho! 🤝✨ Aquí tienes tu acceso prioritario para que compruebes con tus propios ojos la calidad del material:\n\n` +
-        `👉 ${portalUrl}\n\n` +
-        `${detalleHonestidad}\n\n` +
-        `📌 Cuando verifiques que es exactamente lo que prometimos, transfieres los *$7.000 COP* a cualquiera de nuestras cuentas oficiales:\n\n` +
-        `🟢 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
-        `🟡 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
-        `👤 *Titular:* ${titular}\n\n` +
-        `Apenas transfieras, me envías la foto del comprobante por aquí para dejar tu acceso 100% permanente de por vida. ¡Confío plenamente en tu palabra! 🙌${producto === 'moldes' ? '🧵' : '🍰'}`;
-
-      await waService.sendTextMessage(phone, replyHonestidad);
-      store.agregarMensaje(phone, { from: 'bot', text: replyHonestidad, type: 'text' });
-      const leadH = store.getLead(phone) || {};
-      store.saveLead(phone, {
-        status: 'ACCESO_HONESTIDAD_ENTREGADO', precioOfrecido: 7000, producto,
-        prueba: { token: prueba.token, inicio: prueba.createdAt, vence: prueba.expiresAt, pasos: 0 },
-        seguimientosEnviados: Math.max(leadH.seguimientosEnviados || 0, 3),
-      });
-      return;
-    }
-
-    // 1. Detección precisa de INTENCIÓN DE COMPRA / PAGO / INTERÉS (incluye botones automáticos de anuncios Meta)
-    const patronesCompra = [
-      /\b(nequi|daviplata|bancolombia|transfiya|bre-?b)\b/i,
-      /\b(como|c[oó]mo|donde|d[oó]nde)\s+(hago\s+(para\s+)?|puedo\s+|se\s+puede\s+|podr[ií]a\s+)?(pag|compr|consign|transfer|cancel|adquir)/i,
-      /\b(datos|medios)\s+(de\s+)?pago\b/i,
-      /\b(quiero|deseo)\s+(compr|adquir|el\s+pack|los\s+libros|la\s+gu[ií]a)/i,
-      /\b(lo|la)\s+(quiero|deseo)\b/i,
-      /\b(me\s+interesa|estoy\s+interesad[oa]|estaba\s+interesad[oa]|interesad[oa]|interesa)\b/i,
-      /\b(si|sí)\s+(me\s+interesa|quiero)\b/i,
-      /\b(transferir|consignar|comprar|comprarlo|adquirir|adquirirlo|apartar|cupo)\b/i,
-      /\b(a\s+d[oó]nde|a\s+qu[eé]\s+n[uú]mero)\b/i,
-      /\b(p[aá]same|dame|deme)\s+(la\s+cuenta|el\s+n[uú]mero|el\s+nequi|el\s+daviplata)\b/i,
-      /\b(n[uú]mero\s+de\s+(nequi|cuenta|daviplata))\b/i,
-      /\b(cu[aá]nto\s+(vale|cuesta)|precio|costo)\b/i
-    ];
-    const esInteresCompra = patronesCompra.some(re => re.test(text));
-
-    // Si el pitch ya fue enviado y responde una afirmación ("sí", "claro", "dale de una", "bueno", "listo", "ok", "de una", "hágale", etc.)
-    const palabrasAfirmativas = /\b(si|sí|sii|claro|dale|de\s*una|bueno|listo|ok|oka|yes|por\s*favor|vale|h[aá]gale|me\s*sirve|quiero|perfecto|excelente|s[uú]per|va)\b/i;
-    const esAfirmacionCorta = pitchYaEnviado && text.length <= 35 && palabrasAfirmativas.test(text) && !text.includes('?') && !text.includes('¿');
-
-    // Detección de solicitud de descuento de $7.000 o datos actualizados tras remarketing
-    const esPedido7k = /\b(7\.?000|siete\s*mil|descuento|promo(ci[oó]n)?|datos\s+actualizados|la\s+oferta)\b/i.test(text);
-    const currentLead = store.getLead(phone);
-    const yaTieneOferta7k = currentLead && (currentLead.precioOfrecido === 7000 || (currentLead.seguimientosEnviados && currentLead.seguimientosEnviados >= 1));
-
-    if (esPedido7k || (yaTieneOferta7k && (esInteresCompra || esAfirmacionCorta))) {
-      store.setLeadPrecio(phone, 7000);
-      return await this.sendPaymentDetails(phone, settings, '7.000');
-    }
-
-    if (esInteresCompra || esAfirmacionCorta) {
-      return await this.sendPaymentDetails(phone, settings, precioCOP);
-    }
-
-    // 2. Detección de "YA PAGUÉ" o aviso de comprobante
-    if (
-      text.includes('ya pague') ||
-      text.includes('ya pagué') ||
-      text.includes('ya transferi') ||
-      text.includes('ya transferí') ||
-      text.includes('ya consigne') ||
-      text.includes('ya consigné') ||
-      text.includes('ahi le envie') ||
-      text.includes('ahí le envié') ||
-      text.includes('listo el pago') ||
-      text.includes('comprobante') ||
-      text.includes('adjunto') ||
-      text.includes('ya lo mande')
-    ) {
-      const reply = `¡Excelente! 🙌 Por favor adjúntame por aquí la *captura de pantalla o foto del comprobante* para que nuestro sistema te entregue de inmediato el enlace de descarga con todos los libros y tus 3 regalos 🎁`;
-      await waService.sendTextMessage(phone, reply);
-      store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
-      return;
-    }
-
-    // 3. Duda o aclaración: "¿Cómo así? / ¿De qué trata? / ¿De qué se trata? / ¿Qué incluye?"
-    const esDudaAclaracion = /\b(de\s+qu[eé]\s+(se\s+)?trata|c[oó]mo\s+as[ií]|no\s+entiendo|qu[eé]\s+(es|incluye)|expl[ií]came|cu[eé]ntame|m[aá]s\s+info(rmaci[oó]n)?|en\s+qu[eé]\s+consiste)\b/i.test(text) ||
-      text.includes('de que se trata') ||
-      text.includes('de qué se trata') ||
-      text.includes('como asi') ||
-      text.includes('cómo así') ||
-      text.includes('no entiendo');
-
-    if (esDudaAclaracion) {
-      if (pitchYaEnviado) {
-        let aclaracion = '';
-        if (producto === 'moldes') {
-          aclaracion =
-            `¡Con todo gusto te aclaro! 😊\n\n` +
-            `Es una colección digital gigante con *+2.000 Moldes y Patrones de Costura en PDF* organizados en 10 carpetas:\n` +
-            `👗 *1. Vestidos, Blusas y Moda Femenina* (XS a XXL)\n` +
-            `🏃‍♀️ *2. Ropa Deportiva, Pijamas y Lencería*\n` +
-            `👶 *3. Ropa Infantil, Mascotas y Bolsos/Accesorios*\n` +
-            `📐 *4. Catálogo Maestro, Guía de Impresión en Casa (hoja carta/A4) y Calculadora de Costos en Excel*\n\n` +
-            `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a Google Drive en tu celular).\n\n` +
-            `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo? 🧵`;
-        } else {
-          aclaracion =
-            `¡Con todo gusto te aclaro! 😊\n\n` +
-            `Es una colección digital completa con *3 Recetarios en PDF* de alta definición:\n` +
-            `🍦 *1. Helados Artesanales* (fórmulas cremosas que no se cristalizan sin máquinas costosas)\n` +
-            `🧁 *2. Postres en Vaso* (12 recetas listas para vender en vasito domo)\n` +
-            `🎄 *3. Recetario Navideño* (natillas, buñuelos, anchetas y torta negra)\n\n` +
-            `Más la plantilla de costeo en Excel para que calcules tus ganancias exactas.\n\n` +
-            `Todo te queda en solo *${precioCOP} COP* hoy (pago único con acceso de por vida a tu celular).\n\n` +
-            `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo?`;
-        }
-        await waService.sendTextMessage(phone, aclaracion);
-        store.agregarMensaje(phone, { from: 'bot', text: aclaracion, type: 'text' });
-        return;
-      }
-    }
-
-    // 4. Duda: "¿Es físico o digital? / ¿Cómo se recibe?"
-    if (text.includes('fisico') || text.includes('físico') || text.includes('digital') || text.includes('pdf') || text.includes('libro') || text.includes('imprimir')) {
-      let reply = '';
-      if (producto === 'moldes') {
-        reply =
-          `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
-          `Los descargas directamente a tu celular, tablet o computador. Vienen preparados para imprimirse en tu propia impresora de casa en hojas tamaño carta normales o A4 (sin necesidad de plotter ni programas raros).\n\n` +
-          `Incluye las 10 carpetas con los +2.000 moldes y los 4 bonos por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
-          `¿Te paso los daticos de Nequi o Daviplata para aprovechar el descuento hoy? ✂️`;
-      } else {
-        reply =
-          `Son *100% digitales en formato PDF de alta definición* 📱✨\n\n` +
-          `Los descargas directamente a tu celular, tablet o computador para verlos siempre sin necesidad de internet, o si prefieres también los puedes imprimir.\n\n` +
-          `Incluye los 3 Libros y los 3 Bonos por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
-          `¿Te paso los daticos de Nequi o Daviplata para aprovechar el descuento hoy?`;
-      }
-      await waService.sendTextMessage(phone, reply);
-      store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
-      return;
-    }
-
-    // 5. Duda: "Máquinas / experiencia / tela / ingredientes"
-    if (text.includes('maquina') || text.includes('máquina') || text.includes('experiencia') || text.includes('dificil') || text.includes('difícil') || text.includes('ingrediente') || text.includes('plotter')) {
-      let reply = '';
-      if (producto === 'moldes') {
-        reply =
-          `¡Cero complicaciones! 🧵 No necesitas ser modista experta ni tener plotter o máquinas industriales.\n\n` +
-          `Los moldes vienen listos para imprimir en cualquier impresora común de casa en hojas carta normales, traen márgenes de costura y líneas guía de ensamblado súper fáciles. Incluye además el manual técnico para principiantes paso a paso.\n\n` +
-          `¿Te gustaría asegurar tu acceso con la promo de *${precioCOP}*? ✂️`;
-      } else {
-        reply =
-          `¡Cero complicaciones! 👩‍🍳 No necesitas ninguna máquina industrial costosa ni tener experiencia previa.\n\n` +
-          `Todas las recetas están formuladas para hacer en casa con batidora o licuadora tradicional, y los ingredientes se consiguen en cualquier supermercado o tienda de barrio de Colombia.\n\n` +
-          `¿Te gustaría asegurar tu acceso con la promo de *${precioCOP}*?`;
-      }
-      await waService.sendTextMessage(phone, reply);
-      store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
-      return;
-    }
-
-    // 6. Lead inicial (nunca se le ha enviado el pitch)
-    if (!pitchYaEnviado) {
-      return await this.sendMainPitch(phone, settings, precioCOP, producto);
-    }
-
-    // 7. Fallback inteligente con IA Gemini para cualquier otra consulta
-    return await this._responderConGemini(phone, rawText, settings, precioCOP, producto);
+  // Envía un texto y lo guarda en el historial del chat
+  async decir(phone, texto) {
+    await waService.sendTextMessage(phone, texto);
+    store.agregarMensaje(phone, { from: 'bot', text: texto, type: 'text' });
   }
 
-  async _responderConGemini(phone, userText, settings, precioCOP, producto = 'helados') {
+  async enviarImagen(phone, url, caption = '') {
     try {
-      const key = process.env.GEMINI_API_KEY;
+      await waService.sendImage(phone, url, caption);
+      store.agregarMensaje(phone, { from: 'bot', text: `🖼️ [Imagen] ${caption || url.split('/').pop()}`, type: 'image', mediaUrl: url });
+      return true;
+    } catch (e) {
+      console.error(`[FLOW] No se pudo enviar la imagen ${url} a +${phone}:`, e.message);
+      return false;
+    }
+  }
+
+  async enviarDocumento(phone, doc) {
+    try {
+      await waService.sendDocument(phone, doc.url, doc.nombre, doc.caption);
+      store.agregarMensaje(phone, { from: 'bot', text: `📄 [Documento] ${doc.nombre}`, type: 'document', mediaUrl: doc.url });
+      return true;
+    } catch (e) {
+      console.error(`[FLOW] No se pudo enviar el documento ${doc.nombre} a +${phone}:`, e.message);
+      return false;
+    }
+  }
+
+  ultimoDelBot(phone) {
+    const msgs = (store.obtenerConversacion(phone).messages || []).filter((m) => m.from !== 'cliente');
+    return msgs[msgs.length - 1] || null;
+  }
+
+  async handleTextMessage(phone, rawText, message = null) {
+    const text = String(rawText || '').trim();
+    const settings = this.getSettings();
+    const producto = this.detectarProducto(phone, text.toLowerCase(), message);
+    const lead = store.getLead(phone) || {};
+    const conv = store.obtenerConversacion(phone);
+    const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
+    const pitchYaEnviado = (lead.step && lead.step !== 'INICIO') || botMessages.length > 0;
+
+    // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas
+    if (store.yaCompro(phone)) return await this.atenderComprador(phone, text);
+
+    // B. No quiere más mensajes: se responde una vez y se apagan los seguimientos
+    if (ventas.esRechazo(text)) {
+      store.saveLead(phone, { optOut: true, optOutAt: Date.now() });
+      return await this.decir(phone, `Listo, no te escribo más 🙏 Si algún día lo quieres, me escribes por aquí y con gusto te ayudo.`);
+    }
+    if (lead.optOut) store.saveLead(phone, { optOut: false });
+
+    // C. HONESTIDAD: acceso de prueba primero
+    if (/\b(honestidad|honesto|acceso\s+primero|env[ií]alo\s+primero|verificar\s+primero|p[aá]salo\s+primero|mu[eé]stramelo\s+primero)\b/i.test(text)) {
+      return await this.enviarHonestidad(phone, settings, producto);
+    }
+
+    // D. Desconfianza: se le muestra el material gratis en vez de pedirle que confíe
+    if (ventas.esDesconfianza(text)) return await this.responderDesconfianza(phone, producto);
+
+    // E. Pide cómo pagar
+    if (ventas.esPedidoPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
+
+    // F. Pide el descuento que se le ofreció en el seguimiento
+    const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal()) || (lead.seguimientosEnviados || 0) >= 1;
+    if (ofrecioDescuento && ventas.esPedidoDescuento(text)) {
+      if (!lead.precioOfrecido || lead.precioOfrecido >= ventas.precioNormal()) store.setLeadPrecio(phone, ventas.precioDescuento());
+      return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
+    }
+
+    // G. Avisa que ya pagó
+    if (ventas.esAvisoPago(text)) {
+      return await this.decir(phone, `¡Gracias! 🙌 Envíame por aquí la *captura del comprobante* y te llega tu enlace personal con ${ventas.infoPack(producto).queIncluye}.`);
+    }
+
+    // H. Primer mensaje: presentación del producto con imagen real
+    if (!pitchYaEnviado) return await this.sendMainPitch(phone, settings, null, producto);
+
+    // I. Pide fotos, catálogo, ejemplo o la muestra
+    if (ventas.esPedidoMuestra(text)) return await this.enviarMuestra(phone, producto);
+
+    // J. Respuesta afirmativa corta: depende de lo último que se le preguntó
+    if (ventas.esAfirmacion(text)) {
+      const step = lead.step || '';
+      if (step === 'MUESTRA_OFRECIDA' && !lead.muestraEnviada) return await this.enviarMuestra(phone, producto);
+      if (step === 'DATOS_PAGO_ENVIADOS') {
+        const ult = this.ultimoDelBot(phone);
+        const yaRecordado = ult && /captura del comprobante/.test(ult.text || '') && !/Nequi/.test(ult.text || '');
+        if (yaRecordado) return; // no repetir lo mismo
+        return await this.decir(phone, `¡Perfecto! 🙌 Quedo pendiente de la *captura del comprobante* para enviarte tu enlace.`);
+      }
+      return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
+    }
+
+    // K. Cualquier otra pregunta: IA con el contenido real del pack
+    return await this._responderConGemini(phone, text, settings, producto);
+  }
+
+  // Soporte para compradores: reenvía su enlace y explica cómo abrir los archivos
+  async atenderComprador(phone, text) {
+    const ventasCliente = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
+    const producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (store.getLead(phone) || {}).producto || 'helados';
+    const acceso = accesos.crear(phone, producto, 'completo');
+    const enlace = `${ventas.host()}/acceso/${acceso.token}`;
+    store.marcarAtendido(phone, false); // que el operador lo vea en el panel
+    if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack)\b/i.test(text)) {
+      const ayuda = producto === 'moldes'
+        ? `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
+          `📱 *Para abrir en el celular:* toca el enlace, ábrelo en Chrome o Safari y busca el patrón que quieres. Cada patrón tiene sus PDF sueltos (ficha técnica y cada talla) que abren directo en el celular.\n` +
+          `📦 Los ZIP de cada colección traen todo junto: en Android ábrelos con la app *Files de Google*; en iPhone, con la app *Archivos*.\n` +
+          `🖨️ Para imprimir: tamaño real o escala 100 %, sin "ajustar a la página".\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`
+        : `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
+          `📱 Toca el enlace, ábrelo en Chrome o Safari y descarga cada libro en PDF; abren directo en el celular.\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`;
+      return await this.decir(phone, ayuda);
+    }
+    return await this._responderConGemini(phone, text, this.getSettings(), producto, { comprador: true, enlace });
+  }
+
+  async responderDesconfianza(phone, producto) {
+    const lead = store.getLead(phone) || {};
+    if (!lead.muestraEnviada) {
+      await this.decir(phone, ventas.textoConfianza(producto));
+      return await this.enviarMuestra(phone, producto, { sinIntro: true });
+    }
+    return await this.decir(phone,
+      `Te entiendo 🙏 Arriba tienes la muestra gratis 👆 ábrela y revísala con calma antes de decidir.\n\n` +
+      `El pago va a nombre de ${this.getSettings().nequiTitular || 'Manuel Tavera'} y apenas envías la captura del comprobante te llega tu enlace personal por este chat. Si tienes cualquier problema con la descarga, aquí te respondemos.`);
+  }
+
+  // Envía la muestra gratis en PDF (abre directo en el celular) y después pregunta por la compra
+  async enviarMuestra(phone, producto, opciones = {}) {
+    const lead = store.getLead(phone) || {};
+    const precio = ventas.precioDe(lead);
+    if (lead.muestraEnviada) {
+      const img = ventas.imagenes(producto);
+      await this.enviarImagen(phone, img.catalogo);
+      if (img.mapa) await this.enviarImagen(phone, img.mapa);
+      return await this.decir(phone, `Así viene el pack por dentro 👆 La muestra gratis te la envié arriba en PDF.\n\nEl pack completo con ${ventas.infoPack(producto).queIncluye} vale *${ventas.cop(precio)}*. ¿Te paso los datos de pago?`);
+    }
+    if (!opciones.sinIntro) {
+      await this.decir(phone, producto === 'moldes'
+        ? `¡Claro! 🎁 Te envío gratis el patrón completo de la *Falda Media Campana*: la ficha técnica y el molde de la talla M a escala real.`
+        : `¡Claro! 🎁 Te envío gratis 5 recetas de muestra.`);
+    }
+    if (producto === 'moldes') await this.enviarImagen(phone, ventas.imagenes(producto).mapa, 'Así se arma el molde: se imprime en hojas Carta o A4 y se unen por las marcas');
+    let enviados = 0;
+    for (const doc of ventas.documentosMuestra(producto)) if (await this.enviarDocumento(phone, doc)) enviados++;
+    store.saveLead(phone, { muestraEnviada: enviados > 0, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO' });
+    if (!enviados) {
+      return await this.decir(phone, `No pude adjuntarte el archivo 🙈 Escribe *HONESTIDAD* y te mando un enlace para descargar la muestra gratis.`);
+    }
+    return await this.decir(phone, ventas.textoDespuesMuestra(producto, precio));
+  }
+
+  async enviarHonestidad(phone, settings, producto) {
+    const leadPrevio = store.getLead(phone) || {};
+    const precio = leadPrevio.precioOfrecido && leadPrevio.precioOfrecido < ventas.precioNormal() ? leadPrevio.precioOfrecido : ventas.precioDescuento();
+    store.setLeadPrecio(phone, precio);
+    const prueba = accesos.crear(phone, producto, 'prueba');
+    const portalUrl = `${ventas.host()}/prueba/${prueba.token}`;
+    const minutos = accesos.MINUTOS_PRUEBA;
+    const duracion = minutos >= 60 ? `${Math.round(minutos / 60)} horas` : `${minutos} minutos`;
+    const detalle = producto === 'moldes'
+      ? `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis un patrón completo en todas sus tallas, la tabla de medidas y la calculadora. El resto se desbloquea con el pago)_`
+      : `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
+    const reply =
+      `¡Trato hecho! 🤝 Aquí tienes tu acceso de prueba:\n\n👉 ${portalUrl}\n\n${detalle}\n\n` +
+      `Si te convence, transfieres *${ventas.cop(precio)}* a:\n\n${ventas.cuentas(settings)}\n\n` +
+      `y me envías la captura del comprobante por aquí para dejarte el acceso completo de por vida 🙌`;
+    await this.decir(phone, reply);
+    store.saveLead(phone, {
+      status: 'ACCESO_HONESTIDAD_ENTREGADO', producto,
+      prueba: { token: prueba.token, inicio: prueba.createdAt, vence: prueba.expiresAt, pasos: 0 },
+      seguimientosEnviados: Math.max(leadPrevio.seguimientosEnviados || 0, 3),
+    });
+  }
+
+  async _responderConGemini(phone, userText, settings, producto = 'helados', opciones = {}) {
+    const respaldo = opciones.comprador
+      ? `Gracias por escribirnos 🙌 Un asesor te responde en un momento. Tu enlace personal sigue activo: ${opciones.enlace}`
+      : `Déjame confirmarte eso y te respondo en un momento 🙌`;
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      store.marcarAtendido(phone, false);
+      return await this.decir(phone, respaldo);
+    }
+    try {
       const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-      if (!key) {
-        return await this.sendPaymentDetails(phone, settings, precioCOP);
-      }
-
+      const lead = store.getLead(phone) || {};
       const conv = store.obtenerConversacion(phone);
-      const historial = (conv?.messages || []).slice(-6).map(m => `${m.from === 'bot' ? 'Asistente' : 'Cliente'}: ${m.text}`).join('\n');
+      const historial = (conv?.messages || []).slice(-8).map(m => `${m.from === 'cliente' ? 'Cliente' : 'Asesora'}: ${String(m.text || '').slice(0, 400)}`).join('\n');
+      const precio = ventas.precioDe(lead);
+      const reglasVenta = opciones.comprador
+        ? `- ESTE CLIENTE YA COMPRÓ. Nunca le pidas pago ni le des datos de cuenta. Ayúdalo con la descarga, la impresión o dudas del contenido. Su enlace personal es: ${opciones.enlace}`
+        : `- Precio que se le ofreció a este cliente: ${ventas.cop(precio)} pago único.
+- NO envíes números de cuenta ni datos de pago: si el cliente quiere pagar, pregúntale "¿Te paso los datos de pago?" y el sistema se los envía.
+- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis un patrón completo para que lo revises?").`;
+      const prompt = `Eres Sofía, asesora por WhatsApp de una tienda de productos digitales en Colombia. Tono cálido, colombiano, sencillo y honesto.
+${ventas.conocimiento(producto)}
 
-      let productDetails = '';
-      if (producto === 'moldes') {
-        productDetails = `El producto es digital: Mega Pack de +2.000 Moldes y Patrones de Costura en formato PDF descargable para imprimir en casa en hoja carta o A4 (sin necesidad de plotter ni programas raros), tallas XS a XXL, más 4 manuales técnicos y calculadora de costos por solo ${precioCOP} COP pago único. Si preguntan cómo se imprime: explica que viene configurado para imprimir en cualquier impresora común de casa en hojas tamaño carta normales y unirlas con cinta fácilmente.`;
-      } else {
-        productDetails = `El producto es digital: 3 recetarios PDF (Helados Artesanales, Postres en Vaso y Recetas Navideñas) + plantilla Excel de costeo por solo ${precioCOP} COP pago único.`;
-      }
+REGLAS:
+- Responde en máximo 3 líneas, como un WhatsApp real, sin saludar de nuevo si ya hay conversación.
+- Solo afirma lo que está en el CONTENIDO EXACTO. Si preguntan por algo que no está (una prenda, fotos reales, videos), dilo con honestidad y menciona lo más parecido que sí trae.
+${opciones.comprador ? '- El único enlace que puedes escribir es su enlace personal. Nunca escribas corchetes como "[Link]". Nunca pidas correos.' : '- Nunca escribas enlaces ni corchetes como "[Link]". Nunca pidas correos.'}
+- No inventes datos de la empresa (ciudad, años, número de clientes) ni digas que hay un "sistema bancario".
+${reglasVenta}
 
-      const downloadUrl = producto === 'moldes'
-        ? 'https://emprende-dulce-bot.onrender.com/descargar-moldes'
-        : 'https://emprende-dulce-bot.onrender.com/descargar';
-
-      const systemPrompt = `Eres Sofía, asesora experta comercial de "Creativos Digitales" en Colombia.
-Tu tono es cálido, colombiano, dulce, servicial, transparente y persuasivo.
-Reglas clave:
-- Responde de forma muy natural y concisa (máximo 2 a 3 líneas estilo WhatsApp real).
-- ${productDetails}
-- REGLA SUPREMA: JAMÁS inventes links falsos de Google Drive ni pongas corchetes o placeholders como "[Link de Acceso]". Si tienes que dar un enlace oficial, usa EXACTAMENTE este: ${downloadUrl}
-- REGLA SUPREMA: JAMÁS digas que enviaste archivos al correo electrónico ni pidas correos. TODO se entrega de inmediato por este chat de WhatsApp y en el enlace oficial.
-- REGLA DE RECLAMO: Si el cliente ya pagó, reclama por su dinero, pide reembolso o está angustiado: NUNCA le pidas que pague de nuevo ni le envíes datos de cuenta Nequi. Respóndele con máxima empatía y cariño, asegurándole que su dinero está seguro y que le estás confirmando su acceso oficial ya mismo.
-- Si el cliente expresa desconfianza, miedo o pregunta si es seguro antes de pagar: valida su inquietud con empatía ("Te entiendo perfectamente..."), explícale que Nequi/Daviplata está a nombre de Manuel Tavera (${settings.nequiNumero || '3058742138'}), que la entrega es automática e inmediata por este mismo chat al enviar la foto del comprobante, y que cuesta $10.000 COP porque es digital descargable sin intermediarios.
-- Si piden que se les envíe primero antes de pagar: diles amablemente que el sistema automático libera el paquete completo al registrar el comprobante con total garantía.
-- Si el cliente muestra interés o acuerdo en comprar, facilítale transferir los ${precioCOP} COP a Nequi o Daviplata (${settings.nequiNumero || '3058742138'} a nombre de Manuel Tavera).
-- No uses saludos repetitivos si ya estamos en medio de la conversación.
-
-Historial de la conversación:
+Conversación reciente:
 ${historial}
 
 Cliente: ${userText}
-Respuesta de Sofía:`;
-
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const res = await fetch(url, {
+Sofía:`;
+      const pedir = (conThinking) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { maxOutputTokens: 1000, temperature: 0.3 }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 600, temperature: 0.3, ...(conThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}) }
         })
       });
-
-      if (!res.ok) {
-        return await this.sendPaymentDetails(phone, settings, precioCOP);
-      }
-
+      let res = await pedir(true);
+      if (!res.ok) res = await pedir(false); // modelos que no aceptan thinkingBudget
+      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
       const data = await res.json();
-      let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-      aiText = aiText.replace(/^Sofía:\s*/i, '').trim();
-
-      if (!aiText) {
-        return await this.sendPaymentDetails(phone, settings, precioCOP);
-      }
-
-      await waService.sendTextMessage(phone, aiText);
-      store.agregarMensaje(phone, { from: 'bot', text: aiText, type: 'text' });
+      const cand = data?.candidates?.[0] || {};
+      let aiText = (cand.content?.parts || []).map(p => p.text || '').join('').trim().replace(/^Sof[ií]a:\s*/i, '');
+      aiText = limpiarRespuestaIA(aiText, cand.finishReason);
+      if (!aiText) throw new Error('Respuesta vacía');
+      await this.decir(phone, aiText);
     } catch (err) {
       console.error('[FLOW GEMINI ERROR]:', err.message);
-      return await this.sendPaymentDetails(phone, settings, precioCOP);
+      store.marcarAtendido(phone, false);
+      await this.decir(phone, respaldo);
     }
   }
 
-  async sendMainPitch(phone, settings, precioCOP, producto = 'helados') {
-    if (producto === 'moldes') {
-      const pitchMoldes =
-        `¡Hola! Qué alegría saludarte 🧵✨\n\n` +
-        `Te presento el *MEGA PACK DE +2.000 MOLDES Y PATRONES DE COSTURA 2026*, la colección digital más completa de Colombia para coser tu propia ropa o emprender tu taller desde casa:\n\n` +
-        `👗 *1. Vestidos, Blusas y Moda Femenina (XS a XXL)*\n` +
-        `Vestidos casuales, fiesta, gala, blusas, tops, faldas, pantalones y lencería con medidas exactas.\n\n` +
-        `🏃‍♀️ *2. Ropa Deportiva, Pijamas y Confort*\n` +
-        `Leggings, sudaderas, tops deportivos, pijamas enteras y batas.\n\n` +
-        `👶 *3. Moda Infantil, Ropa de Mascotas y Accesorios*\n` +
-        `Prendas para niños y bebés, disfraces, accesorios, bolsos y ropa para perros/gatos.\n\n` +
-        `🎁 *+ 4 SUPER BONOS TÉCNICOS HOY:*\n` +
-        `✓ Catálogo Maestro indexado con fotos y tablas de tallas\n` +
-        `✓ Manual Técnico de Escalamiento y Ajuste de Medidas\n` +
-        `✓ Guía de Impresión en Casa en Hoja Carta o A4 (¡sin plotter ni programas raros!)\n` +
-        `✓ Calculadora de Costos y Ganancias en Excel\n\n` +
-        `💥 *OFERTA ESPECIAL:* Todo el paquete (+2.000 moldes + 4 bonos) por solo *${precioCOP} COP* (pago único, acceso de por vida a Google Drive).\n\n` +
-        `¿Te gustaría que te comparta los datos de Nequi o Daviplata para apartar tu cupo hoy mismo? ✂️`;
-
-      await waService.sendTextMessage(phone, pitchMoldes);
-      store.agregarMensaje(phone, { from: 'bot', text: pitchMoldes, type: 'text' });
-      store.saveLead(phone, { status: 'INTERESADO', step: 'PITCH_ENVIADO', producto: 'moldes' });
-      return;
-    }
-
-    const pitch =
-      `¡Hola! Qué alegría saludarte 🍰✨\n\n` +
-      `Te presento la colección completa *EMPRENDE DULCE 2026*, la guía definitiva para iniciar tu negocio de helados y postres gourmet de alta rentabilidad desde casa:\n\n` +
-      `📖 *1. Guía Maestra de Helados Artesanales (47 pág)*\n` +
-      `Fórmulas cremosas que no se cristalizan, paletas rellenas tipo magnum y helados de paila.\n\n` +
-      `🧁 *2. Postres en Vaso para Emprender (41 pág)*\n` +
-      `12 recetas top (Tres Leches, Pie de Limón, Cheesecake, Tiramisú, Marquesa de Chocolate) en vasitos domo listos para vender.\n\n` +
-      `🎄 *3. Recetario Navideño y Cajas de Regalo (35 pág)*\n` +
-      `Nativas caseras, buñuelos esponjosos, brevas con arequipe, torta negra envinada y armado de anchetas festivas.\n\n` +
-      `🎁 *+ 3 SUPER BONOS DE REGALO HOY:*\n` +
-      `✓ Plantilla Excel de Costos y Precios de Venta\n` +
-      `✓ Guía de Conservación, Empaques y Transporte\n` +
-      `✓ Plantillas editables de Etiquetas en Canva\n\n` +
-      `💥 *OFERTA ESPECIAL:* Todo el paquete completo por solo *${precioCOP} COP* (pago único, acceso para siempre).\n\n` +
-      `¿Te gustaría apartar tu cupo hoy mismo?`;
-
-    await waService.sendTextMessage(phone, pitch);
-    store.agregarMensaje(phone, { from: 'bot', text: pitch, type: 'text' });
-    store.saveLead(phone, { status: 'INTERESADO', step: 'PITCH_ENVIADO', producto: 'helados' });
+  async sendMainPitch(phone, settings, _precio, producto = 'helados') {
+    const img = ventas.imagenes(producto);
+    await this.enviarImagen(phone, img.catalogo);
+    await this.decir(phone, ventas.textoPitch(producto));
+    store.saveLead(phone, { status: 'INTERESADO', step: 'MUESTRA_OFRECIDA', producto });
   }
 
-  async sendPaymentDetails(phone, settings, precioCOP) {
-    const num = settings.nequiNumero || '3058742138';
-    const titular = settings.nequiTitular || 'Manuel Tavera';
-    const reply =
-      `¡Excelente decisión! 🚀 Aquí tienes las cuentas oficiales para tu transferencia de *${precioCOP} COP*:\n\n` +
-      `💚 *Nequi / Llave / Bre-B:* \`${num}\`\n` +
-      `💛 *Daviplata:* \`${settings.daviplataNumero || num}\`\n` +
-      `👤 *Titular:* ${titular} _(en Nequi/Daviplata te saldrá como MAN*** TAV*** o Manuel Tavera)_\n\n` +
-      `_Toca el número para copiarlo en un segundo._\n\n` +
-      `Apenas hagas la transferencia, *envíame la captura de pantalla por este chat* y en segundos te entrego el enlace de acceso con todos los libros y tus 3 regalos 🎁`;
-
-    await waService.sendTextMessage(phone, reply);
-    store.agregarMensaje(phone, { from: 'bot', text: reply, type: 'text' });
-    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS' });
-    // NOTA: No se crea pedido en status PENDIENTE aquí. El pedido solo se crea
-    // cuando el cliente realmente envía la captura/comprobante en handleImageMessage.
+  async sendPaymentDetails(phone, settings, precio) {
+    if (store.yaCompro(phone)) return await this.atenderComprador(phone, 'enlace');
+    const lead = store.getLead(phone) || {};
+    const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
+    await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto));
+    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: lead.precioOfrecido || monto });
+    // El pedido solo se crea cuando el cliente envía el comprobante (handleImageMessage).
   }
 
   // Descarga la imagen de Meta y la guarda en el disco del bot para verla en el panel.
@@ -457,9 +367,16 @@ Respuesta de Sofía:`;
 
   async handleImageMessage(phone, imageObj, img = null) {
     const settings = this.getSettings();
-    const aviso = `🔍 ¡Recibí tu comprobante! Estoy validándolo en nuestro sistema bancario, dame unos segundos...`;
-    await waService.sendTextMessage(phone, aviso);
-    store.agregarMensaje(phone, { from: 'bot', text: aviso, type: 'text' });
+    const leadImg = store.getLead(phone) || {};
+
+    // Quien ya compró no genera una compra nueva por mandar otra imagen: se le recuerda su enlace
+    // y el operador la revisa en el panel (puede ser un problema de descarga o un pago de otra cosa).
+    if (store.yaCompro(phone)) {
+      store.marcarAtendido(phone, false);
+      return await this.atenderComprador(phone, 'enlace');
+    }
+
+    await this.decir(phone, `🔍 Recibí tu imagen, dame unos segundos para revisarla...`);
 
     try {
       // 1. Descargar imagen desde Meta WhatsApp Cloud API
@@ -473,7 +390,8 @@ Respuesta de Sofía:`;
       // 2. Ejecutar análisis OCR con IA
       let ocrResult = { isValid: false };
       const lead = store.getLead(phone);
-      const minEsperado = (lead && lead.precioOfrecido) ? lead.precioOfrecido : (settings.precioOferta || 7000);
+      // Mínimo aceptado: el menor precio que se le ofreció a este cliente
+      const minEsperado = Math.min(ventas.precioDe(lead), ventas.precioNormal());
       if (buffer) {
         ocrResult = await ocrValidator.validateReceipt(buffer, {
           minAmount: minEsperado,
@@ -483,7 +401,7 @@ Respuesta de Sofía:`;
 
       // 3. Evaluar resultado del OCR y cruzar contra el Libro Mayor Bancario (Antifraude)
       const cleanRef = ocrResult.reference || null;
-      const cleanAmount = ocrResult.amount || settings.precioOferta || this.defaultPrice;
+      const cleanAmount = ocrResult.amount || ventas.precioDe(lead);
       const bankName = ocrResult.bank || 'NEQUI';
 
       console.log(`[FLOW VERIFY] Evaluando comprobante de +${phone}: Ref=${cleanRef}, Monto=${cleanAmount}, Banco=${bankName}`);
@@ -587,6 +505,18 @@ Respuesta de Sofía:`;
         return;
       }
 
+      // CASO C1: LA IMAGEN NO ES UN COMPROBANTE (foto de un modelo, captura de un anuncio, etc.)
+      if (ocrResult.esComprobante === false) {
+        const yaTieneDatos = leadImg.step === 'DATOS_PAGO_ENVIADOS' || leadImg.status === 'ESPERA_PAGO';
+        const msg = yaTieneDatos
+          ? `Esa imagen no parece un comprobante de transferencia 🤔 Cuando hagas el pago, envíame la captura donde se vea el valor, la fecha y la referencia, y te llega tu enlace.`
+          : (leadImg.producto === 'moldes'
+            ? `¡Recibí tu imagen! 😊 ¿Es un modelo que estás buscando? Cuéntame qué prenda es y te digo si está en el pack.`
+            : `¡Recibí tu imagen! 😊 Cuéntame en qué te puedo ayudar.`);
+        store.marcarAtendido(phone, false);
+        return await this.decir(phone, msg);
+      }
+
       // CASO C2: IMAGEN NO CONCLUYENTE BAJO MODO LEONA (La foto no es clara o no es comprobante)
       if (settings.modoAutoEntregaLeona !== false && !ocrResult.isValid) {
         console.log(`[FLOW LEONA-PENDING] Comprobante no concluyente para +${phone}. Dejando en cola de revisión.`);
@@ -606,9 +536,13 @@ Respuesta de Sofía:`;
 
         if (ocrResult.titularValido === false) {
           avisoRevisar =
-            `⚠️ En el comprobante enviado, el destinatario parece transferido a una cuenta o persona distinta a *Manuel Tavera*.\n\n` +
-            `Por favor asegúrate de transferir a la cuenta oficial indicada (*Nequi: 3058742138* a nombre de Manuel Tavera). Si crees que se trata de un error, déjanos un mensaje y un asesor humano lo revisará 🙌`;
+            `Recibí tu comprobante 🙌 No alcanzo a confirmar en la imagen que el destino sea la cuenta de *${settings.nequiTitular || 'Manuel Tavera'}*, así que un asesor lo revisa a mano en unos minutos y te confirma por aquí.\n\n` +
+            `_Si te equivocaste de número, la cuenta correcta es Nequi o Daviplata ${settings.nequiNumero || '3058742138'}._`;
+        } else if (ocrResult.amount && ocrResult.amount < minEsperado) {
+          avisoRevisar =
+            `Recibí tu comprobante 🙌 Veo un valor de *${ventas.cop(ocrResult.amount)}* y el precio que te ofrecí es *${ventas.cop(minEsperado)}*. Un asesor lo revisa en unos minutos y te confirma por aquí.`;
         }
+        store.marcarAtendido(phone, false);
 
         await waService.sendTextMessage(phone, avisoRevisar);
         store.agregarMensaje(phone, { from: 'bot', text: avisoRevisar, type: 'text' });
@@ -657,8 +591,9 @@ Respuesta de Sofía:`;
       await waService.sendTextMessage(phone, fallbackMsg);
       store.agregarMensaje(phone, { from: 'bot', text: fallbackMsg, type: 'text' });
 
+      store.marcarAtendido(phone, false);
       store.crearPedido(phone, {
-        amount: settings.precioOferta || this.defaultPrice,
+        amount: ventas.precioDe(store.getLead(phone)),
         status: 'PENDIENTE',
         comprobanteUrl: img && img.url ? img.url : null,
         notas: `Error en lectura automática: ${err.message}`
@@ -689,6 +624,7 @@ Respuesta de Sofía:`;
         `✓ 10 colecciones en ZIP: vestidos, blusas, pantalones, faldas, deportiva, lencería, infantil y bebé, mascotas, bolsos y uniformes\n` +
         `✓ Cada patrón con ficha técnica de 6 páginas y un PDF por talla a escala real\n` +
         `✓ 4 bonos: Manual Técnico de Costura, Guía de Telas y Agujas, Tabla de Medidas y Calculadora de Costos\n\n` +
+        `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir los PDF sueltos» en cada colección; cada patrón abre directo, sin descomprimir.\n\n` +
         `Imprime al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm antes de unir las hojas. Si tienes cualquier consulta con la impresión o el armado, aquí estamos para ayudarte 🙌✂`;
     } else {
       confirmMsg =
@@ -721,7 +657,7 @@ Respuesta de Sofía:`;
       return await this.sendPaymentDetails(phone, settings, precioCOP);
     }
     if (btnId.includes('info')) {
-      return await this.sendMainPitch(phone, settings, precioCOP);
+      return await this.sendMainPitch(phone, settings, precioCOP, (store.getLead(phone) || {}).producto || 'helados');
     }
   }
 
@@ -763,13 +699,14 @@ Respuesta de Sofía:`;
         return await this.handleTextMessage(phone, text);
       }
 
-      // Audio inaudible, ruido o silencio
-      console.warn(`[FLOW] Audio de +${phone} inaudible o sin voz clara:`, resTrans.error || 'inaudible');
-      store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Nota de voz inaudible]', type: 'audio' });
-
-      const msgInaudible = '¡Hola! Te escuché a medias porque se me entrecortó el audio 🙈 ¿Me podrías escribir tu duda por aquí? Así te respondo de inmediato con toda la información 🙌';
-      await waService.sendTextMessage(phone, msgInaudible);
-      store.agregarMensaje(phone, { from: 'bot', text: msgInaudible, type: 'text' });
+      // Audio sin voz clara o falla de la transcripción: se pide por escrito UNA vez y el operador lo ve en el panel
+      console.warn(`[FLOW] Audio de +${phone} sin transcribir:`, resTrans.error || 'inaudible');
+      store.agregarMensaje(phone, { from: 'cliente', text: resTrans.inaudible ? '🎙️ [Nota de voz sin voz clara]' : `🎙️ [Nota de voz sin transcribir: ${String(resTrans.error || '').slice(0, 80)}]`, type: 'audio' });
+      store.marcarAtendido(phone, false);
+      const msgInaudible = 'No pude escuchar bien tu nota de voz 🙈 ¿Me la escribes por aquí? Así te respondo enseguida.';
+      const ult = this.ultimoDelBot(phone);
+      if (ult && ult.text === msgInaudible) return; // no repetir el mismo pedido en cada audio
+      await this.decir(phone, msgInaudible);
     } catch (err) {
       console.error(`[FLOW ERROR] Error al procesar audio de +${phone}:`, err.message);
       store.agregarMensaje(phone, { from: 'cliente', text: '🎙️ [Error al descargar/procesar audio]', type: 'audio' });

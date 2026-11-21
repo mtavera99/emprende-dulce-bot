@@ -69,7 +69,8 @@ function embudo(conv, lead, ventas) {
     prueba: !!(lead && lead.prueba && lead.prueba.token),
     comprobante: delCliente.some(m => m.type === 'image') || pedidos.some(o => o.comprobanteUrl || o.ocrData),
     compro: ventas.length > 0,
-    descuento: ventas.some(v => Number(v.amount) > 0 && Number(v.amount) < 10000) || delBot.some(m => /7\.000/.test(m.text || '')),
+    descuento: ventas.some(v => Number(v.amount) > 0 && Number(v.amount) < 10000) || delBot.some(m => /\b[78]\.000\b/.test(m.text || '')),
+    muestra: delBot.some(m => m.type === 'document' || /\[Documento\] Muestra/.test(m.text || '')),
     audios: delCliente.filter(m => m.type === 'audio').length
   };
 }
@@ -120,7 +121,8 @@ function bloqueEmbudo(lista) {
     `  Conversaciones ............................ ${n}`,
     `  Respondieron al primer mensaje del bot .... ${c('respondio')} (${pct(c('respondio'), n)})`,
     `  Recibieron el precio ...................... ${c('precio')} (${pct(c('precio'), n)})`,
-    `  Recibieron prueba gratis .................. ${c('prueba')} (${pct(c('prueba'), n)})`,
+    `  Recibieron la muestra gratis en PDF ....... ${c('muestra')} (${pct(c('muestra'), n)})`,
+    `  Recibieron acceso de prueba (HONESTIDAD) .. ${c('prueba')} (${pct(c('prueba'), n)})`,
     `  Recibieron datos de pago (Nequi, etc.) .... ${c('datosPago')} (${pct(c('datosPago'), n)})`,
     `  Enviaron comprobante ...................... ${c('comprobante')} (${pct(c('comprobante'), n)})`,
     `  Compraron ................................. ${c('compro')} (${pct(c('compro'), n)})`,
@@ -147,7 +149,7 @@ function bloqueChat(i, c) {
     `CHAT ${String(i).padStart(2, '0')} · Cliente ${telOculto(c.phone)} · ${estado}`,
     `Anuncio: ${c.anuncio}${c.adId !== SIN_ANUNCIO ? ` · ID ${c.adId}` : ''}`,
     `Producto: ${L.producto || '—'} · Estado del lead: ${L.status || '—'} · Paso: ${L.step || '—'} · Seguimientos enviados: ${L.seguimientosEnviados || 0}`,
-    `Embudo: respondió ${marca(h.respondio)} · precio ${marca(h.precio)} · prueba ${marca(h.prueba)} · datos de pago ${marca(h.datosPago)} · comprobante ${marca(h.comprobante)} · descuento $7.000 ${marca(h.descuento)}${h.audios ? ` · notas de voz sin transcribir: ${h.audios}` : ''}`,
+    `Embudo: respondió ${marca(h.respondio)} · precio ${marca(h.precio)} · prueba ${marca(h.prueba)} · datos de pago ${marca(h.datosPago)} · comprobante ${marca(h.comprobante)} · muestra ${marca(h.muestra)} · descuento ${marca(h.descuento)}${h.audios ? ` · notas de voz sin transcribir: ${h.audios}` : ''}`,
     `Primer mensaje: ${fecha(c.primer)} · Último: ${fecha(c.ultimo)} · Mensajes: ${c.msgs.length}${c.msgs.length >= 60 ? ' (el bot guarda solo los últimos 60)' : ''}`,
     '─'.repeat(78)
   ];

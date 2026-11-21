@@ -88,6 +88,10 @@ let settings = loadJSON(SETTINGS_FILE, {
   modoAutoEntregaLeona: true
 });
 
+// Valores nuevos para instalaciones que ya tenían settings.json guardado
+if (!settings.precioDescuento) settings.precioDescuento = Number(process.env.PRECIO_DESCUENTO) || 8000;
+if (!settings.productoPorDefecto) settings.productoPorDefecto = process.env.PRODUCTO_POR_DEFECTO || 'moldes';
+
 if (!settings.driveLinkMoldes) {
   settings.driveLinkMoldes = process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
 }
@@ -109,7 +113,9 @@ const store = {
   },
 
   updateSettings(newSettings) {
-    settings = { ...settings, ...newSettings };
+    // Los campos vacíos no borran el valor guardado
+    const limpios = Object.fromEntries(Object.entries(newSettings || {}).filter(([, v]) => v !== undefined));
+    settings = { ...settings, ...limpios };
     saveJSON(SETTINGS_FILE, settings);
     return settings;
   },
@@ -400,37 +406,48 @@ const store = {
   // --------------------------------------------------------------------------
   // Seguimientos / Remarketing
   // --------------------------------------------------------------------------
+  // Seguimientos pendientes. Reglas:
+  // - nunca a quien ya compró, tiene un comprobante en revisión, pidió no recibir mensajes o está en manos del operador
+  // - solo dentro de las 24 h desde el último mensaje del cliente (ventana de WhatsApp)
+  // - el paso siguiente sale cuando pasó su tiempo mínimo y al menos 90 min desde el anterior;
+  //   si ya pasaron 18 h se salta directo al último paso. El horario de silencio lo controla seguimiento.js
   obtenerCandidatosSeguimiento() {
     const ahora = Date.now();
+    const H = 60 * 60 * 1000;
+    const ESPERA = { 1: 1.5 * H, 2: 3.5 * H, 3: 5.5 * H, 4: 18 * H };
     const candidatos = [];
 
     for (const [phone, lead] of Object.entries(leads)) {
-      if (lead.status === 'PAGADO') continue; // Ya pagó
-      if (lead.paused) continue; // Operador humano activo
+      if (lead.status === 'PAGADO' || store.yaCompro(phone)) continue;
+      if (lead.paused || lead.optOut) continue;
+      if (store.comprobantePendiente(phone)) continue;
       const conv = conversations[phone];
-      if (!conv || !conv.ultimoDelCliente) continue;
+      if (!conv || !conv.ultimoDelCliente || conv.pausado) continue;
 
       const tiempoDesdeCliente = ahora - conv.ultimoDelCliente;
-      const numEnviados = lead.seguimientosEnviados || 0;
+      if (tiempoDesdeCliente >= 23.5 * H) continue;
+      const enviados = lead.seguimientosEnviados || 0;
+      if (enviados >= 4) continue;
+      // Separación mínima entre seguimientos seguidos (si el cliente no ha respondido entre ellos)
+      const ultimo = lead.ultimoSeguimiento || 0;
+      if (ultimo > conv.ultimoDelCliente && ahora - ultimo < 1.5 * H) continue;
 
-      // Paso 1: Downsell $7.000 COP con urgencia de 2 horas (1.5h - 3h)
-      if (numEnviados === 0 && tiempoDesdeCliente >= 1.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 3.5 * 60 * 60 * 1000) {
-        candidatos.push({ phone, paso: 1, lead, conv });
-      }
-      // Paso 2: Prueba en video / Tour por dentro (3.5h - 5.5h)
-      else if (numEnviados === 1 && tiempoDesdeCliente >= 3.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 5.5 * 60 * 60 * 1000) {
-        candidatos.push({ phone, paso: 2, lead, conv });
-      }
-      // Paso 3: Inversión de riesgo / Acceso Primero "HONESTIDAD" (5.5h - 8h)
-      else if (numEnviados === 2 && tiempoDesdeCliente >= 5.5 * 60 * 60 * 1000 && tiempoDesdeCliente < 8 * 60 * 60 * 1000) {
-        candidatos.push({ phone, paso: 3, lead, conv });
-      }
-      // Paso 4: Último llamado antes del cierre de 24h (18h - 23.5h)
-      else if (numEnviados === 3 && tiempoDesdeCliente >= 18 * 60 * 60 * 1000 && tiempoDesdeCliente < 23.5 * 60 * 60 * 1000) {
-        candidatos.push({ phone, paso: 4, lead, conv });
-      }
+      let paso = enviados + 1;
+      if (tiempoDesdeCliente >= ESPERA[4]) paso = 4;
+      if (tiempoDesdeCliente < ESPERA[paso]) continue;
+      candidatos.push({ phone, paso, lead, conv });
     }
     return candidatos;
+  },
+
+  // Tiene una venta aprobada (de cualquier producto, o del indicado)
+  yaCompro(phone, producto = null) {
+    return Object.values(orders).some(o => o.phone === phone && (o.status === 'VERIFICADO' || o.status === 'ENTREGADO') && (!producto || (o.producto || 'helados') === producto));
+  },
+
+  // Mandó un comprobante que sigue en revisión del operador
+  comprobantePendiente(phone) {
+    return Object.values(orders).some(o => o.phone === phone && o.status === 'PENDIENTE');
   },
 
   leadsConPrueba() {

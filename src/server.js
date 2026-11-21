@@ -12,6 +12,7 @@ const fs = require('fs');
 const accesos = require('./accesos');
 const paginaAcceso = require('./paginaAcceso');
 const productCatalog = require('./productCatalog');
+const exportarChats = require('./exportarChats');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -463,6 +464,19 @@ app.get('/api/pedidos/csv', authPanel, (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="ventas_emprende_dulce.csv"');
   res.send(csv);
+});
+
+// Chats por anuncio en texto (teléfonos y enlaces de acceso ocultos) para analizar el embudo
+app.get('/api/chats/exportar', authPanel, (req, res) => {
+  const anuncio = exportarChats.anuncioValido(req.query.anuncio);
+  if (!anuncio) return res.status(400).send('Anuncio no válido');
+  const soloCompradores = req.query.solo === 'compradores';
+  const txt = exportarChats.exportarTexto({ anuncio, soloCompradores });
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+  res.set('Cache-Control', 'no-store');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="chats_${anuncio}${soloCompradores ? '_compradores' : ''}_${hoy}.txt"`);
+  res.send(txt);
 });
 
 // Diagnóstico de entrega de WhatsApp (protegido por el token del panel)

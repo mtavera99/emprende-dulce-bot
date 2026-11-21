@@ -142,6 +142,15 @@ async function img(phone) {
   o = await txt(G, 'como pago');
   check(/\$7\.000/.test(o[0].t), 'cliente con oferta vieja de $7.000 la conserva');
 
+  // 8. Acceso desbloqueado a mano (sin registrar venta): se trata como comprador
+  const H = '573000000008';
+  await txt(H, 'Hola, quiero los +2.000 Moldes de Costura en PDF por $10.000 🧵', REF);
+  require(R + 'accesos').crear(H, 'moldes', 'completo', { manual: true });
+  o = await txt(H, 'Ok');
+  check(!o.some((e) => /Nequi/.test(e.t)), 'acceso manual: un "ok" no recibe datos de pago');
+  o = await txt(H, 'como pago');
+  check(!o.some((e) => /Nequi/.test(e.t)) && o.some((e) => /acceso\//.test(e.t)), 'acceso manual: "como pago" recibe su enlace, no el Nequi');
+
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

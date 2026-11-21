@@ -30,6 +30,11 @@ class ConversationFlow {
     return store.getSettings();
   }
 
+  // Comprador: venta aprobada, o acceso completo desbloqueado a mano desde el panel (sin registrar venta)
+  esComprador(phone) {
+    return store.yaCompro(phone) || !!accesos.completoDe(phone);
+  }
+
   async handleIncomingMessage(phone, message) {
     // Si el bot está pausado por el operador humano, no responde automáticamente
     if (store.isPaused(phone)) {
@@ -143,7 +148,7 @@ class ConversationFlow {
     const pitchYaEnviado = (lead.step && lead.step !== 'INICIO') || botMessages.length > 0;
 
     // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas
-    if (store.yaCompro(phone)) return await this.atenderComprador(phone, text);
+    if (this.esComprador(phone)) return await this.atenderComprador(phone, text);
 
     // B. No quiere más mensajes: se responde una vez y se apagan los seguimientos
     if (ventas.esRechazo(text)) {
@@ -201,7 +206,8 @@ class ConversationFlow {
   // Soporte para compradores: reenvía su enlace y explica cómo abrir los archivos
   async atenderComprador(phone, text) {
     const ventasCliente = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
-    const producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (store.getLead(phone) || {}).producto || 'helados';
+    const manual = accesos.completoDe(phone);
+    const producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
     const acceso = accesos.crear(phone, producto, 'completo');
     const enlace = `${ventas.host()}/acceso/${acceso.token}`;
     store.marcarAtendido(phone, false); // que el operador lo vea en el panel
@@ -344,7 +350,7 @@ Sofía:`;
   }
 
   async sendPaymentDetails(phone, settings, precio) {
-    if (store.yaCompro(phone)) return await this.atenderComprador(phone, 'enlace');
+    if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
     const lead = store.getLead(phone) || {};
     const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
     await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto));
@@ -371,7 +377,7 @@ Sofía:`;
 
     // Quien ya compró no genera una compra nueva por mandar otra imagen: se le recuerda su enlace
     // y el operador la revisa en el panel (puede ser un problema de descarga o un pago de otra cosa).
-    if (store.yaCompro(phone)) {
+    if (this.esComprador(phone)) {
       store.marcarAtendido(phone, false);
       return await this.atenderComprador(phone, 'enlace');
     }

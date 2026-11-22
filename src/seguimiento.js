@@ -123,6 +123,36 @@ async function ejecutarSeguimientoPruebas() {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Rescate a los 15 minutos: a quien recibió los datos de pago o la muestra y no ha
+// vuelto a escribir. Una sola vez cada 24 h por cliente; nunca a compradores, a quien
+// tiene un comprobante en revisión, pidió no recibir mensajes o está en horario de silencio.
+// ----------------------------------------------------------------------------
+async function ejecutarRescate15(ahora = Date.now()) {
+  if (!ACTIVO || ventas.enHorarioSilencio(ahora)) return;
+  const convs = store.todasLasConversaciones();
+  for (const lead of store.getAllLeads()) {
+    const r = lead.rescate;
+    if (!r || r.enviado) continue;
+    const phone = lead.phone;
+    const espera = ahora - r.at;
+    if (espera < 15 * 60 * 1000 || espera > 90 * 60 * 1000) continue;
+    const conv = convs[phone];
+    if (!conv || conv.pausado || (conv.ultimoDelCliente || 0) > r.at) continue; // ya respondió
+    if (lead.paused || lead.optOut || lead.status === 'PAGADO' || store.yaCompro(phone) || accesos.completoDe(phone) || store.comprobantePendiente(phone)) continue;
+    if (lead.rescateEnviadoAt && ahora - lead.rescateEnviadoAt < 24 * 60 * 60 * 1000) { store.saveLead(phone, { rescate: { ...r, enviado: true } }); continue; }
+    try {
+      const texto = ventas.textoRescate(r.tipo);
+      await waService.sendTextMessage(phone, texto);
+      store.agregarMensaje(phone, { from: 'bot', text: `[RESCATE 15 MIN] ${texto}`, type: 'text' });
+      store.saveLead(phone, { rescate: { ...r, enviado: true }, rescateEnviadoAt: ahora });
+      console.log(`[RESCATE] Enviado a +${phone} (${r.tipo})`);
+    } catch (err) {
+      console.error(`[RESCATE ERROR] +${phone}:`, err.message);
+    }
+  }
+}
+
 // Iniciar cron / intervalo en segundo plano (cada 5 minutos; la prueba se revisa cada minuto)
 function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
   console.log(`[SEGUIMIENTO] Scheduler iniciado (revisa cada ${intervaloMs / 60000} minutos).`);
@@ -133,12 +163,14 @@ function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
   }, intervaloMs);
   setInterval(() => {
     ejecutarSeguimientoPruebas().catch(err => console.error('[SEGUIMIENTO PRUEBA CRON ERROR]:', err));
+    ejecutarRescate15().catch(err => console.error('[RESCATE CRON ERROR]:', err));
   }, 60 * 1000);
 }
 
 module.exports = {
   ejecutarSeguimientos,
   ejecutarSeguimientoPruebas,
+  ejecutarRescate15,
   textoPrueba,
   iniciarScheduler
 };

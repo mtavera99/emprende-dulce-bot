@@ -186,6 +186,11 @@ class ConversationFlow {
     // I. Pide fotos, catálogo, ejemplo o la muestra
     if (ventas.esPedidoMuestra(text)) return await this.enviarMuestra(phone, producto);
 
+    // I2. Respuesta a los botones escrita a mano (si el celular no mostró los botones)
+    const nt = ventas.normalizar(text);
+    if (lead.step === 'BOTONES_ENVIADOS' && /^(1|uno|comprar|comprar ahora|comprar \d+|quiero comprar)$/.test(nt)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
+    if (lead.step === 'BOTONES_ENVIADOS' && /^(2|dos)$/.test(nt)) return await this.enviarMuestra(phone, producto);
+
     // J. Respuesta afirmativa corta: depende de lo último que se le preguntó
     if (ventas.esAfirmacion(text)) {
       const step = lead.step || '';
@@ -253,7 +258,8 @@ class ConversationFlow {
     if (producto === 'moldes') await this.enviarImagen(phone, ventas.imagenes(producto).mapa, 'Así se arma el molde: se imprime en hojas Carta o A4 y se unen por las marcas');
     let enviados = 0;
     for (const doc of ventas.documentosMuestra(producto)) if (await this.enviarDocumento(phone, doc)) enviados++;
-    store.saveLead(phone, { muestraEnviada: enviados > 0, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO' });
+    store.saveLead(phone, { muestraEnviada: enviados > 0, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO',
+      ...(enviados > 0 ? { rescate: { tipo: 'muestra', at: Date.now(), enviado: false } } : {}) });
     if (!enviados) {
       return await this.decir(phone, `No pude adjuntarte el archivo 🙈 Escribe *HONESTIDAD* y te mando un enlace para descargar la muestra gratis.`);
     }
@@ -345,16 +351,20 @@ Sofía:`;
   async sendMainPitch(phone, settings, _precio, producto = 'helados') {
     const img = ventas.imagenes(producto);
     await this.enviarImagen(phone, img.catalogo);
-    await this.decir(phone, ventas.textoPitch(producto));
-    store.saveLead(phone, { status: 'INTERESADO', step: 'MUESTRA_OFRECIDA', producto });
+    const texto = ventas.textoPitch(producto);
+    // Botones: comprar ya o ver la muestra. Si Meta no los acepta, sendButtons manda el mismo texto (pide responder 1 o 2)
+    await waService.sendButtons(phone, texto, ventas.botonesPitch());
+    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${ventas.botonesPitch().map((b) => b.title).join(' | ')}]`, type: 'interactive' });
+    store.saveLead(phone, { status: 'INTERESADO', step: 'BOTONES_ENVIADOS', producto });
   }
 
   async sendPaymentDetails(phone, settings, precio) {
     if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
     const lead = store.getLead(phone) || {};
     const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
-    await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto));
-    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: lead.precioOfrecido || monto });
+    await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto, { ofrecerMuestra: !lead.muestraEnviada }));
+    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: lead.precioOfrecido || monto,
+      rescate: { tipo: 'datos', at: Date.now(), enviado: false } });
     // El pedido solo se crea cuando el cliente envía el comprobante (handleImageMessage).
   }
 
@@ -658,9 +668,14 @@ Sofía:`;
     const settings = this.getSettings();
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
+    const lead = store.getLead(phone) || {};
+    if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
 
     if (btnId.includes('pago') || btnId.includes('comprar')) {
-      return await this.sendPaymentDetails(phone, settings, precioCOP);
+      return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
+    }
+    if (btnId.includes('muestra')) {
+      return await this.enviarMuestra(phone, lead.producto || 'helados');
     }
     if (btnId.includes('info')) {
       return await this.sendMainPitch(phone, settings, precioCOP, (store.getLead(phone) || {}).producto || 'helados');

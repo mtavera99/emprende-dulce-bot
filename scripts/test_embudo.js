@@ -12,6 +12,7 @@ const wa = require(R + 'whatsappService');
 const enviados = [];
 wa.sendTextMessage = async (to, t) => { enviados.push({ to, tipo: 'texto', t }); return {}; };
 wa.sendImage = async (to, u, c) => { enviados.push({ to, tipo: 'imagen', t: u.split('/').pop() + (c ? ' | ' + c : '') }); return {}; };
+wa.sendButtons = async (to, body, botones) => { enviados.push({ to, tipo: 'botones', t: body + ' [' + botones.map((b) => b.id + ':' + b.title).join(' | ') + ']', botones }); return {}; };
 wa.sendDocument = async (to, u, n) => { enviados.push({ to, tipo: 'doc', t: n + ' <- ' + u }); return {}; };
 wa.downloadMedia = async () => ({ buffer: Buffer.from('x'), mimeType: 'image/jpeg' });
 wa.markAsRead = async () => {};
@@ -35,6 +36,15 @@ async function txt(phone, body, referral) {
   out.forEach((e) => console.log(`   → ${e.tipo}: ${e.t.replace(/\n+/g, ' ⏎ ').slice(0, 170)}`));
   return out;
 }
+async function boton(phone, id, title) {
+  const n = enviados.length;
+  await flow.handleIncomingMessage(phone, { type: 'interactive', interactive: { type: 'button_reply', button_reply: { id, title } } });
+  const out = desde(n);
+  console.log(`\n[${phone.slice(-4)}] CLIENTE: 🔘 ${title}`);
+  out.forEach((e) => console.log(`   → ${e.tipo}: ${e.t.replace(/\n+/g, ' ⏎ ').slice(0, 170)}`));
+  return out;
+}
+const SALUDO = 'Hola, quiero los +2.000 Moldes de Costura en PDF por $10.000 🧵';
 async function img(phone) {
   const n = enviados.length;
   await flow.handleIncomingMessage(phone, { type: 'image', image: { id: 'm1' } });
@@ -51,11 +61,14 @@ async function img(phone) {
   let o = await txt(A, 'Hola, quiero los +2.000 Moldes de Costura en PDF por $10.000 🧵', REF);
   check(o[0].tipo === 'imagen' && /catalogo/.test(o[0].t), 'primer mensaje: imagen del catálogo');
   check(/34 patrones/.test(o[1].t) && !/postre|helado/i.test(o[1].t), 'pitch real de moldes, sin postres');
-  o = await txt(A, 'Si');
-  check(o.filter((e) => e.tipo === 'doc').length === 2, '"sí" a la muestra: envía 2 PDF');
+  check(o[1].tipo === 'botones' && o[1].botones.length === 2 && o[1].botones.every((b) => b.title.length <= 20), 'pitch con 2 botones de máximo 20 caracteres');
+  check(o[1].botones[0].id === 'comprar' && /\$10\.000/.test(o[1].botones[0].title) && o[1].botones[1].id === 'muestra', 'botones: Comprar $10.000 y Muestra gratis');
+  o = await boton(A, 'muestra', '🎁 Muestra gratis');
+  check(o.filter((e) => e.tipo === 'doc').length === 2, 'botón Muestra gratis: envía 2 PDF');
   check(!/Nequi/.test(o.map((e) => e.t).join(' ')), 'la muestra no manda datos de pago');
   o = await txt(A, 'si por favor');
   check(/Nequi/.test(o[0].t) && /\$10\.000/.test(o[0].t) && /colecciones/.test(o[0].t) && !/libros/.test(o[0].t), 'datos de pago de moldes por $10.000');
+  check(!/Escribe \*MUESTRA\*/.test(o[0].t), 'quien ya vio la muestra no recibe otra vez la oferta de muestra');
   o = await txt(A, 'Ok');
   check(o.length === 1 && !/Nequi/.test(o[0].t), '"ok" después de los datos: recordatorio, sin repetir cuentas');
   o = await txt(A, 'listo');
@@ -88,7 +101,9 @@ async function img(phone) {
   // 3. Seguimientos
   const C = '573000000003';
   await txt(C, 'Hola, quiero los +2.000 Moldes de Costura en PDF por $10.000 🧵', REF);
-  store.obtenerConversacion(C).ultimoDelCliente = Date.now() - 2 * 3600e3;
+  store.obtenerConversacion(C).ultimoDelCliente = Date.now() - 1.5 * 3600e3;
+  check(!store.obtenerCandidatosSeguimiento().some((c) => c.phone === C), 'a la 1,5 h todavía no hay seguimiento');
+  store.obtenerConversacion(C).ultimoDelCliente = Date.now() - 2.1 * 3600e3;
   let cand = store.obtenerCandidatosSeguimiento().find((c) => c.phone === C);
   check(cand && cand.paso === 1, 'a las 2 h sin respuesta: seguimiento 1');
   if (!ventas.enHorarioSilencio()) {
@@ -96,6 +111,7 @@ async function img(phone) {
     const s1 = desde(n).filter((e) => e.to === C);
     console.log('   seguimiento 1 →', s1.map((e) => e.t.replace(/\n+/g, ' ⏎ ')).join(' | '));
     check(s1.length === 1 && /\$8\.000/.test(s1[0].t) && !/postre|helado|Guías/i.test(s1[0].t), 'seguimiento 1: $8.000 y sin postres');
+    check(/\/regalo\/calculadora\?p=moldes/.test(s1[0].t), 'seguimiento 1: regala la calculadora de costos');
     check(store.getLead(C).precioOfrecido === 8000, 'precio ofrecido queda en $8.000');
     n = enviados.length; await seg.ejecutarSeguimientos();
     check(desde(n).filter((e) => e.to === C).length === 0, 'no repite el seguimiento enseguida');
@@ -150,6 +166,62 @@ async function img(phone) {
   check(!o.some((e) => /Nequi/.test(e.t)), 'acceso manual: un "ok" no recibe datos de pago');
   o = await txt(H, 'como pago');
   check(!o.some((e) => /Nequi/.test(e.t)) && o.some((e) => /acceso\//.test(e.t)), 'acceso manual: "como pago" recibe su enlace, no el Nequi');
+
+  // 9. Botones: "sí", "1", "2" y el botón Comprar
+  const I = '573000000009';
+  await txt(I, SALUDO, REF);
+  o = await txt(I, 'Si');
+  check(/Nequi/.test(o[0].t) && /\$10\.000/.test(o[0].t) && /Escribe \*MUESTRA\*/.test(o[0].t), '"sí" al primer mensaje: datos de pago + opción de muestra');
+  const J = '573000000010';
+  await txt(J, SALUDO, REF);
+  o = await txt(J, '1');
+  check(o.length === 1 && /Nequi/.test(o[0].t), '"1": datos de pago');
+  const K = '573000000011';
+  await txt(K, SALUDO, REF);
+  o = await txt(K, '2');
+  check(o.filter((e) => e.tipo === 'doc').length === 2 && !o.some((e) => /Nequi/.test(e.t)), '"2": muestra gratis sin datos de pago');
+  const L = '573000000012';
+  await txt(L, SALUDO, REF);
+  o = await boton(L, 'comprar', '💳 Comprar $10.000');
+  check(o.length === 1 && /Nequi/.test(o[0].t) && /\$10\.000/.test(o[0].t), 'botón Comprar: datos de pago por $10.000');
+  o = await boton(A, 'comprar', '💳 Comprar $10.000');
+  check(!o.some((e) => /Nequi/.test(e.t)) && o.some((e) => /acceso\//.test(e.t)), 'comprador que toca Comprar: recibe su enlace, no el Nequi');
+
+  // 10. Rescate a los 15 minutos
+  if (!ventas.enHorarioSilencio()) {
+    const atras = (ph, min) => {
+      const l = store.getLead(ph);
+      store.saveLead(ph, { rescate: { ...l.rescate, at: Date.now() - min * 60e3 } });
+      store.obtenerConversacion(ph).ultimoDelCliente = Date.now() - (min + 1) * 60e3;
+    };
+    atras(J, 10); atras(L, 16); atras(K, 16);
+    let n = enviados.length; await seg.ejecutarRescate15();
+    let r = desde(n);
+    check(!r.some((e) => e.to === J), 'a los 10 min no hay rescate');
+    const rL = r.filter((e) => e.to === L);
+    check(rL.length === 1 && /problema con Nequi o con abrir el archivo/.test(rL[0].t) && /comprobante/.test(rL[0].t), 'a los 16 min tras los datos: rescate (Nequi / comprobante)');
+    const rK = r.filter((e) => e.to === K);
+    check(rK.length === 1 && /problema con Nequi o con abrir el archivo/.test(rK[0].t) && /sí/.test(rK[0].t), 'a los 16 min tras la muestra: rescate');
+    n = enviados.length; await seg.ejecutarRescate15();
+    check(!desde(n).some((e) => e.to === L || e.to === K), 'el rescate no se repite');
+    check(store.getLead(L).seguimientosEnviados === 0, 'el rescate no cuenta como seguimiento numerado');
+    // si el cliente escribió después de los datos, no hay rescate
+    await txt(I, 'ok');
+    store.saveLead(I, { rescate: { ...store.getLead(I).rescate, at: Date.now() - 16 * 60e3 } });
+    n = enviados.length; await seg.ejecutarRescate15();
+    check(!desde(n).some((e) => e.to === I), 'si el cliente respondió después, no hay rescate');
+    // comprador: nunca
+    store.saveLead(A, { rescate: { tipo: 'datos', at: Date.now() - 16 * 60e3, enviado: false } });
+    store.obtenerConversacion(A).ultimoDelCliente = Date.now() - 17 * 60e3;
+    n = enviados.length; await seg.ejecutarRescate15();
+    check(!desde(n).some((e) => e.to === A), 'comprador nunca recibe rescate');
+    // segundo rescate el mismo día: no
+    store.saveLead(L, { rescate: { tipo: 'datos', at: Date.now() - 16 * 60e3, enviado: false } });
+    n = enviados.length; await seg.ejecutarRescate15();
+    check(!desde(n).some((e) => e.to === L), 'máximo un rescate cada 24 h');
+  } else {
+    console.log('  (horario de silencio: se omiten las pruebas de rescate)');
+  }
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);

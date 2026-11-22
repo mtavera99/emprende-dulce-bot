@@ -160,6 +160,16 @@ app.get('/d/:token/:id/:n', (req, res) => {
   }
 });
 
+// Calculadora de costos que el bot regala en el primer seguimiento (abre en el navegador del celular)
+app.get('/regalo/calculadora', (req, res) => {
+  const archivo = req.query.p === 'moldes'
+    ? 'moldes/11_Bonos/Bono_04_Calculadora_Costos_Precios_Confeccion.html'
+    : 'Bono_01_Calculadora_Costos_y_Precios.html';
+  const f = path.join(accesos.PUBLIC, archivo);
+  if (!fs.existsSync(f)) return res.status(404).send('No encontrado');
+  res.sendFile(f);
+});
+
 // Muestras gratis que el bot envía por WhatsApp (solo los PDF de public/descargas/muestras)
 app.get('/muestra/:file', (req, res) => {
   const nombre = path.basename(String(req.params.file || ''));

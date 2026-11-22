@@ -414,7 +414,7 @@ const store = {
   obtenerCandidatosSeguimiento() {
     const ahora = Date.now();
     const H = 60 * 60 * 1000;
-    const ESPERA = { 1: 1.5 * H, 2: 3.5 * H, 3: 5.5 * H, 4: 18 * H };
+    const ESPERA = { 1: 2 * H, 2: 4 * H, 3: 6 * H, 4: 18 * H };
     const candidatos = [];
 
     for (const [phone, lead] of Object.entries(leads)) {

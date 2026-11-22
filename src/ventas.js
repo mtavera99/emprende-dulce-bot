@@ -134,7 +134,7 @@ function textoPitch(producto) {
       `✅ Ficha técnica de cada prenda: medidas, consumo de tela, despiece y paso a paso de armado\n` +
       `✅ 4 bonos: manual de costura, guía de telas y agujas, tabla de medidas y calculadora de costos\n\n` +
       `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
-      `¿Quieres que te envíe *gratis* un patrón completo para que veas cómo viene antes de comprar? 🎁`;
+      `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* un patrón completo de muestra 🎁`;
   }
   return `¡Hola! 🍰 Te cuento qué trae la colección *Emprende Dulce 2026*:\n\n` +
     `📖 *Helados Artesanales* (47 págs): fórmulas cremosas, paletas rellenas y helados de paila\n` +
@@ -142,15 +142,35 @@ function textoPitch(producto) {
     `🎄 *Recetario Navideño y Cajas de Regalo* (35 págs)\n` +
     `🎁 Bonos: calculadora de costos, directorio de proveedores y guía de ventas por WhatsApp\n\n` +
     `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
-    `¿Quieres que te envíe *gratis* 5 recetas de muestra para que veas cómo vienen? 🎁`;
+    `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* 5 recetas de muestra 🎁`;
 }
 
-function textoPago(producto, settings, precio) {
+// Botones del primer mensaje (título máximo 20 caracteres en WhatsApp)
+function botonesPitch() {
+  return [
+    { id: 'comprar', title: `💳 Comprar ${cop(precioNormal())}` },
+    { id: 'muestra', title: '🎁 Muestra gratis' },
+  ];
+}
+
+// Primer seguimiento a los 15 minutos de enviar los datos de pago o la muestra
+function textoRescate(tipo) {
+  return tipo === 'muestra'
+    ? `¿Tuviste algún problema con Nequi o con abrir el archivo? 🙌 Cuéntame y te ayudo por aquí.\n\nSi la muestra te gustó y quieres el pack completo, responde *sí* y te paso los datos de pago.`
+    : `¿Tuviste algún problema con Nequi o con abrir el archivo? 🙌 Cuéntame y te ayudo por aquí.\n\nSi ya transferiste, envíame la captura del comprobante y te llega tu enlace enseguida.`;
+}
+
+function enlaceCalculadora(producto) {
+  return `${host()}/regalo/calculadora?p=${producto === 'moldes' ? 'moldes' : 'helados'}`;
+}
+
+function textoPago(producto, settings, precio, opciones = {}) {
   const p = infoPack(producto);
   return `¡Listo! 🙌 Estas son las cuentas para tu transferencia de *${cop(precio)}*:\n\n` +
     `${cuentas(settings)}\n\n` +
     `_Toca el número para copiarlo._\n\n` +
-    `Cuando hagas la transferencia, *envíame la captura del comprobante por este chat* y te llega tu enlace personal con ${p.queIncluye} ${p.emoji}`;
+    `Cuando hagas la transferencia, *envíame la captura del comprobante por este chat* y te llega tu enlace personal con ${p.queIncluye} ${p.emoji}` +
+    (opciones.ofrecerMuestra ? `\n\n_¿Prefieres ver antes una muestra gratis? Escribe *MUESTRA*._` : '');
 }
 
 function textoDespuesMuestra(producto, precio) {
@@ -174,8 +194,8 @@ function textoSeguimiento(paso, producto, precio) {
   const p = infoPack(producto);
   const e = p.emoji;
   if (paso === 1) {
-    return `¿Pudiste mirar la información? 😊\n\n` +
-      `Si hoy te animas, te dejo el ${producto === 'moldes' ? 'pack completo' : 'paquete completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal())}. ` +
+    return `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar ${producto === 'moldes' ? 'por cada prenda' : 'por cada postre'}:\n${enlaceCalculadora(producto)}\n\n` +
+      `Y si hoy te animas, te dejo el ${producto === 'moldes' ? 'pack completo' : 'paquete completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal())}. ` +
       `Solo dime "sí" y te paso los datos ${e}`;
   }
   if (paso === 2) {
@@ -261,6 +281,6 @@ function esSoporteDescarga(texto) {
 module.exports = {
   precioNormal, precioDescuento, precioDe, cop, enHorarioSilencio, horaColombia,
   infoPack, conocimiento, imagenes, documentosMuestra, host,
-  textoPitch, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
+  textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
   normalizar, esAfirmacion, esPedidoPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,
 };

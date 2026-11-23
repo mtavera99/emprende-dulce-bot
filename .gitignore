@@ -38,5 +38,3 @@ creatives/
 *.mp4
 !public/portal/images/**
 test_nequi_comprobante.jpg
-# Imágenes de muestra que el bot envía por WhatsApp
-!public/descargas/muestras/img/*.jpg

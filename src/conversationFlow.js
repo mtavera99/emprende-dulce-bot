@@ -147,8 +147,19 @@ class ConversationFlow {
     const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
     const pitchYaEnviado = (lead.step && lead.step !== 'INICIO') || botMessages.length > 0;
 
-    // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas
-    if (this.esComprador(phone)) return await this.atenderComprador(phone, text);
+    // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas (salvo que responda al Upsell)
+    if (this.esComprador(phone)) {
+      if (lead.esperaRespuestaUpsell) {
+        if (/^(si|sí|claro|quiero|me interesa|de una|dale|por favor|1)/i.test(text)) {
+          return await this.enviarDatosPagoUpsell(phone);
+        }
+        if (/^(no|gracias|no gracias|ahora no|2)/i.test(text)) {
+          store.saveLead(phone, { esperaRespuestaUpsell: false, esperaUpsell: false });
+          return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier cosa con la impresión o el armado, aquí estamos a la orden.');
+        }
+      }
+      return await this.atenderComprador(phone, text);
+    }
 
     // B. No quiere más mensajes: se responde una vez y se apagan los seguimientos
     if (ventas.esRechazo(text)) {
@@ -385,9 +396,9 @@ Sofía:`;
     const settings = this.getSettings();
     const leadImg = store.getLead(phone) || {};
 
-    // Quien ya compró no genera una compra nueva por mandar otra imagen: se le recuerda su enlace
+    // Quien ya compró no genera una compra nueva por mandar otra imagen (salvo que esté pagando el Upsell): se le recuerda su enlace
     // y el operador la revisa en el panel (puede ser un problema de descarga o un pago de otra cosa).
-    if (this.esComprador(phone)) {
+    if (this.esComprador(phone) && !leadImg.esperaUpsell) {
       store.marcarAtendido(phone, false);
       return await this.atenderComprador(phone, 'enlace');
     }
@@ -405,9 +416,9 @@ Sofía:`;
 
       // 2. Ejecutar análisis OCR con IA
       let ocrResult = { isValid: false };
-      const lead = store.getLead(phone);
-      // Mínimo aceptado: el menor precio que se le ofreció a este cliente
-      const minEsperado = Math.min(ventas.precioDe(lead), ventas.precioNormal());
+      const lead = store.getLead(phone) || {};
+      // Mínimo aceptado: $5.000 si está pagando el Upsell, o el menor precio que se le ofreció
+      const minEsperado = lead.esperaUpsell ? 5000 : Math.min(ventas.precioDe(lead), ventas.precioNormal());
       if (buffer) {
         ocrResult = await ocrValidator.validateReceipt(buffer, {
           minAmount: minEsperado,
@@ -452,6 +463,7 @@ Sofía:`;
       // CASO B: ACREDITADO Y VERIFICADO EN EL LIBRO MAYOR BANCARIO
       if (verification.verified) {
         console.log(`[FLOW SUCCESS] ✅ Pago verificado contra banco (${verification.method}) para +${phone}`);
+        const prodEntrega = leadImg.esperaUpsell ? 'upsell_helados' : (leadImg.producto || 'moldes');
         const pedido = store.crearPedido(phone, {
           amount: verification.amount || cleanAmount,
           reference: verification.reference || cleanRef || 'BANCO-OK',
@@ -459,14 +471,20 @@ Sofía:`;
           ocrData: ocrResult,
           comprobanteUrl,
           bankTxId: verification.transaction?.id,
-          aprobadoPor: `banco_${verification.bank.toLowerCase()}`
+          aprobadoPor: `banco_${verification.bank.toLowerCase()}`,
+          producto: prodEntrega
         });
         store.aprobarPedido(pedido.id, {
           reference: verification.reference || cleanRef,
           aprobadoPor: `banco_${verification.bank.toLowerCase()}`
         });
 
-        await this.enviarEntregaProducto(phone, settings);
+        if (leadImg.esperaUpsell) {
+          store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false });
+          await this.enviarEntregaProducto(phone, settings, { producto: 'helados', pedidoId: pedido.id });
+        } else {
+          await this.enviarEntregaProducto(phone, settings);
+        }
         return;
       }
 
@@ -502,6 +520,7 @@ Sofía:`;
         }
 
         const autoRef = cleanRef || `LEONA-${Date.now().toString().slice(-6)}`;
+        const prodEntrega = leadImg.esperaUpsell ? 'upsell_helados' : (leadImg.producto || 'moldes');
         const pedido = store.crearPedido(phone, {
           amount: cleanAmount,
           reference: autoRef,
@@ -509,7 +528,8 @@ Sofía:`;
           ocrData: ocrResult,
           comprobanteUrl,
           aprobadoPor: 'ia_leona_auto',
-          notas: `Auto-aprobado por IA (Modelo A Leona). Banco: ${bankName}. Ref: ${autoRef}`
+          notas: `Auto-aprobado por IA (Modelo A Leona). Banco: ${bankName}. Ref: ${autoRef}`,
+          producto: prodEntrega
         });
 
         store.aprobarPedido(pedido.id, {
@@ -517,7 +537,12 @@ Sofía:`;
           aprobadoPor: 'ia_leona_auto'
         });
 
-        await this.enviarEntregaProducto(phone, settings);
+        if (leadImg.esperaUpsell) {
+          store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false });
+          await this.enviarEntregaProducto(phone, settings, { producto: 'helados', pedidoId: pedido.id });
+        } else {
+          await this.enviarEntregaProducto(phone, settings);
+        }
         return;
       }
 
@@ -595,7 +620,12 @@ Sofía:`;
             aprobadoPor: `banco_${matchedTx.bank.toLowerCase()}`
           });
 
-          await this.enviarEntregaProducto(phone, settings);
+          if (leadImg.esperaUpsell) {
+            store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false });
+            await this.enviarEntregaProducto(phone, settings, { producto: 'helados', pedidoId: pedido.id });
+          } else {
+            await this.enviarEntregaProducto(phone, settings);
+          }
         } else {
           console.log(`[FLOW TIMEOUT] No llegó notificación automática en 90s para +${phone}. Queda en cola de panel.`);
         }
@@ -661,15 +691,82 @@ Sofía:`;
     await waService.sendTextMessage(phone, confirmMsg);
     store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
     store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO', accesoToken: acceso.token });
+
+    if (producto === 'moldes' && !opciones.sinUpsell) {
+      setTimeout(async () => {
+        try {
+          await this.enviarOfertaUpsell(phone);
+        } catch (e) {
+          console.error('[UPSELL] Error enviando oferta upsell:', e.message);
+        }
+      }, 2500);
+    }
+
     return acceso;
+  }
+
+  async enviarOfertaUpsell(phone) {
+    const texto =
+      `🎁 *¡OFERTA EXCLUSIVA DE AGRADECIMIENTO!*\n\n` +
+      `Por haber adquirido hoy tu Mega Pack de Moldes de Costura, tienes acceso exclusivo a nuestro segundo éxito de ventas:\n\n` +
+      `🍨 *Pack Completo Emprende Dulce 2026*\n` +
+      `✓ Guía Maestra de Helados Artesanales Gourmet\n` +
+      `✓ Postres en Vaso Domo para Vender\n` +
+      `✓ Recetario Navideño y Cajas de Regalo\n` +
+      `✓ Plantilla de Costeo Automatizada en Excel\n\n` +
+      `Su precio normal es de *$10.000 COP*, pero solo por hoy para ti se queda en *solo $5.000 COP* (pago único) 🎉\n\n` +
+      `¿Deseas agregarlo a tu pedido?`;
+
+    const botones = [
+      { id: 'btn_upsell_si', title: '🍰 Sí, por $5.000' },
+      { id: 'btn_upsell_no', title: 'No, gracias' }
+    ];
+
+    store.saveLead(phone, { esperaRespuestaUpsell: true });
+    await waService.sendButtons(phone, texto, botones);
+    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: 🍰 Sí, por $5.000 | No, gracias]`, type: 'interactive' });
+  }
+
+  async enviarDatosPagoUpsell(phone) {
+    const settings = this.getSettings();
+    const numero = settings.nequiNumero || '3058742138';
+    const titular = settings.nequiTitular || 'Manuel Tavera';
+
+    const texto =
+      `¡Excelente decisión! 🍰🎉 Aquí tienes los datos para tu pago especial de *$5.000 COP*:\n\n` +
+      `🟣 *Nequi:* ${numero}\n` +
+      `🔴 *Daviplata:* ${numero}\n` +
+      `👤 *Titular:* ${titular}\n` +
+      `💰 *Monto exacto:* $5.000 COP\n\n` +
+      `📲 Cuando realices la transferencia de *$5.000*, envíame por aquí la captura del comprobante y nuestro sistema te enviará tu acceso de inmediato 🙌`;
+
+    store.saveLead(phone, {
+      esperaUpsell: true,
+      esperaRespuestaUpsell: false,
+      precioOfrecido: 5000,
+      step: 'DATOS_PAGO_UPSELL'
+    });
+
+    await this.decir(phone, texto);
   }
 
   async handleButtonReply(phone, btnId, btnTitle) {
     const settings = this.getSettings();
+    const lead = store.getLead(phone) || {};
+
+    // Botones del flujo Upsell
+    if (btnId === 'btn_upsell_si') {
+      return await this.enviarDatosPagoUpsell(phone);
+    }
+    if (btnId === 'btn_upsell_no') {
+      store.saveLead(phone, { esperaRespuestaUpsell: false, esperaUpsell: false });
+      return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier consulta con la impresión o el armado, aquí estamos a la orden.');
+    }
+
+    if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
+
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
-    const lead = store.getLead(phone) || {};
-    if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
 
     if (btnId.includes('pago') || btnId.includes('comprar')) {
       return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));

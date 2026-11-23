@@ -32,12 +32,25 @@ const PRODUCTOS = {
       '120250542591840743', // Conjunto 1: [C1-INT] - Confección, Singer y Patronaje
       '120250544614580743', // Conjunto 2: [C2-INT] - Diseño de Modas y Ropa
       '120250544654680743', // Conjunto 3: [C3-BROAD] - Todo Colombia (Segmentación por Creativo)
+      '120250607013610743', // Conjunto 4: [C4-INT] - Mujeres 25-55 - Costura y Modistería - Colombia
+      '120250607013620743', // Conjunto 5: [C5-INT] - Mujeres 25-55 - Manualidades y DIY - Colombia
       '120250542591850743', // Anuncio 1: [A1-VIDEO] - Master Moldes 2000 Subtitulado 35s
       '120250544614590743', // Anuncio 2: [A2-IMAGEN] - Banner Azul Moldes 10.000
       '120250544654690743'  // Anuncio 3: [A3-IMAGEN] - Poster Taller Modistería 10.000
     ],
     // Detección por palabras clave en titular del anuncio o mensaje del cliente
     keywords: /(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|hoja carta)/i
+  },
+
+  // 🍰 UPSELL POST-COMPRA: EMPRENDE DULCE 2026 ($5.000 COP)
+  upsell_helados: {
+    id: 'upsell_helados',
+    nombre: 'Pack Emprende Dulce 2026 (Helados + Postres + Bonos)',
+    emoji: '🍰',
+    etiqueta: 'Upsell Dulce',
+    color: '#f59e0b',
+    precio: 5000,
+    metaIds: []
   },
 
   // 🍨 EMPRENDE DULCE: HELADOS ARTESANALES & POSTRES EN VASO DOMO ($10.000 COP)

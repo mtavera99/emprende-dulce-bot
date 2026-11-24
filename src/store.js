@@ -275,8 +275,7 @@ const store = {
 
   crearPedido(phone, orderData = {}) {
     const lead = store.getLead(phone);
-    // Comprador que está pagando el upsell: el pedido es del pack Emprende Dulce aunque quede en revisión manual
-    const prodId = orderData.producto || (lead && lead.esperaUpsell ? 'upsell_helados' : null) || (lead && lead.producto) || 'helados';
+    const prodId = orderData.producto || (lead && lead.producto) || 'helados';
 
     // 1. Si ya existe un pedido PENDIENTE para este mismo teléfono, NO crear un duplicado;
     // actualizar el existente con los nuevos datos recibidos.

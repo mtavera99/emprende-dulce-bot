@@ -3,6 +3,7 @@ const paymentVerifier = require('./paymentVerifier');
 const productCatalog = require('./productCatalog');
 const accesos = require('./accesos');
 const exportarChats = require('./exportarChats');
+const saldoIA = require('./saldo-ia');
 
 // Etiqueta de color del producto (chats, pagos y ventas). Productos nuevos: agregarlos en productCatalog.js
 function chipProducto(id) {
@@ -15,11 +16,15 @@ function diagnostico() {
   const env = process.env;
   const ia = !!(env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.IA_API_KEY);
   const tokenPropio = !!env.PANEL_TOKEN && env.PANEL_TOKEN !== 'lowticket_panel_token_2026';
+  const saldo = saldoIA.obtener();
+  const detalleIa = saldo && saldo.ok
+    ? `IA activa (${saldo.proveedor}) · Modelo: ${env.GEMINI_MODEL || 'gemini-3.1-flash'} · Saldo: $${saldo.restanteUsd} USD de $${saldo.totalUsd} (${saldo.porcentaje}%)`
+    : (ia ? `IA activa (${env.GEMINI_MODEL || 'gemini-3.1-flash'}) · Lectura de comprobantes, audios y respuestas` : 'Sin clave de IA: se aprueba CUALQUIER imagen sin leerla');
   return [
     { ok: !!env.META_ACCESS_TOKEN, nombre: 'META_ACCESS_TOKEN', que: 'Enviar y recibir mensajes y fotos de WhatsApp', grave: true },
     { ok: !!env.META_PHONE_NUMBER_ID, nombre: 'META_PHONE_NUMBER_ID', que: 'Número de WhatsApp del bot en Meta', grave: true },
     { ok: !!env.BOT_WHATSAPP, nombre: 'BOT_WHATSAPP', que: 'Número que aparece en los botones «Escribir por WhatsApp»', grave: false },
-    { ok: ia, nombre: 'GEMINI_API_KEY u OPENAI_API_KEY', que: ia ? 'La IA lee los comprobantes' : 'Sin clave de IA: se aprueba CUALQUIER imagen sin leerla', grave: true },
+    { ok: ia, nombre: 'IA (Gemini / VNAI Pro)', que: detalleIa, grave: true },
     { ok: tokenPropio, nombre: 'PANEL_TOKEN', que: tokenPropio ? 'Clave propia del panel' : 'Usa la clave por defecto, que es pública en GitHub: cualquiera puede entrar al panel', grave: true },
     { ok: store.esDiscoPersistente(), nombre: 'Disco persistente', que: store.esDiscoPersistente() ? `Datos guardados en ${store.dataDir()}` : 'Sin disco: pedidos, chats y fotos se borran en cada despliegue', grave: true },
     { ok: env.SEGUIMIENTO_ACTIVO !== '0', nombre: 'SEGUIMIENTO_ACTIVO', que: 'Mensajes de remarketing y de la prueba HONESTIDAD', grave: false },
@@ -1336,19 +1341,4 @@ function renderFilaChat({ tel, c, msgs, cuando }, tk) {
           ${esPausado ? '<span class="badge badge-amber" style="font-size: 0.68rem; padding: 1px 6px;">⏸️ Silenciado</span>' : '<span class="badge badge-green" style="font-size: 0.68rem; padding: 1px 6px;">🟢 Activo</span>'}
         </div>
         <div class="chat-time-tag">
-          <span style="color: #cbd5e1;">${horaCorta(cuando)}</span>
-          <span style="font-size: 0.72rem; opacity: 0.75;"> · ${hace(cuando)}</span>
-        </div>
-      </div>
-      <div class="chat-row-bottom">
-        <div class="chat-preview">${esc(texto)}</div>
-        <span class="chat-msg-badge">${msgs.length} msgs</span>
-      </div>
-    </a>
-  `;
-}
-
-module.exports = {
-  render,
-  panelToken
-};
+          <span style="color: #cbd5e1;">$

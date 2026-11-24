@@ -15,7 +15,7 @@ class AudioService {
   }
 
   getGeminiModel() {
-    return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    return process.env.GEMINI_MODEL || 'gemini-3.1-flash';
   }
 
   getOpenAIKey() {
@@ -66,11 +66,12 @@ class AudioService {
   async _transcribeWithGemini(buffer, mimeType, apiKey) {
     try {
       const model = this.getGeminiModel();
+      const baseUrl = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
       // Limpiar mimeType (remover codecs=opus si viene)
       const cleanMime = String(mimeType || 'audio/ogg').split(';')[0].trim();
       const base64Data = buffer.toString('base64');
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const prompt =
         'Eres un asistente de transcripción para atención al cliente en WhatsApp Colombia.\n' +
@@ -192,9 +193,4 @@ class AudioService {
       return { ok: true, text };
     } catch (err) {
       console.error('[AUDIO ERROR] Excepción transcribiendo con Whisper:', err.message);
-      return { ok: false, error: err.message };
-    }
-  }
-}
-
-module.exports = new AudioService();
+      retu

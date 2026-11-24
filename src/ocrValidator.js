@@ -39,8 +39,9 @@ class OCRValidator {
   async _validateWithGemini(base64Image, expected, apiKey) {
     try {
       const key = apiKey || process.env.GEMINI_API_KEY;
-      const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const model = process.env.GEMINI_MODEL || "gemini-3.1-flash";
+      const baseUrl = (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com").replace(/\/$/, "");
+      const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${key}`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -189,9 +190,4 @@ Reglas:
       };
     } catch (error) {
       console.error("[OCR ERROR OpenAI]:", error.message);
-      return { isValid: false, reason: "Error procesando con OpenAI: " + error.message };
-    }
-  }
-}
-
-module.exports = new OCRValidator();
+      return { isValid: false, reason: "Error procesand

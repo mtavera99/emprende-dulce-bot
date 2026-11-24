@@ -21,6 +21,9 @@ function limpiarRespuestaIA(texto, finishReason) {
   return t;
 }
 
+// Minutos entre la entrega del pack de moldes y la oferta del pack Emprende Dulce
+const UPSELL_MS = () => Number(process.env.UPSELL_MINUTOS || 3) * 60 * 1000;
+
 class ConversationFlow {
   constructor() {
     this.defaultPrice = 10000;
@@ -150,10 +153,12 @@ class ConversationFlow {
     // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas (salvo que responda al Upsell)
     if (this.esComprador(phone)) {
       if (lead.esperaRespuestaUpsell) {
-        if (/^(si|sí|claro|quiero|me interesa|de una|dale|por favor|1)/i.test(text)) {
+        // Solo respuestas completas: "no me abre el archivo" o "sí, pero no descarga" son soporte, no una respuesta a la oferta
+        const nu = ventas.normalizar(text);
+        if (/^(1|si+|si quiero|si por favor|si porfa|si señor|si senora|claro|claro que si|dale|quiero|lo quiero|si lo quiero|agregar|agregalo|si agregar|de una|me interesa|si me interesa)$/.test(nu)) {
           return await this.enviarDatosPagoUpsell(phone);
         }
-        if (/^(no|gracias|no gracias|ahora no|2)/i.test(text)) {
+        if (/^(2|no|nop|no gracias|ahora no|no por ahora|no me interesa|no gracias por ahora)$/.test(nu)) {
           store.saveLead(phone, { esperaRespuestaUpsell: false, esperaUpsell: false });
           return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier cosa con la impresión o el armado, aquí estamos a la orden.');
         }
@@ -223,9 +228,20 @@ class ConversationFlow {
   async atenderComprador(phone, text) {
     const ventasCliente = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
     const manual = accesos.completoDe(phone);
-    const producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
+    // Productos que tiene (el upsell de Emprende Dulce se entrega como 'helados')
+    const comprados = new Set(ventasCliente.map((p) => (p.producto === 'upsell_helados' ? 'helados' : p.producto || 'helados')));
+    for (const a of ['moldes', 'helados']) if (accesos.completoDe(phone, a)) comprados.add(a);
+    let producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
+    if (producto === 'upsell_helados') producto = 'helados';
+    // Quien tiene los dos packs recibe soporte del de moldes, salvo que pregunte por las recetas
+    if (comprados.has('moldes') && comprados.has('helados')) producto = /receta|helado|postre|dulce/i.test(text) ? 'helados' : 'moldes';
     const acceso = accesos.crear(phone, producto, 'completo');
-    const enlace = `${ventas.host()}/acceso/${acceso.token}`;
+    let enlace = `${ventas.host()}/acceso/${acceso.token}`;
+    const otro = producto === 'moldes' ? 'helados' : 'moldes';
+    if (comprados.has(otro)) {
+      const a2 = accesos.crear(phone, otro, 'completo');
+      enlace += `\n\n${otro === 'helados' ? '🍰 Tu pack Emprende Dulce (recetas)' : '🧵 Tu Mega Pack de Moldes'}:\n${ventas.host()}/acceso/${a2.token}`;
+    }
     store.marcarAtendido(phone, false); // que el operador lo vea en el panel
     if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack)\b/i.test(text)) {
       const ayuda = producto === 'moldes'
@@ -430,6 +446,11 @@ Sofía:`;
       const cleanRef = ocrResult.reference || null;
       const cleanAmount = ocrResult.amount || ventas.precioDe(lead);
       const bankName = ocrResult.bank || 'NEQUI';
+
+      // Pagando el upsell con el comprobante de su primera compra: no se entrega
+      if (lead.esperaUpsell && cleanRef && store.pedidosDeTelefono(phone).some((p) => (p.status === 'VERIFICADO' || p.status === 'ENTREGADO') && p.reference && String(p.reference).toUpperCase() === String(cleanRef).toUpperCase())) {
+        return await this.decir(phone, `Ese comprobante es el de tu compra del Mega Pack de Moldes ✅ Para el pack Emprende Dulce envíame la captura de la nueva transferencia de *$5.000*.`);
+      }
 
       console.log(`[FLOW VERIFY] Evaluando comprobante de +${phone}: Ref=${cleanRef}, Monto=${cleanAmount}, Banco=${bankName}`);
       const verification = paymentVerifier.verifyPayment({
@@ -652,7 +673,9 @@ Sofía:`;
     // Pedido que se está entregando: el indicado, o el último VERIFICADO de este cliente
     const verificados = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
     const pedido = (opciones.pedidoId && store.obtenerPedido(opciones.pedidoId)) || verificados[verificados.length - 1] || store.obtenerPedidoPorTelefono(phone);
-    const producto = opciones.producto || (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    let producto = opciones.producto || (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    // El upsell (venta 'upsell_helados', p. ej. aprobada a mano en el panel) se entrega como el pack Emprende Dulce
+    if (producto === 'upsell_helados') { producto = 'helados'; store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false }); }
     const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
     const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id });
     const enlace = `${host}/acceso/${acceso.token}`;
@@ -693,28 +716,47 @@ Sofía:`;
     store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO', accesoToken: acceso.token });
 
     if (producto === 'moldes' && !opciones.sinUpsell) {
+      const entregadoAt = Date.now();
+      store.saveLead(phone, { entregadoAt });
+      // A los 3 minutos (UPSELL_MINUTOS). Si el servidor se reinicia antes, la oferta no sale (no se cobra nada).
       setTimeout(async () => {
         try {
-          await this.enviarOfertaUpsell(phone);
+          await this.enviarOfertaUpsell(phone, { entregadoAt });
         } catch (e) {
           console.error('[UPSELL] Error enviando oferta upsell:', e.message);
         }
-      }, 2500);
+      }, UPSELL_MS());
     }
 
     return acceso;
   }
 
-  async enviarOfertaUpsell(phone) {
+  // Motivo por el que no se ofrece el upsell, o null si se puede ofrecer
+  motivoSinUpsell(phone, entregadoAt = 0) {
+    const lead = store.getLead(phone) || {};
+    if (lead.upsellOfrecidoAt) return 'ya se ofreció';
+    if (lead.optOut || lead.paused || store.isPaused(phone)) return 'no quiere mensajes o chat pausado';
+    if (ventas.enHorarioSilencio()) return 'horario de silencio';
+    if (store.yaCompro(phone, 'helados') || store.yaCompro(phone, 'upsell_helados') || accesos.completoDe(phone, 'helados')) return 'ya tiene Emprende Dulce';
+    // Si escribió por un problema con la descarga después de la entrega, primero se le ayuda
+    const msgs = (store.obtenerConversacion(phone).messages || []).filter((m) => m.from !== 'bot' && (m.timestamp || m.at || 0) >= entregadoAt);
+    if (entregadoAt && msgs.some((m) => ventas.esSoporteDescarga(m.text || ''))) return 'reportó un problema con la descarga';
+    return null;
+  }
+
+  async enviarOfertaUpsell(phone, opciones = {}) {
+    const motivo = this.motivoSinUpsell(phone, opciones.entregadoAt || 0);
+    if (motivo) { console.log(`[UPSELL] No se ofrece a +${phone}: ${motivo}`); return false; }
+    store.saveLead(phone, { upsellOfrecidoAt: Date.now() });
     const texto =
-      `🎁 *¡OFERTA EXCLUSIVA DE AGRADECIMIENTO!*\n\n` +
-      `Por haber adquirido hoy tu Mega Pack de Moldes de Costura, tienes acceso exclusivo a nuestro segundo éxito de ventas:\n\n` +
+      `🎁 *Oferta para compradores*\n\n` +
+      `Como ya tienes tu Mega Pack de Moldes, puedes agregar nuestro otro pack:\n\n` +
       `🍨 *Pack Completo Emprende Dulce 2026*\n` +
       `✓ Guía Maestra de Helados Artesanales Gourmet\n` +
       `✓ Postres en Vaso Domo para Vender\n` +
       `✓ Recetario Navideño y Cajas de Regalo\n` +
       `✓ Plantilla de Costeo Automatizada en Excel\n\n` +
-      `Su precio normal es de *$10.000 COP*, pero solo por hoy para ti se queda en *solo $5.000 COP* (pago único) 🎉\n\n` +
+      `Su precio normal es *$10.000 COP*; para ti queda en *$5.000 COP* (pago único) 🎉\n\n` +
       `¿Deseas agregarlo a tu pedido?`;
 
     const botones = [
@@ -725,19 +767,15 @@ Sofía:`;
     store.saveLead(phone, { esperaRespuestaUpsell: true });
     await waService.sendButtons(phone, texto, botones);
     store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: 🍰 Sí, por $5.000 | No, gracias]`, type: 'interactive' });
+    return true;
   }
 
   async enviarDatosPagoUpsell(phone) {
     const settings = this.getSettings();
-    const numero = settings.nequiNumero || '3058742138';
-    const titular = settings.nequiTitular || 'Manuel Tavera';
-
     const texto =
-      `¡Excelente decisión! 🍰🎉 Aquí tienes los datos para tu pago especial de *$5.000 COP*:\n\n` +
-      `🟣 *Nequi:* ${numero}\n` +
-      `🔴 *Daviplata:* ${numero}\n` +
-      `👤 *Titular:* ${titular}\n` +
-      `💰 *Monto exacto:* $5.000 COP\n\n` +
+      `¡Excelente decisión! 🍰🎉 Aquí tienes los datos para tu pago de *$5.000 COP*:\n\n` +
+      `${ventas.cuentas(settings)}\n\n` +
+      `_Toca el número para copiarlo._\n\n` +
       `📲 Cuando realices la transferencia de *$5.000*, envíame por aquí la captura del comprobante y nuestro sistema te enviará tu acceso de inmediato 🙌`;
 
     store.saveLead(phone, {

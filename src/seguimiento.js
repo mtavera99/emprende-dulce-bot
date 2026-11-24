@@ -153,6 +153,33 @@ async function ejecutarRescate15(ahora = Date.now()) {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Recordatorio de pago acordado: el cliente dijo "pago mañana al mediodía" y no ha vuelto a escribir.
+// Un solo mensaje a la hora acordada, dentro de las 24 h de WhatsApp y fuera del horario de silencio.
+// ----------------------------------------------------------------------------
+async function ejecutarRecordatorioPago(ahora = Date.now()) {
+  if (!ACTIVO || ventas.enHorarioSilencio(ahora)) return;
+  const convs = store.todasLasConversaciones();
+  for (const lead of store.getAllLeads()) {
+    const pp = lead.pagoPospuesto;
+    if (!pp || pp.enviado || !pp.recordarAt || ahora < pp.recordarAt) continue;
+    const phone = lead.phone;
+    const conv = convs[phone];
+    if (!conv || conv.pausado || (conv.ultimoDelCliente || 0) > pp.at) continue; // ya volvió a escribir
+    if (ahora - (conv.ultimoDelCliente || 0) >= 23.5 * 60 * 60 * 1000) { store.saveLead(phone, { pagoPospuesto: { ...pp, enviado: true, vencido: true } }); continue; }
+    if (lead.paused || lead.optOut || store.yaCompro(phone) || accesos.completoDe(phone) || store.comprobantePendiente(phone)) continue;
+    try {
+      const texto = ventas.textoRecordatorioPago(ventas.precioDe(lead), ventas.cuentas(store.getSettings()));
+      await waService.sendTextMessage(phone, texto);
+      store.agregarMensaje(phone, { from: 'bot', text: `[RECORDATORIO DE PAGO ACORDADO] ${texto}`, type: 'text' });
+      store.saveLead(phone, { pagoPospuesto: { ...pp, enviado: true, enviadoAt: ahora } });
+      console.log(`[RECORDATORIO PAGO] Enviado a +${phone}`);
+    } catch (err) {
+      console.error(`[RECORDATORIO PAGO ERROR] +${phone}:`, err.message);
+    }
+  }
+}
+
 // Iniciar cron / intervalo en segundo plano (cada 5 minutos; la prueba se revisa cada minuto)
 function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
   console.log(`[SEGUIMIENTO] Scheduler iniciado (revisa cada ${intervaloMs / 60000} minutos).`);
@@ -164,6 +191,7 @@ function iniciarScheduler(intervaloMs = 5 * 60 * 1000) {
   setInterval(() => {
     ejecutarSeguimientoPruebas().catch(err => console.error('[SEGUIMIENTO PRUEBA CRON ERROR]:', err));
     ejecutarRescate15().catch(err => console.error('[RESCATE CRON ERROR]:', err));
+    ejecutarRecordatorioPago().catch(err => console.error('[RECORDATORIO PAGO CRON ERROR]:', err));
   }, 60 * 1000);
 }
 
@@ -171,6 +199,7 @@ module.exports = {
   ejecutarSeguimientos,
   ejecutarSeguimientoPruebas,
   ejecutarRescate15,
+  ejecutarRecordatorioPago,
   textoPrueba,
   iniciarScheduler
 };

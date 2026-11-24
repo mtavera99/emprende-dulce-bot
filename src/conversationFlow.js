@@ -21,6 +21,9 @@ function limpiarRespuestaIA(texto, finishReason) {
   return t;
 }
 
+// Minutos entre la entrega del pack de moldes y la oferta del pack Emprende Dulce
+const UPSELL_MS = () => Number(process.env.UPSELL_MINUTOS || 3) * 60 * 1000;
+
 class ConversationFlow {
   constructor() {
     this.defaultPrice = 10000;
@@ -150,10 +153,12 @@ class ConversationFlow {
     // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas (salvo que responda al Upsell)
     if (this.esComprador(phone)) {
       if (lead.esperaRespuestaUpsell) {
-        if (/^(si|sí|claro|quiero|me interesa|de una|dale|por favor|1)/i.test(text)) {
+        // Solo respuestas completas: "no me abre el archivo" o "sí, pero no descarga" son soporte, no una respuesta a la oferta
+        const nu = ventas.normalizar(text);
+        if (/^(1|si+|si quiero|si por favor|si porfa|si señor|si senora|claro|claro que si|dale|quiero|lo quiero|si lo quiero|agregar|agregalo|si agregar|de una|me interesa|si me interesa)$/.test(nu)) {
           return await this.enviarDatosPagoUpsell(phone);
         }
-        if (/^(no|gracias|no gracias|ahora no|2)/i.test(text)) {
+        if (/^(2|no|nop|no gracias|ahora no|no por ahora|no me interesa|no gracias por ahora)$/.test(nu)) {
           store.saveLead(phone, { esperaRespuestaUpsell: false, esperaUpsell: false });
           return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier cosa con la impresión o el armado, aquí estamos a la orden.');
         }
@@ -171,6 +176,37 @@ class ConversationFlow {
     // C. HONESTIDAD: acceso de prueba primero
     if (/\b(honestidad|honesto|acceso\s+primero|env[ií]alo\s+primero|verificar\s+primero|p[aá]salo\s+primero|mu[eé]stramelo\s+primero)\b/i.test(text)) {
       return await this.enviarHonestidad(phone, settings, producto);
+    }
+
+    // C2. Tiene la prueba HONESTIDAD y dice que no le abre: se le reenvía su enlace de prueba con instrucciones
+    const pruebaActiva = lead.prueba && lead.prueba.token && accesos.estado(lead.prueba.token).ok;
+    if (pruebaActiva && (ventas.esNoAbre(text) || /\b(link|enlace)\b/i.test(text)) && !ventas.esPedidoPago(text)) {
+      store.marcarAtendido(phone, false);
+      return await this.decir(phone,
+        `Te lo reenvío 🙌 Este es tu acceso de prueba:\n${ventas.host()}/prueba/${lead.prueba.token}\n\n` +
+        `📱 Tócalo y, si se abre dentro de WhatsApp, usa los 3 puntos ⋮ → *Abrir en Chrome* (o Safari en iPhone). Ahí toca el patrón gratis y se abre el PDF directo.\n\n` +
+        `Si te sale algún error, mándame un pantallazo y te ayudo.`);
+    }
+
+    // C3. Espera la muestra y no la ve ("nada que llega", "no me llegó")
+    const contextoMuestra = lead.muestraEnviada || lead.muestraOfrecidaAt || ['MUESTRA_OFRECIDA', 'MUESTRA_ENVIADA', 'BOTONES_ENVIADOS'].includes(lead.step);
+    if (pitchYaEnviado && contextoMuestra && ventas.esNoLlego(text) && !store.comprobantePendiente(phone)) {
+      if (!lead.muestraEnviada) return await this.enviarMuestra(phone, producto);
+      if (!lead.muestraReenviada) {
+        store.saveLead(phone, { muestraEnviada: false, muestraReenviada: true });
+        return await this.enviarMuestra(phone, producto, { reenvio: true });
+      }
+      store.marcarAtendido(phone, false);
+      return await this.decir(phone, `Ya te la reenvié 🙏 Son 2 PDF más arriba en este chat. Un asesor revisa tu caso y te escribe en un momento.`);
+    }
+
+    // C4. Promete pagar después ("pago mañana al mediodía", "estoy sin señal"): se le guarda el precio y se pausan los seguimientos
+    if (pitchYaEnviado && ventas.esPagoPospuesto(text)) {
+      const ahora = Date.now();
+      const recordarAt = ventas.momentoRecordatorio(text, ahora);
+      const yaTieneCuentas = (conv?.messages || []).some((m) => m.from === 'bot' && /Nequi/.test(m.text || ''));
+      store.saveLead(phone, { pagoPospuesto: { at: ahora, recordarAt, enviado: false, texto: text.slice(0, 120) } });
+      return await this.decir(phone, ventas.textoPagoPospuesto(ventas.precioDe(lead), recordarAt, yaTieneCuentas ? null : ventas.cuentas(settings), ahora));
     }
 
     // D. Desconfianza: se le muestra el material gratis en vez de pedirle que confíe
@@ -223,18 +259,40 @@ class ConversationFlow {
   async atenderComprador(phone, text) {
     const ventasCliente = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
     const manual = accesos.completoDe(phone);
-    const producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
+    // Productos que tiene (el upsell de Emprende Dulce se entrega como 'helados')
+    const comprados = new Set(ventasCliente.map((p) => (p.producto === 'upsell_helados' ? 'helados' : p.producto || 'helados')));
+    for (const a of ['moldes', 'helados']) if (accesos.completoDe(phone, a)) comprados.add(a);
+    let producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
+    if (producto === 'upsell_helados') producto = 'helados';
+    // Quien tiene los dos packs recibe soporte del de moldes, salvo que pregunte por las recetas
+    if (comprados.has('moldes') && comprados.has('helados')) producto = /receta|helado|postre|dulce/i.test(text) ? 'helados' : 'moldes';
     const acceso = accesos.crear(phone, producto, 'completo');
-    const enlace = `${ventas.host()}/acceso/${acceso.token}`;
+    let enlace = `${ventas.host()}/acceso/${acceso.token}`;
+    const otro = producto === 'moldes' ? 'helados' : 'moldes';
+    if (comprados.has(otro)) {
+      const a2 = accesos.crear(phone, otro, 'completo');
+      enlace += `\n\n${otro === 'helados' ? '🍰 Tu pack Emprende Dulce (recetas)' : '🧵 Tu Mega Pack de Moldes'}:\n${ventas.host()}/acceso/${a2.token}`;
+    }
     store.marcarAtendido(phone, false); // que el operador lo vea en el panel
+    const s = this.getSettings();
+    const drive = String((producto === 'moldes' ? s.driveLinkMoldes : s.driveLink) || '').trim();
+    const ult = this.ultimoDelBot(phone);
+    // Ya recibió la guía y sigue sin poder abrir: Google Drive primero
+    if (drive && ventas.esNoAbre(text) && ult && /Ya tienes tu compra activa/.test(ult.text || '')) {
+      return await this.decir(phone,
+        `Probemos por Google Drive 🙌 Aquí está todo tu pack:\n${drive}\n\n` +
+        `📱 Ábrelo con la app de *Google Drive* o en Chrome. Busca la colección y toca el archivo para verlo o descargarlo.\n\n` +
+        `Si tampoco te abre, mándame un pantallazo de lo que te sale y un asesor te ayuda ya mismo.`);
+    }
+    const respaldoDrive = drive ? `\n\n📁 *Si el enlace no te abre*, aquí está todo en Google Drive (ábrelo con la app de Google Drive o en Chrome):\n${drive}` : '';
     if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack)\b/i.test(text)) {
       const ayuda = producto === 'moldes'
         ? `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
           `📱 *Para abrir en el celular:* toca el enlace, ábrelo en Chrome o Safari y busca el patrón que quieres. Cada patrón tiene sus PDF sueltos (ficha técnica y cada talla) que abren directo en el celular.\n` +
           `📦 Los ZIP de cada colección traen todo junto: en Android ábrelos con la app *Files de Google*; en iPhone, con la app *Archivos*.\n` +
-          `🖨️ Para imprimir: tamaño real o escala 100 %, sin "ajustar a la página".\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`
+          `🖨️ Para imprimir: tamaño real o escala 100 %, sin "ajustar a la página".` + respaldoDrive + `\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`
         : `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
-          `📱 Toca el enlace, ábrelo en Chrome o Safari y descarga cada libro en PDF; abren directo en el celular.\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`;
+          `📱 Toca el enlace, ábrelo en Chrome o Safari y descarga cada libro en PDF; abren directo en el celular.` + respaldoDrive + `\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`;
       return await this.decir(phone, ayuda);
     }
     return await this._responderConGemini(phone, text, this.getSettings(), producto, { comprador: true, enlace });
@@ -261,12 +319,14 @@ class ConversationFlow {
       if (img.mapa) await this.enviarImagen(phone, img.mapa);
       return await this.decir(phone, `Así viene el pack por dentro 👆 La muestra gratis te la envié arriba en PDF.\n\nEl pack completo con ${ventas.infoPack(producto).queIncluye} vale *${ventas.cop(precio)}*. ¿Te paso los datos de pago?`);
     }
-    if (!opciones.sinIntro) {
+    if (opciones.reenvio) {
+      await this.decir(phone, `Te la reenvío 🙌 Son 2 PDF: la ficha técnica y el molde de la talla M. Tócalos para abrirlos.`);
+    } else if (!opciones.sinIntro) {
       await this.decir(phone, producto === 'moldes'
         ? `¡Claro! 🎁 Te envío gratis el patrón completo de la *Falda Media Campana*: la ficha técnica y el molde de la talla M a escala real.`
         : `¡Claro! 🎁 Te envío gratis 5 recetas de muestra.`);
     }
-    if (producto === 'moldes') await this.enviarImagen(phone, ventas.imagenes(producto).mapa, 'Así se arma el molde: se imprime en hojas Carta o A4 y se unen por las marcas');
+    if (producto === 'moldes' && !opciones.reenvio) await this.enviarImagen(phone, ventas.imagenes(producto).mapa, 'Así se arma el molde: se imprime en hojas Carta o A4 y se unen por las marcas');
     let enviados = 0;
     for (const doc of ventas.documentosMuestra(producto)) if (await this.enviarDocumento(phone, doc)) enviados++;
     store.saveLead(phone, { muestraEnviada: enviados > 0, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO',
@@ -320,7 +380,10 @@ class ConversationFlow {
         ? `- ESTE CLIENTE YA COMPRÓ. Nunca le pidas pago ni le des datos de cuenta. Ayúdalo con la descarga, la impresión o dudas del contenido. Su enlace personal es: ${opciones.enlace}`
         : `- Precio que se le ofreció a este cliente: ${ventas.cop(precio)} pago único.
 - NO envíes números de cuenta ni datos de pago: si el cliente quiere pagar, pregúntale "¿Te paso los datos de pago?" y el sistema se los envía.
-- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis un patrón completo para que lo revises?").`;
+${lead.muestraEnviada
+    ? '- La muestra gratis (2 PDF de la Falda Media Campana: ficha técnica y talla M) ya se le envió más arriba en el chat. No la vuelvas a ofrecer; si no la ve, dile que escriba "no me llegó".'
+    : '- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis un patrón completo para que lo revises?").'}
+- Tú NO puedes enviar archivos, PDF ni imágenes. Nunca digas que enviaste, adjuntaste o reenviaste algo: el sistema los envía cuando el cliente acepta.`;
       const prompt = `Eres Sofía, asesora por WhatsApp de una tienda de productos digitales en Colombia. Tono cálido, colombiano, sencillo y honesto.
 ${ventas.conocimiento(producto)}
 
@@ -352,6 +415,16 @@ Sofía:`;
       let aiText = (cand.content?.parts || []).map(p => p.text || '').join('').trim().replace(/^Sof[ií]a:\s*/i, '');
       aiText = limpiarRespuestaIA(aiText, cand.finishReason);
       if (!aiText) throw new Error('Respuesta vacía');
+      if (!opciones.comprador) {
+        // La IA no envía archivos: si dice que mandó la muestra, se manda de verdad (o se recuerda dónde está)
+        if (ventas.iaDiceQueEnvio(aiText)) {
+          console.warn(`[FLOW IA] La IA dijo que envió un archivo a +${phone}; se envía la muestra real.`);
+          if (!lead.muestraEnviada) return await this.enviarMuestra(phone, producto);
+          return await this.decir(phone, `La muestra gratis te la envié más arriba en este chat 👆 (2 PDF: ficha técnica y molde talla M). Si no los ves, escríbeme *no me llegó* y te los reenvío.`);
+        }
+        // Si ofreció la muestra, un "sí", "dale" o "me parece bien" la envía (punto J)
+        if (!lead.muestraEnviada && ventas.iaOfreceMuestra(aiText)) store.saveLead(phone, { step: 'MUESTRA_OFRECIDA', muestraOfrecidaAt: Date.now() });
+      }
       await this.decir(phone, aiText);
     } catch (err) {
       console.error('[FLOW GEMINI ERROR]:', err.message);
@@ -431,6 +504,11 @@ Sofía:`;
       const cleanRef = ocrResult.reference || null;
       const cleanAmount = ocrResult.amount || ventas.precioDe(lead);
       const bankName = ocrResult.bank || 'NEQUI';
+
+      // Pagando el upsell con el comprobante de su primera compra: no se entrega
+      if (lead.esperaUpsell && cleanRef && store.pedidosDeTelefono(phone).some((p) => (p.status === 'VERIFICADO' || p.status === 'ENTREGADO') && p.reference && String(p.reference).toUpperCase() === String(cleanRef).toUpperCase())) {
+        return await this.decir(phone, `Ese comprobante es el de tu compra del Mega Pack de Moldes ✅ Para el pack Emprende Dulce envíame la captura de la nueva transferencia de *$5.000*.`);
+      }
 
       console.log(`[FLOW VERIFY] Evaluando comprobante de +${phone}: Ref=${cleanRef}, Monto=${cleanAmount}, Banco=${bankName}`);
       const verification = paymentVerifier.verifyPayment({
@@ -653,7 +731,9 @@ Sofía:`;
     // Pedido que se está entregando: el indicado, o el último VERIFICADO de este cliente
     const verificados = store.pedidosDeTelefono(phone).filter((p) => p.status === 'VERIFICADO' || p.status === 'ENTREGADO');
     const pedido = (opciones.pedidoId && store.obtenerPedido(opciones.pedidoId)) || verificados[verificados.length - 1] || store.obtenerPedidoPorTelefono(phone);
-    const producto = opciones.producto || (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    let producto = opciones.producto || (pedido && pedido.producto) || (lead && lead.producto) || 'helados';
+    // El upsell (venta 'upsell_helados', p. ej. aprobada a mano en el panel) se entrega como el pack Emprende Dulce
+    if (producto === 'upsell_helados') { producto = 'helados'; store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false }); }
     const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
     const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id });
     const enlace = `${host}/acceso/${acceso.token}`;
@@ -694,28 +774,47 @@ Sofía:`;
     store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO', accesoToken: acceso.token });
 
     if (producto === 'moldes' && !opciones.sinUpsell) {
+      const entregadoAt = Date.now();
+      store.saveLead(phone, { entregadoAt });
+      // A los 3 minutos (UPSELL_MINUTOS). Si el servidor se reinicia antes, la oferta no sale (no se cobra nada).
       setTimeout(async () => {
         try {
-          await this.enviarOfertaUpsell(phone);
+          await this.enviarOfertaUpsell(phone, { entregadoAt });
         } catch (e) {
           console.error('[UPSELL] Error enviando oferta upsell:', e.message);
         }
-      }, 2500);
+      }, UPSELL_MS());
     }
 
     return acceso;
   }
 
-  async enviarOfertaUpsell(phone) {
+  // Motivo por el que no se ofrece el upsell, o null si se puede ofrecer
+  motivoSinUpsell(phone, entregadoAt = 0) {
+    const lead = store.getLead(phone) || {};
+    if (lead.upsellOfrecidoAt) return 'ya se ofreció';
+    if (lead.optOut || lead.paused || store.isPaused(phone)) return 'no quiere mensajes o chat pausado';
+    if (ventas.enHorarioSilencio()) return 'horario de silencio';
+    if (store.yaCompro(phone, 'helados') || store.yaCompro(phone, 'upsell_helados') || accesos.completoDe(phone, 'helados')) return 'ya tiene Emprende Dulce';
+    // Si escribió por un problema con la descarga después de la entrega, primero se le ayuda
+    const msgs = (store.obtenerConversacion(phone).messages || []).filter((m) => m.from !== 'bot' && (m.timestamp || m.at || 0) >= entregadoAt);
+    if (entregadoAt && msgs.some((m) => ventas.esSoporteDescarga(m.text || ''))) return 'reportó un problema con la descarga';
+    return null;
+  }
+
+  async enviarOfertaUpsell(phone, opciones = {}) {
+    const motivo = this.motivoSinUpsell(phone, opciones.entregadoAt || 0);
+    if (motivo) { console.log(`[UPSELL] No se ofrece a +${phone}: ${motivo}`); return false; }
+    store.saveLead(phone, { upsellOfrecidoAt: Date.now() });
     const texto =
-      `🎁 *¡OFERTA EXCLUSIVA DE AGRADECIMIENTO!*\n\n` +
-      `Por haber adquirido hoy tu Mega Pack de Moldes de Costura, tienes acceso exclusivo a nuestro segundo éxito de ventas:\n\n` +
+      `🎁 *Oferta para compradores*\n\n` +
+      `Como ya tienes tu Mega Pack de Moldes, puedes agregar nuestro otro pack:\n\n` +
       `🍨 *Pack Completo Emprende Dulce 2026*\n` +
       `✓ Guía Maestra de Helados Artesanales Gourmet\n` +
       `✓ Postres en Vaso Domo para Vender\n` +
       `✓ Recetario Navideño y Cajas de Regalo\n` +
       `✓ Plantilla de Costeo Automatizada en Excel\n\n` +
-      `Su precio normal es de *$10.000 COP*, pero solo por hoy para ti se queda en *solo $5.000 COP* (pago único) 🎉\n\n` +
+      `Su precio normal es *$10.000 COP*; para ti queda en *$5.000 COP* (pago único) 🎉\n\n` +
       `¿Deseas agregarlo a tu pedido?`;
 
     const botones = [
@@ -726,19 +825,15 @@ Sofía:`;
     store.saveLead(phone, { esperaRespuestaUpsell: true });
     await waService.sendButtons(phone, texto, botones);
     store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: 🍰 Sí, por $5.000 | No, gracias]`, type: 'interactive' });
+    return true;
   }
 
   async enviarDatosPagoUpsell(phone) {
     const settings = this.getSettings();
-    const numero = settings.nequiNumero || '3058742138';
-    const titular = settings.nequiTitular || 'Manuel Tavera';
-
     const texto =
-      `¡Excelente decisión! 🍰🎉 Aquí tienes los datos para tu pago especial de *$5.000 COP*:\n\n` +
-      `🟣 *Nequi:* ${numero}\n` +
-      `🔴 *Daviplata:* ${numero}\n` +
-      `👤 *Titular:* ${titular}\n` +
-      `💰 *Monto exacto:* $5.000 COP\n\n` +
+      `¡Excelente decisión! 🍰🎉 Aquí tienes los datos para tu pago de *$5.000 COP*:\n\n` +
+      `${ventas.cuentas(settings)}\n\n` +
+      `_Toca el número para copiarlo._\n\n` +
       `📲 Cuando realices la transferencia de *$5.000*, envíame por aquí la captura del comprobante y nuestro sistema te enviará tu acceso de inmediato 🙌`;
 
     store.saveLead(phone, {

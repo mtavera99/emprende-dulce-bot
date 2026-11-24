@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Costos y Precios de Confección · Mega Pack Moldes 2026</title>
+<style>
+:root{--navy:#0c1b33;--oro:#d4af37;--crema:#f7f5ef;--linea:#dfe3ea;--gris:#5d6678}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 Inter,"Noto Sans",Arial,sans-serif;color:#1a2233;background:var(--crema)}
+header{background:var(--navy);color:#fff;padding:22px 20px;border-bottom:4px solid var(--oro)}header h1{margin:0;font:800 24px Georgia,serif}header p{margin:6px 0 0;color:#dfe6f2;font-size:14px}
+main{max-width:1060px;margin:0 auto;padding:18px;display:grid;grid-template-columns:1.25fr 1fr;gap:18px}@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:16px}h2{margin:0 0 10px;font:700 17px Georgia,serif;color:var(--navy)}
+label{display:block;font-size:13px;color:var(--gris);margin:8px 0 3px}input,select{width:100%;padding:8px 10px;border:1px solid #c9cfda;border-radius:6px;font:inherit}
+.fila{display:grid;grid-template-columns:2fr 1fr 1fr 34px;gap:8px;align-items:end}.fila button{height:38px}
+button{background:var(--navy);color:#fff;border:0;border-radius:6px;padding:8px 12px;font:600 14px inherit;cursor:pointer}button.sec{background:#e9edf3;color:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-bottom:1px solid var(--linea)}td:last-child{text-align:right;font-weight:600}
+.tot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy)}.precio{font:800 30px Georgia,serif;color:var(--navy)}.oro{color:#a8842a}
+.nota{font-size:12px;color:var(--gris)}.dos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi{background:var(--crema);border-radius:8px;padding:10px;text-align:center}
+.kpi b{display:block;font:800 20px Georgia,serif;color:var(--navy)}
+</style></head><body>
+<header><h1>Calculadora de Costos y Precios de Confección</h1><p>Mega Pack Moldes 2026 · Bono 4 · Los consumos de tela vienen del trazado real de cada patrón en su talla de referencia (+10 %). Todo es editable.</p></header>
+<main>
+<div>
+<section><h2>1 · Prenda</h2>
+<label>Patrón del pack</label><select id="preset"></select>
+<p class="nota" id="avios"></p>
+<div class="dos"><div><label>Unidades a producir (lote)</label><input id="lote" type="number" min="1" value="10"></div><div><label>Merma de tela (%)</label><input id="merma" type="number" min="0" value="5"></div></div>
+</section>
+<section><h2>2 · Materiales por unidad</h2><div id="mats"></div><button class="sec" id="addmat">+ Agregar material</button>
+<p class="nota">Tela: metros por prenda (ya calculados para la talla de referencia) × precio por metro. Avíos: cantidad × precio unitario.</p></section>
+<section><h2>3 · Mano de obra y gastos</h2>
+<div class="dos"><div><label>Horas de confección por prenda</label><input id="horas" type="number" step="0.25" value="3"></div><div><label>Valor de tu hora</label><input id="vhora" type="number" value="0"></div></div>
+<div class="dos"><div><label>Gastos fijos del mes (luz, alquiler, internet…)</label><input id="fijos" type="number" value="0"></div><div><label>Prendas que produces por mes</label><input id="pmes" type="number" min="1" value="60"></div></div>
+<div class="dos"><div><label>Empaque, etiqueta y bolsa por unidad</label><input id="emp" type="number" value="0"></div><div><label>Envío o traslado por unidad</label><input id="env" type="number" value="0"></div></div>
+</section>
+<section><h2>4 · Precio</h2>
+<div class="dos"><div><label>Margen de ganancia deseado (%) sobre el precio</label><input id="margen" type="number" value="40"></div><div><label>Comisión de canal o pasarela (%)</label><input id="com" type="number" value="0"></div></div>
+<div class="dos"><div><label>Impuesto incluido en el precio (%)</label><input id="iva" type="number" value="0"></div><div><label>Descuento mayorista (%)</label><input id="may" type="number" value="25"></div></div>
+<p class="nota">El margen se calcula sobre el precio de venta (no sobre el costo): con 40 %, de cada 100 de venta quedan 40 de ganancia antes de impuestos.</p>
+</section>
+</div>
+<div>
+<section style="position:sticky;top:12px"><h2>Resultado por unidad</h2>
+<table id="res"></table>
+<p style="margin:14px 0 4px" class="nota">Precio sugerido al público</p><div class="precio" id="pvp">—</div>
+<p class="nota" id="pmay"></p>
+<div class="dos" style="margin-top:10px"><div class="kpi"><b id="gan">—</b>Ganancia por unidad</div><div class="kpi"><b id="glote">—</b>Ganancia del lote</div></div>
+<div class="dos" style="margin-top:10px"><div class="kpi"><b id="pe">—</b>Unidades al mes para cubrir gastos fijos</div><div class="kpi"><b id="clote">—</b>Inversión del lote</div></div>
+<p class="nota" style="margin-top:12px">Usa la moneda de tu país en todos los campos. Precios redondeados a la unidad. Revisa los precios de tela y avíos con tu proveedor.</p>
+<button class="sec" onclick="window.print()">Imprimir o guardar en PDF</button>
+</section></div>
+</main>
+<script>
+const PRESETS = [{"id": "camisa_clasica", "nombre": "Camisa Clásica Manga Larga", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.56}], "horas": 6.5, "avios": "6 botones de 11 mm (cartera y pie de cuello) + 4 de 9 mm (2 puños y 2 sardinetas)"}, {"id": "buzo_mascota", "nombre": "Buzo de Invierno con Capucha Canina", "talla": "M", "telas": [{"nombre": "Polar / felpa 1,50 m", "metros": 0.44}, {"nombre": "Rib tubular 0,50 m (abierto 1,00 m)", "metros": 0.22}], "horas": 4.0, "avios": "Ninguno obligatorio. Opcional: 2 pasadores de silicona para las orejas de la capucha"}, {"id": "capa_mascota", "nombre": "Capa Impermeable para Perro", "talla": "M", "telas": [{"nombre": "Impermeable 1,50 m", "metros": 0.53}, {"nombre": "Polar / forro 1,50 m", "metros": 0.53}], "horas": 4.0, "avios": "Velcro de 2,5 cm: 18 cm de cada lado (macho y hembra) para cuello y 2 fajas · bies reflectivo opcional"}, {"id": "palazzo", "nombre": "Pantalón Palazzo Tiro Alto", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.59}, {"nombre": "Forro de bolsillo 1,10 m", "metros": 0.31}], "horas": 4.0, "avios": "Cremallera invisible de 20 cm en el centro trasero · 1 gancho de pretina"}, {"id": "pantalon_recto", "nombre": "Pantalón Recto de Vestir", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.34}, {"nombre": "Forro de bolsillo 1,10 m", "metros": 0.41}], "horas": 6.5, "avios": "Cremallera metálica o de nailon de 18 cm · 1 botón de 15 mm y 1 gancho de pretina · 2 botones de 11 mm para bolsillos traseros (opcional)"}, {"id": "short_verano", "nombre": "Short Veraniego con Bolsillos", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.62}, {"nombre": "Forro de bolsillo 1,10 m", "metros": 0.27}], "horas": 4.0, "avios": "Cremallera de 13–15 cm · 1 botón de 15 mm · elástico de 3 cm de ancho (largo por talla en la ficha de corte)"}, {"id": "bermuda_hombre", "nombre": "Bermuda Clásica Formal (Hombre)", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.99}, {"nombre": "Forro de bolsillo 1,10 m", "metros": 0.43}], "horas": 6.5, "avios": "Cremallera de 18 cm · 1 botón de 17 mm · 2 botones de 13 mm para bolsillos traseros (opcional)"}, {"id": "vestido_camisero", "nombre": "Vestido Camisero Clásico con Cinturón", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.84}], "horas": 6.5, "avios": "Botones de 11 mm (ver tabla) + 4 de 9 mm · hebilla de 4 cm opcional"}, {"id": "vestido_evase", "nombre": "Vestido Evasé Casual en A", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.29}], "horas": 4.0, "avios": "Cremallera invisible de 55 a 60 cm (largo exacto por talla en la ficha) · 1 corchete en el escote"}, {"id": "vestido_fiesta", "nombre": "Vestido de Fiesta Escote en V Cruzado", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 2.41}, {"nombre": "Forro 1,50 m", "metros": 2.41}], "horas": 6.5, "avios": "Cremallera invisible de 55 cm · 1 broche de presión en el cruce · cinta de estabilizar 1 m"}, {"id": "falda_lapiz", "nombre": "Falda Lápiz de Tubo Formal", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.81}], "horas": 4.0, "avios": "Cremallera invisible de 22 cm · 1 gancho de pretina"}, {"id": "falda_evase", "nombre": "Falda Evasé Línea A con Vuelo", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.54}], "horas": 2.5, "avios": "Cremallera invisible de 20 cm (costado izquierdo) · 1 gancho de pretina"}, {"id": "legging", "nombre": "Legging Deportiva Tiro Alto", "talla": "M", "telas": [{"nombre": "Suplex 1,50 m", "metros": 1.13}], "horas": 4.0, "avios": "Opcional: elástico de 2 cm en el canto superior de la pretina (largo = canto de pretina − 5 %)"}, {"id": "top_racerback", "nombre": "Top Deportivo Racerback", "talla": "M", "telas": [{"nombre": "Suplex 1,50 m", "metros": 0.41}, {"nombre": "Forro 1,50 m", "metros": 0.41}], "horas": 4.0, "avios": "Elástico de 4 cm para la banda (largo por talla en la ficha) · elástico de 1 cm para escote y sisas (opcional) · 1 par de copas removibles de espuma"}, {"id": "jogger", "nombre": "Jogger Deportivo Casual", "talla": "M", "telas": [{"nombre": "Felpa 1,50 m", "metros": 1.18}, {"nombre": "Rib tubular 0,25 m (abierto 1,00 m)", "metros": 0.17}, {"nombre": "Jersey de bolsillos 1,10 m", "metros": 0.3}], "horas": 2.5, "avios": "Elástico de 3 cm (largo por talla en la ficha) · cordón de 1 cm (cintura + 80 cm) · 2 ojaletes metálicos de 8–10 mm"}, {"id": "hoodie", "nombre": "Hoodie Canguro con Capucha (Unisex)", "talla": "M", "telas": [{"nombre": "Felpa 1,50 m", "metros": 1.49}, {"nombre": "Rib tubular 0,40 m (abierto 1,00 m)", "metros": 0.37}, {"nombre": "Jersey de forro 0,60 m", "metros": 0.51}], "horas": 4.0, "avios": "2 ojaletes metálicos de 10 mm · cordón plano de 1,2 cm (largo = abertura de cara + 40 cm) · 2 puntas (terminales) para cordón"}, {"id": "bralette", "nombre": "Bralette de Encaje con Copas Triangulares", "talla": "M", "telas": [{"nombre": "Encaje 1,40 m", "metros": 0.24}, {"nombre": "Tul o powermesh 1,50 m", "metros": 0.24}], "horas": 4.0, "avios": "Elástico afelpado de 15 mm (bajo busto) · elástico picot de 10 mm (cantos) · 2 m de elástico de tirante de 10 mm · 2 argollas y 2 reguladores de 10 mm · corchete de 2 × 3 ganchos"}, {"id": "panty", "nombre": "Panty Tiro Alto con Refuerzo de Algodón", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.28}, {"nombre": "Algodón del refuerzo 1,50 m", "metros": 0.18}], "horas": 2.5, "avios": "Elástico de cintura de 15–20 mm y elástico de pierna de 8–10 mm (largos por talla en la ficha)"}, {"id": "babydoll", "nombre": "BabyDoll de Tul con Copas Suaves", "talla": "M", "telas": [{"nombre": "Tul 1,50 m", "metros": 0.69}, {"nombre": "Powermesh / encaje 1,50 m", "metros": 0.07}], "horas": 4.0, "avios": "Elástico afelpado de 12 mm (bajo busto) · elástico picot de 8 mm (cantos de copa) · 2 reguladores y 2 argollas de 8 mm (opcional)"}, {"id": "pijama", "nombre": "Pijama Camisera de Satén", "talla": "M", "telas": [{"nombre": "Satén 1,50 m", "metros": 1.64}], "horas": 6.5, "avios": "6 botones de 11 mm · elástico de 3 cm para el short (largo por talla en la ficha)"}, {"id": "mameluco", "nombre": "Mameluco Enterito de Bebé con Broches", "talla": "6-12", "telas": [{"nombre": "Interlock 1,50 m", "metros": 0.61}, {"nombre": "Rib tubular 0,20 m", "metros": 0.11}], "horas": 4.0, "avios": "Broches de presión plásticos o metálicos sin níquel de 10 mm (cantidad por talla en la ficha)"}, {"id": "vestido_imperio", "nombre": "Vestido de Niña con Corte Imperio", "talla": "6", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.86}, {"nombre": "Forro de corpiño 1,50 m", "metros": 0.27}], "horas": 4.0, "avios": "Cremallera invisible de 30 a 40 cm (largo por talla en la ficha) · elástico de 6 mm para el ruedo de manga (opcional)"}, {"id": "conjunto_nino", "nombre": "Conjunto Niño: Bermuda + Camisa Cuello Mao", "talla": "6", "telas": [{"nombre": "Tela camisa + bermuda 1,50 m", "metros": 1.12}, {"nombre": "Forro de bolsillo 1,10 m", "metros": 0.25}], "horas": 4.0, "avios": "5 o 6 botones de 10 mm (cartera + cuello) · elástico de 2,5 cm para la bermuda (largo por talla)"}, {"id": "body_bebe", "nombre": "Body de Bebé con Hombro Americano", "talla": "6-12", "telas": [{"nombre": "Jersey 1,50 m", "metros": 0.44}, {"nombre": "Rib tubular 0,20 m", "metros": 0.15}], "horas": 2.5, "avios": "3 broches de presión de 10 mm sin níquel"}, {"id": "tote_bag", "nombre": "Bolso Tote Bag en Lona con Forro", "talla": "Mediano", "telas": [{"nombre": "Lona 1,50 m", "metros": 0.64}, {"nombre": "Forro 1,50 m", "metros": 0.53}], "horas": 2.5, "avios": "Opcional: 1 imán de cierre de 18 mm y 2 remaches por asa"}, {"id": "neceser", "nombre": "Neceser Prismático con Cremallera", "talla": "Mediano", "telas": [{"nombre": "Tela exterior 1,50 m", "metros": 0.36}, {"nombre": "Forro 1,50 m", "metros": 0.36}], "horas": 4.0, "avios": "Cremallera de nylon n.º 5 (largo = largo del neceser + 4 cm) · 1 tirador"}, {"id": "mochila", "nombre": "Mochila Urbana con Fuelle 3D", "talla": "Mediano", "telas": [{"nombre": "Lona 1,50 m", "metros": 0.81}], "horas": 6.5, "avios": "Cremallera de nylon n.º 5 (largo por tamaño) con 2 carros · 2 m de cinta de 2,5 cm · 2 hebillas reguladoras de 25 mm · 2 argollas D · 1 broche magnético o velcro de 5 cm · bies 3 m"}, {"id": "scrub", "nombre": "Scrub Médico: Filipina Cuello V + Jogger", "talla": "M", "telas": [{"nombre": "Tela antifluidos 1,50 m", "metros": 2.35}, {"nombre": "Rib 0,20 m", "metros": 0.17}, {"nombre": "Bolsillos 1,10 m", "metros": 0.31}], "horas": 4.0, "avios": "Elástico de 3 cm · cordón de 1 cm (cintura + 80 cm) · 2 ojaletes de 8 mm"}, {"id": "delantal", "nombre": "Delantal Barista con Tirantes en X", "talla": "M", "telas": [{"nombre": "Denim 1,50 m", "metros": 1.05}], "horas": 2.5, "avios": "2 argollas o pasadores de 3 cm · 4 remaches (opcional) para las esquinas de bolsillo"}, {"id": "vestido_manga_corta", "nombre": "Vestido Casual Manga Corta", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.32}], "horas": 4.0, "avios": "Cremallera invisible de 55 a 60 cm (largo por talla en la ficha) · 1 corchete en el escote"}, {"id": "blusa_basica", "nombre": "Blusa Básica con Pinzas de Busto", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.8}], "horas": 2.5, "avios": "1 botón de 10 mm y presilla de hilo o de bies"}, {"id": "blusa_wrap", "nombre": "Blusa Wrap Cruzada", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 0.86}], "horas": 4.0, "avios": "1 broche de presión interior en el cruce"}, {"id": "blusa_olanes", "nombre": "Blusa con Olanes y Mangas Campana", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.33}], "horas": 4.0, "avios": "1 botón de 10 mm y presilla"}, {"id": "falda_media_campana", "nombre": "Falda Media Campana con Vuelo", "talla": "M", "telas": [{"nombre": "Tela 1,50 m", "metros": 1.48}], "horas": 2.5, "avios": "Cremallera invisible de 20 cm · 1 gancho de pretina"}];
+const $ = (id) => document.getElementById(id);
+const num = (v) => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : 0; };
+const fmt = (n) => (Math.round(n)).toLocaleString('es');
+const sel = $('preset');
+PRESETS.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = p.nombre + ' (talla ' + p.talla + ')'; sel.appendChild(o); });
+function fila(nombre, cant, precio) {
+  const d = document.createElement('div'); d.className = 'fila';
+  d.innerHTML = '<div><label>Material</label><input class="mn"></div><div><label>Cantidad</label><input class="mc" type="number" step="0.01"></div><div><label>Precio unit.</label><input class="mp" type="number" step="0.01"></div><button class="sec" title="Quitar">×</button>';
+  d.querySelector('.mn').value = nombre; d.querySelector('.mc').value = cant; d.querySelector('.mp').value = precio;
+  d.querySelector('button').onclick = () => { d.remove(); calc(); };
+  d.querySelectorAll('input').forEach((x) => x.oninput = calc);
+  $('mats').appendChild(d);
+}
+function cargar() {
+  const p = PRESETS[sel.value]; $('mats').innerHTML = '';
+  p.telas.forEach((t) => fila(t.nombre + ' (m)', t.metros, 0));
+  fila('Hilo (conos o carretes)', 1, 0); fila('Avíos (ver lista)', 1, 0);
+  $('horas').value = p.horas; $('avios').textContent = 'Avíos del patrón: ' + p.avios; calc();
+}
+function calc() {
+  let mat = 0; const merma = num($('merma').value) / 100;
+  document.querySelectorAll('#mats .fila').forEach((f) => {
+    const c = num(f.querySelector('.mc').value), pr = num(f.querySelector('.mp').value);
+    const esTela = /\(m\)/.test(f.querySelector('.mn').value);
+    mat += c * pr * (esTela ? 1 + merma : 1);
+  });
+  const mo = num($('horas').value) * num($('vhora').value);
+  const fijos = num($('fijos').value) / Math.max(1, num($('pmes').value));
+  const extra = num($('emp').value) + num($('env').value);
+  const costo = mat + mo + fijos + extra;
+  const m = num($('margen').value) / 100, com = num($('com').value) / 100, iva = num($('iva').value) / 100;
+  const div = 1 - m - com;
+  const neto = div > 0.01 ? costo / div : NaN;
+  const pvp = neto * (1 + iva);
+  const rows = [['Materiales (con merma de tela)', mat], ['Mano de obra', mo], ['Gastos fijos prorrateados', fijos], ['Empaque y envío', extra]];
+  $('res').innerHTML = rows.map((r) => '<tr><td>' + r[0] + '</td><td>' + fmt(r[1]) + '</td></tr>').join('') + '<tr class="tot"><td>Costo total por unidad</td><td>' + fmt(costo) + '</td></tr>';
+  if (!isFinite(pvp)) { $('pvp').textContent = 'Revisa margen y comisión (suman 100 % o más)'; return; }
+  $('pvp').textContent = fmt(pvp);
+  const may = pvp * (1 - num($('may').value) / 100);
+  const ganMay = may / (1 + iva) * (1 - com) - costo;
+  $('pmay').innerHTML = 'Precio mayorista: <b>' + fmt(may) + '</b> · ganancia mayorista por unidad: <b class="oro">' + fmt(ganMay) + '</b>';
+  const gan = neto * m; $('gan').textContent = fmt(gan);
+  const lote = Math.max(1, num($('lote').value)); $('glote').textContent = fmt(gan * lote); $('clote').textContent = fmt(costo * lote);
+  const contrib = neto * (1 - com) - (mat + mo + extra);
+  $('pe').textContent = contrib > 0 ? Math.ceil(num($('fijos').value) / contrib) : '—';
+}
+sel.onchange = cargar; $('addmat').onclick = () => { fila('Material', 1, 0); calc(); };
+document.querySelectorAll('section input').forEach((x) => x.oninput = calc);
+cargar();
+</script></body></html>

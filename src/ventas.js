@@ -81,6 +81,7 @@ ${lista}
 - Cada patrón trae: ficha técnica de 6 páginas (dibujo plano de la prenda adelante y atrás, tabla de medidas, consumo de tela, despiece pieza por pieza, secuencia de armado y guía de impresión) y un PDF por talla a escala real en hoja Carta y en A4. Las hojas vienen numeradas (A1, A2, B1…) con marcas para unirlas con cinta. Incluye márgenes de costura.
 - En total ${p.totales.moldes.toLocaleString('es-CO')} moldes de pieza (cada pieza en cada talla), que en Carta y A4 son ${p.totales.imprimibles.toLocaleString('es-CO')} moldes imprimibles.
 - 4 bonos: Manual Técnico de Costura, Guía de Telas, Agujas y Prensatelas, Tabla de Medidas y Cómo Medir, Calculadora de Costos y Precios.
+- Si dicen que 34 son pocos o preguntan cómo así 34 si son +2.000 moldes: explica con honestidad que son 34 prendas distintas; cada prenda trae todas sus piezas (delantero, espalda, mangas, cuello…) en cada talla, y eso da ${p.totales.moldes.toLocaleString('es-CO')} moldes de pieza, que se pueden imprimir en Carta o en A4 (${p.totales.imprimibles.toLocaleString('es-CO')}). No digas que son 2.000 prendas o modelos distintos.
 NO INCLUYE: fotos de prendas reales (las fichas traen dibujos técnicos), videos, ni prendas que no estén en la lista. Para hombre solo hay la Bermuda Clásica Formal (Hombre), el Hoodie unisex, el Jogger y el Scrub médico; NO hay camisas polo, pantalones de dril de hombre ni bóxers. Los archivos vienen en carpetas ZIP por colección y también se pueden abrir los PDF sueltos desde el enlace.`;
   }
   return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
@@ -129,8 +130,8 @@ function cuentas(settings) {
 function textoPitch(producto) {
   if (producto === 'moldes') {
     return `¡Hola! 🧵 Te cuento qué trae el *Mega Pack de Moldes de Costura 2026*:\n\n` +
-      `✅ *34 patrones profesionales* en 10 colecciones: vestidos, blusas y camisas, pantalones y shorts, faldas, ropa deportiva, lencería y pijamas, infantil y bebé, mascotas, bolsos y uniformes\n` +
-      `✅ Cada patrón en *todas sus tallas* (XS a XXL en adulto) a *escala real*: 2.420 moldes listos para imprimir en tu casa en hoja Carta o A4\n` +
+      `✅ *2.420 moldes a escala real* listos para imprimir en tu casa: son *34 prendas completas*, cada una con todas sus piezas en *todas sus tallas* (XS a XXL en adulto; también niños, bebé y mascotas), en hoja Carta y en A4\n` +
+      `✅ 10 colecciones: vestidos, blusas y camisas, pantalones y shorts, faldas, ropa deportiva, lencería y pijamas, infantil y bebé, mascotas, bolsos y uniformes\n` +
       `✅ Ficha técnica de cada prenda: medidas, consumo de tela, despiece y paso a paso de armado\n` +
       `✅ 4 bonos: manual de costura, guía de telas y agujas, tabla de medidas y calculadora de costos\n\n` +
       `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
@@ -225,6 +226,7 @@ const PALABRAS_SI = new Set(('si sii siii claro dale de una bueno listo ok oka o
 function esAfirmacion(texto) {
   const n = normalizar(texto);
   if (!n || n.includes('?') || n.includes('¿') || n.length > 60) return false;
+  if (/^((si |ok |bueno )?(me parece|me parece muy|me parece super|esta|muy|super|todo) (bien|perfecto|excelente|genial|bueno)|genial|chevere|de acuerdo|hagamosle|hagamoslo|me sirve)( (gracias|por favor|porfa))?$/.test(n)) return true;
   const pal = n.split(' ').filter(Boolean);
   if (!pal.some((w) => /^(si+|claro|dale|bueno|listo|ok\w*|vale|hagale|perfecto|quiero|una|porfa\w*|favor|obvio|seguro|y)$/.test(w))) return false;
   return pal.every((w) => PALABRAS_SI.has(w));
@@ -272,6 +274,73 @@ function esAvisoPago(texto) {
   return /\b(ya (pague|transferi|consigne|cancele|envie|mande|hice)|listo el pago|ahi (le|te) (envie|mande)|te (envie|mande) el comprobante|comprobante)\b/.test(n);
 }
 
+// "No me llegó", "nada que llega": espera algo (la muestra) que no ve en el chat
+function esNoLlego(texto) {
+  const n = normalizar(texto);
+  return /\b(no (me )?(ha |han )?(llega|llegado|llego|llegan|llegaron|aparece|aparecen)|nada que (llega|aparece|sale)|no (veo|recibo|recibi|me sale) (nada|el archivo|los archivos|la muestra|el pdf|el patron|el molde|ningun)|todavia nada|aun nada|y la muestra|donde (esta|quedo) la muestra|no ha llegado nada|no me ha llegado nada|sigo esperando)\b/.test(n);
+}
+
+// La IA ofrece la muestra ("¿Te envío gratis un patrón completo?") o dice que ya envió un archivo
+function iaOfreceMuestra(texto) {
+  const n = normalizar(texto);
+  return /\b(te (envio|mando|comparto)|quieres que te (envie|mande|comparta)|te gustaria (que te envie|recibir|ver))\b.{0,80}\b(gratis|muestra|patron|molde|recetas?)\b/.test(n) || /\bmuestra gratis\b.{0,40}\?/.test(n) || /\?.{0,5}$/.test(n) && /\bmuestra\b/.test(n);
+}
+function iaDiceQueEnvio(texto) {
+  // Sin las preguntas ("¿Quieres que te envíe…?") ni el subjuntivo "que te envíe", que sin tildes se escribe igual que "te envié"
+  const n = normalizar(texto).replace(/¿[^?]*\?/g, ' ').replace(/[^.!?]*\?/g, ' ').replace(/\b(que|si) te (lo |la |los |las )?(envie|mande|reenvie|adjunte|comparta|comparti)\b/g, ' ');
+  return /\b(te (lo |la |los |las )?acabo de (enviar|mandar|reenviar|adjuntar|compartir)|te (lo |la |los |las )?(envie|mande|reenvie|adjunte|comparti)|ya te (lo |la |los |las )?(envie|mande|reenvie|adjunte)|te (lo |la |los |las )?(estoy enviando|reenvio|adjunto)|aqui (te )?(va|van|tienes) (el|la|los|las) (patron|molde|muestra|pdf|archivo|ficha))\b/.test(n);
+}
+
+// Promete pagar después: "pago mañana al mediodía", "cuando baje al pueblo", "estoy sin señal"
+function esPagoPospuesto(texto) {
+  const n = normalizar(texto);
+  if (!n || n.includes('?') || n.includes('¿') || /\bsera que\b/.test(n) || esAvisoPago(texto)) return false;
+  const cuando = /\b(manana|pasado manana|mas tarde|en un rato|al rato|ratico|esta tarde|esta noche|en la tarde|en la noche|el (lunes|martes|miercoles|jueves|viernes|sabado|domingo)|(este|el) fin de semana|la (otra|proxima) semana|quincena|fin de mes)\b/.test(n);
+  const pago = /\b(pag\w*|consign\w*|transfier\w*|transfer\w*|deposit\w*|compr\w*|nequi|daviplata|plata|dinero|saldo|(le|te) (mando|envio|hago))\b/.test(n);
+  const fuerte = /\b(cuando (me paguen|me pague|baje|bajo|llegue|salga|vaya|pueda|tenga)|(sin|no tengo|no hay|poca|mala) (senal|cobertura|datos|internet)|zona rural|en el campo|en la finca|en la vereda|no tengo (plata|dinero|saldo)|no me han pagado|ahorita no (tengo|puedo))\b/.test(n);
+  return (cuando && pago) || fuerte;
+}
+
+// Hora (ms) del recordatorio que se acordó, o null si no se puede saber o cae fuera de las 24 h de WhatsApp
+function momentoRecordatorio(texto, ahora = Date.now()) {
+  const n = normalizar(texto);
+  const H = 3600e3;
+  const enCol = (dias, hora) => { const d = new Date(ahora - 5 * H); d.setUTCDate(d.getUTCDate() + dias); d.setUTCHours(hora, 0, 0, 0); return d.getTime() + 5 * H; };
+  let t = null;
+  const hm = n.match(/\ba las (\d{1,2})\b/);
+  let hora = hm ? Number(hm[1]) : null;
+  if (hora !== null && hora >= 1 && hora <= 7) hora += 12; // "a las 3" = 3 p. m.
+  if (/\bpasado manana\b/.test(n)) t = null;
+  else if (/\bmanana\b/.test(n) && !/\bhoy\b/.test(n)) {
+    if (hora === null) hora = /\b(mediodia|medio dia)\b/.test(n) ? 12 : /\b(tarde)\b/.test(n) ? 15 : /\bnoche\b/.test(n) ? 19 : /\b(temprano|en la manana|por la manana)\b/.test(n) ? 9 : 10;
+    t = enCol(horaColombia(ahora) < 5 ? 0 : 1, hora); // a la madrugada, "mañana" es el mismo día
+  } else if (/\b(mas tarde|en un rato|al rato|ratico)\b/.test(n)) t = ahora + 3 * H;
+  else if (/\b(esta tarde|en la tarde|hoy)\b/.test(n)) { t = enCol(0, hora === null ? 15 : hora); if (t <= ahora) t = ahora + 2 * H; }
+  else if (/\b(esta noche|en la noche)\b/.test(n)) t = enCol(0, hora === null ? 19 : hora);
+  if (t === null || t < ahora + 30 * 60e3 || t - ahora > 23 * H || enHorarioSilencio(t)) return null;
+  return t;
+}
+
+function textoPagoPospuesto(precio, recordarAt, cuentasTexto, ahora = Date.now()) {
+  const dia = (ms) => new Date(ms - 5 * 3600e3).toISOString().slice(0, 10);
+  const cuando = recordarAt ? (dia(recordarAt) === dia(ahora) ? 'más tarde' : 'mañana') : null;
+  return `¡Con gusto! 🙌 Te guardo el precio de *${cop(precio)}*${cuando ? ` para ${cuando}` : ' para cuando puedas'}.\n\n` +
+    (cuentasTexto ? `Te dejo las cuentas para que las tengas a mano:\n\n${cuentasTexto}\n\n` : '') +
+    `Cuando hagas la transferencia, mándame la captura del comprobante por aquí y te llega tu enlace al instante.` +
+    (recordarAt ? ` Te escribo ${cuando} para recordarte 😊` : ' 😊');
+}
+
+function textoRecordatorioPago(precio, cuentasTexto) {
+  return `¡Hola! 🙌 Como quedamos, te recuerdo que tu precio de *${cop(precio)}* sigue guardado.\n\n${cuentasTexto}\n\n` +
+    `Cuando hagas la transferencia, mándame la captura del comprobante por aquí y te llega tu enlace al instante.`;
+}
+
+// "No abre", "no me abre el enlace", "no puedo abrir"
+function esNoAbre(texto) {
+  const n = normalizar(texto);
+  return /\b(no (me )?(abre|abren|carga|cargan|funciona|funcionan|sale|salen|descarga|descargan|deja|abrio|cargo)|no (puedo|pude|logro) (abrir|ver|descargar|entrar|bajar)|no (se )?(abre|abren|descarga|descargan))\b/.test(n);
+}
+
 // Problemas del comprador con la descarga
 function esSoporteDescarga(texto) {
   const n = normalizar(texto);
@@ -283,4 +352,5 @@ module.exports = {
   infoPack, conocimiento, imagenes, documentosMuestra, host,
   textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
   normalizar, esAfirmacion, esPedidoPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,
+  esNoLlego, esNoAbre, iaOfreceMuestra, iaDiceQueEnvio, esPagoPospuesto, momentoRecordatorio, textoPagoPospuesto, textoRecordatorioPago,
 };

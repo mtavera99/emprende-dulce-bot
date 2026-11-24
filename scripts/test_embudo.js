@@ -7,6 +7,7 @@ const path = require('path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'embudo-'));
 delete process.env.GEMINI_API_KEY; delete process.env.OPENAI_API_KEY; delete process.env.META_ACCESS_TOKEN;
 process.env.PRUEBA_MINUTOS = process.env.PRUEBA_MINUTOS || '1440';
+process.env.UPSELL_MINUTOS = '600'; // la oferta post-compra se prueba aparte (sección 11)
 const R = path.join(__dirname, '../src/');
 const wa = require(R + 'whatsappService');
 const enviados = [];
@@ -221,6 +222,62 @@ async function img(phone) {
     check(!desde(n).some((e) => e.to === L), 'máximo un rescate cada 24 h');
   } else {
     console.log('  (horario de silencio: se omiten las pruebas de rescate)');
+  }
+
+  // 11. Upsell post-compra: pack Emprende Dulce por $5.000
+  if (!ventas.enHorarioSilencio()) {
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+    const M = '573000000013';
+    await txt(M, SALUDO, REF);
+    await boton(M, 'comprar', '💳 Comprar $10.000');
+    process.env.UPSELL_MINUTOS = '0.002'; // ~120 ms
+    ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'U1', bank: 'nequi', titularValido: true };
+    o = await img(M);
+    check(o.some((e) => /acceso\//.test(e.t)) && !o.some((e) => /5\.000/.test(e.t)), 'entrega de moldes: la oferta no sale junto con el enlace');
+    let n = enviados.length; await espera(400);
+    let of = desde(n).filter((e) => e.to === M);
+    console.log('   oferta →', of.map((e) => e.t.replace(/\n+/g, ' ⏎ ').slice(0, 220)).join(' | '));
+    check(of.length === 1 && of[0].tipo === 'botones' && of[0].botones.map((b) => b.id).join() === 'btn_upsell_si,btn_upsell_no', 'tras la espera: oferta con botones Sí / No');
+    check(of[0] && of[0].botones.every((b) => b.title.length <= 20), 'botones del upsell de máximo 20 caracteres');
+    check(of[0] && !/éxito de ventas|solo por hoy/i.test(of[0].t) && /\$5\.000/.test(of[0].t), 'oferta sin afirmaciones falsas, por $5.000');
+    check(await flow.enviarOfertaUpsell(M) === false, 'la oferta no se repite');
+    o = await txt(M, 'No me abre el archivo');
+    check(/Files de Google/.test(o[0].t) && !/Entendido/.test(o[0].t) && store.getLead(M).esperaRespuestaUpsell, '"No me abre el archivo": soporte, no cuenta como "no" a la oferta');
+    o = await txt(M, 'Gracias');
+    check(!o.some((e) => /5\.000/.test(e.t)), '"Gracias" no manda los datos del upsell');
+    o = await boton(M, 'btn_upsell_si', '🍰 Sí, por $5.000');
+    check(/Nequi/.test(o[0].t) && /\$5\.000/.test(o[0].t), 'botón Sí: datos de pago por $5.000');
+    o = await img(M); // reenvía el comprobante de la primera compra (ref U1)
+    check(/compra del Mega Pack/.test(o[o.length - 1].t) && !store.yaCompro(M, 'upsell_helados'), 'comprobante viejo de la primera compra: no entrega el upsell');
+    ocrRespuesta = { isValid: true, esComprobante: true, amount: 5000, reference: 'U2', bank: 'nequi', titularValido: true };
+    n = enviados.length;
+    o = await img(M);
+    await espera(400);
+    const vU = store.pedidosDeTelefono(M).filter((p) => p.status === 'VERIFICADO' && p.producto === 'upsell_helados');
+    check(vU.length === 1 && vU[0].amount === 5000, 'comprobante de $5.000: venta del upsell registrada');
+    check(o.some((e) => /Emprende Dulce/.test(e.t) && /acceso\//.test(e.t)), 'entrega el acceso al pack Emprende Dulce');
+    check(!desde(n).some((e) => e.tipo === 'botones'), 'tras pagar el upsell no llega otra oferta');
+    o = await txt(M, 'No me abre ningún archivo');
+    check(/Files de Google/.test(o[0].t) && (o[0].t.match(/acceso\//g) || []).length === 2, 'comprador de los dos packs: soporte de moldes con los dos enlaces');
+    const enlM = (o[0].t.match(/acceso\/([A-Za-z0-9_-]+)/) || [])[1];
+    check(enlM && require(R + 'accesos').estado(enlM).acceso.producto === 'moldes', 'el primer enlace sigue siendo el de moldes');
+
+    const N = '573000000014';
+    await txt(N, SALUDO, REF); await txt(N, 'como pago');
+    ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'N1', bank: 'nequi', titularValido: true };
+    await img(N); await espera(400);
+    o = await txt(N, 'No gracias');
+    check(/Entendido/.test(o[0].t) && !store.getLead(N).esperaRespuestaUpsell, '"No gracias": se cierra la oferta');
+
+    const P = '573000000015';
+    await txt(P, SALUDO, REF); await txt(P, 'como pago');
+    process.env.UPSELL_MINUTOS = '600';
+    ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'P1', bank: 'nequi', titularValido: true };
+    await img(P);
+    await txt(P, 'No me descarga nada');
+    check(await flow.enviarOfertaUpsell(P, { entregadoAt: store.getLead(P).entregadoAt }) === false, 'quien reportó un problema de descarga no recibe la oferta');
+  } else {
+    console.log('  (horario de silencio: se omiten las pruebas del upsell)');
   }
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);

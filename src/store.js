@@ -275,7 +275,8 @@ const store = {
 
   crearPedido(phone, orderData = {}) {
     const lead = store.getLead(phone);
-    const prodId = orderData.producto || (lead && lead.producto) || 'helados';
+    // Comprador que está pagando el upsell: el pedido es del pack Emprende Dulce aunque quede en revisión manual
+    const prodId = orderData.producto || (lead && lead.esperaUpsell ? 'upsell_helados' : null) || (lead && lead.producto) || 'helados';
 
     // 1. Si ya existe un pedido PENDIENTE para este mismo teléfono, NO crear un duplicado;
     // actualizar el existente con los nuevos datos recibidos.
@@ -423,6 +424,8 @@ const store = {
       if (store.comprobantePendiente(phone)) continue;
       const conv = conversations[phone];
       if (!conv || !conv.ultimoDelCliente || conv.pausado) continue;
+      // Prometió pagar después y no ha vuelto a escribir: solo recibe el recordatorio acordado (seguimiento.js)
+      if (lead.pagoPospuesto && conv.ultimoDelCliente <= lead.pagoPospuesto.at) continue;
 
       const tiempoDesdeCliente = ahora - conv.ultimoDelCliente;
       if (tiempoDesdeCliente >= 23.5 * H) continue;

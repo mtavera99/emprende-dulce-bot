@@ -190,4 +190,9 @@ Reglas:
       };
     } catch (error) {
       console.error("[OCR ERROR OpenAI]:", error.message);
-      return { isValid: false, reason: "Error procesand
+      return { isValid: false, reason: "Error procesando con OpenAI: " + error.message };
+    }
+  }
+}
+
+module.exports = new OCRValidator();

@@ -193,4 +193,9 @@ class AudioService {
       return { ok: true, text };
     } catch (err) {
       console.error('[AUDIO ERROR] Excepción transcribiendo con Whisper:', err.message);
-      retu
+      return { ok: false, error: err.message };
+    }
+  }
+}
+
+module.exports = new AudioService();

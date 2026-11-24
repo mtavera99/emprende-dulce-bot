@@ -835,4 +835,10 @@ Sofía:`;
         await waService.sendTextMessage(phone, msgFallo);
         store.agregarMensaje(phone, { from: 'bot', text: msgFallo, type: 'text' });
       } catch (sendErr) {
-        console.error('[FLOW ERROR] No se pudo enviar mensaje de fallbac
+        console.error('[FLOW ERROR] No se pudo enviar mensaje de fallback:', sendErr.message);
+      }
+    }
+  }
+}
+
+module.exports = new ConversationFlow();

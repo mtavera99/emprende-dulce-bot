@@ -49,6 +49,9 @@ async function ejecutarSeguimientos() {
         if (producto === 'moldes') {
           await enviarImagen(phone, img.portada);
           await enviarImagen(phone, img.mapa);
+        } else if (producto === 'muebles') {
+          await enviarImagen(phone, img.plano);
+          await enviarImagen(phone, img.cortes);
         } else {
           await enviarImagen(phone, img.catalogo);
         }
@@ -82,12 +85,13 @@ async function ejecutarSeguimientos() {
 function textoPrueba(paso, lead, settings) {
   const precio = Number(ventas.precioDe(lead)).toLocaleString('es-CO');
   const moldes = lead.producto === 'moldes';
+  const muebles = lead.producto === 'muebles';
   const num = settings.nequiNumero || '3058742138';
   const cuentas = ventas.cuentas(settings);
   if (paso === 1) {
-    return `¿Qué tal te pareció? 😊 Ya pudiste ver por dentro la calidad ${moldes ? 'de los moldes' : 'de las recetas'}.\n\n` +
+    return `¿Qué tal te pareció? 😊 Ya pudiste ver por dentro la calidad ${moldes ? 'de los moldes' : muebles ? 'de los planos' : 'de las recetas'}.\n\n` +
       `Si es lo que buscabas, te dejo las cuentas para tus *$${precio} COP*:\n\n${cuentas}\n\n` +
-      `Apenas me envíes la foto del comprobante te desbloqueo ${moldes ? 'las 10 colecciones completas' : 'los 3 libros y todos los bonos'} al instante ${moldes ? '🧵' : '🍰'}`;
+      `Apenas me envíes la foto del comprobante te desbloqueo ${moldes ? 'las 10 colecciones completas' : muebles ? `los ${ventas.infoPack('muebles').totales.planos} planos, las guías y los bonos` : 'los 3 libros y todos los bonos'} al instante ${moldes ? '🧵' : muebles ? '🪚' : '🍰'}`;
   }
   if (paso === 2) {
     return `Tu acceso de prueba se cierra en 10 minutos ⏳\n\n` +

@@ -88,7 +88,30 @@ function contenidoHelados() {
   };
 }
 
-const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados };
+function contenidoMuebles() {
+  let man = { categorias: [], guias: [], bonos: [], totales: {}, muestra: {} };
+  try { man = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'muebles/manifest.json'), 'utf8')); } catch (_) {}
+  const T = man.totales || {};
+  const items = [];
+  if (man.muestra && man.muestra.archivo) {
+    items.push({ id: 'muestra', grupo: 'Muestra gratis', titulo: `🎁 Plano completo: ${man.muestra.nombre} (${man.muestra.cod})`, sub: 'Vista acotada, despiece en mm, herrajes, láminas, cortes y armado', archivo: man.muestra.archivo, gratis: true, soloPrueba: true });
+  }
+  for (const c of man.categorias) {
+    items.push({ id: `p${c.id}`, grupo: 'Planos por categoría (PDF)', titulo: `${c.id} · ${c.nombre}`, sub: `${c.planos.length} planos · ${c.disenos.join(' · ')}`, archivo: `muebles/${c.archivo}` });
+  }
+  man.guias.forEach((g, i) => items.push({ id: `g${i + 1}`, grupo: 'Guías prácticas (PDF)', titulo: g.titulo, sub: g.sub, archivo: `muebles/${g.archivo}` }));
+  man.bonos.forEach((b, i) => items.push({ id: `b${i + 1}`, grupo: 'Bonos de negocio', titulo: b.titulo, sub: b.sub, archivo: `muebles/${b.archivo}`, abrir: !!b.abrir, gratis: !!b.abrir }));
+  items.push({ id: 'zip', grupo: 'Todo en un archivo', titulo: '📦 Pack completo en ZIP', sub: 'Los 5 PDF de planos, las guías y los bonos', archivo: 'muebles/Mega_Pack_Muebles_Melamina_2026.zip' });
+  return {
+    titulo: 'Mega Pack de Carpintería y Muebles en Melamina 2026', emoji: '🪚',
+    intro: `${T.planos || 0} planos con medidas exactas en mm (${T.disenos || 0} diseños en varias medidas) en ${T.categorias || 0} categorías, con despiece, herrajes, láminas, plano de cortes y paso a paso; ${T.guias || 0} guías prácticas y ${T.bonos || 0} bonos de negocio.`,
+    nota: 'Abre el catálogo interactivo para buscar cada plano, ver su despiece en el celular y ajustar las medidas a tu espacio.',
+    catalogo: true,
+    items,
+  };
+}
+
+const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados, muebles: contenidoMuebles };
 
 function contenido(producto) {
   const fn = CONTENIDOS[producto] || CONTENIDOS.helados;

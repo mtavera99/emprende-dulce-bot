@@ -358,6 +358,48 @@ async function img(phone) {
   o = await txt(T3, 'mañana le consigno');
   check(/\$8\.000/.test(o[0].t), 'pago pospuesto conserva el precio que tenía ($8.000)');
 
+  // 15. Pack de muebles: anuncio nuevo (sin ID registrado), muestra, compra y soporte
+  const REFM = { source_id: '120299999999990001', headline: '+139 Planos de Muebles en Melamina', ctwa_clid: 'CLID-MUEBLES-1' };
+  const MU = '573000000030';
+  o = await txt(MU, 'Hola, quiero más información', REFM);
+  check(store.getLead(MU).producto === 'muebles' && store.getLead(MU).ctwaClid === 'CLID-MUEBLES-1' && store.getLead(MU).adId === REFM.source_id, 'anuncio nuevo de muebles: detecta el producto por el titular y guarda ctwa_clid y el ID del anuncio');
+  const manM = ventas.infoPack('muebles');
+  check(o[0].tipo === 'imagen' && /muebles_1_catalogo/.test(o[0].t), 'muebles: primer mensaje con la imagen del catálogo');
+  check(o[1].tipo === 'botones' && new RegExp(`${manM.totales.planos} planos`).test(o[1].t) && new RegExp(`${manM.totales.disenos} diseños`).test(o[1].t) && !/moldes|postre/i.test(o[1].t), 'muebles: pitch con las cifras reales del pack y botones');
+  o = await boton(MU, 'muestra', '🎁 Muestra gratis');
+  const docsM = o.filter((e) => e.tipo === 'doc');
+  check(docsM.length === 1 && /Muestra_Muebles_Plano/.test(docsM[0].t) && o.some((e) => /muebles_2_plano/.test(e.t)), 'muebles: la muestra es 1 plano completo en PDF + imagen del plano');
+  check(/planos\* del pack/.test(o[o.length - 1].t) && /datos de pago/.test(o[o.length - 1].t), 'muebles: después de la muestra pregunta por la compra');
+  o = await txt(MU, 'Si');
+  check(/Nequi/.test(o[0].t) && /\$10\.000/.test(o[0].t) && new RegExp(`los ${manM.totales.planos} planos`).test(o[0].t), 'muebles: "sí" manda los datos de pago del pack de muebles');
+  ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'MU1', bank: 'nequi', titularValido: true };
+  process.env.UPSELL_MINUTOS = '0.002';
+  o = await img(MU);
+  await new Promise((r) => setTimeout(r, 300));
+  const entrega = o.find((e) => /acceso\//.test(e.t));
+  check(entrega && /Carpintería y Muebles/.test(entrega.t) && /catálogo interactivo/.test(entrega.t), 'muebles: comprobante válido entrega el acceso al pack de muebles');
+  const tokM = (entrega.t.match(/acceso\/([A-Za-z0-9_-]+)/) || [])[1];
+  check(tokM && require(R + 'accesos').estado(tokM).acceso.producto === 'muebles', 'muebles: el enlace es del producto muebles');
+  check(store.pedidosDeTelefono(MU).some((p) => p.status === 'VERIFICADO' && p.producto === 'muebles' && p.origen && p.origen.ctwaClid === 'CLID-MUEBLES-1'), 'muebles: la venta queda con producto y ctwa_clid del anuncio');
+  check(!desde(0).some((e) => e.to === MU && e.tipo === 'botones' && /upsell/.test(e.t)), 'muebles: no se ofrece el upsell de Emprende Dulce');
+  process.env.UPSELL_MINUTOS = '600';
+  o = await txt(MU, 'No me abre el archivo');
+  check(/catálogo interactivo/.test(o[0].t) && /acceso\//.test(o[0].t) && !/Files de Google|patrón/.test(o[0].t), 'comprador de muebles con problema: guía del pack de muebles');
+  const MV = '573000000031';
+  o = await txt(MV, 'Quiero los planos de closet en melamina');
+  check(store.getLead(MV).producto === 'muebles' && /139 planos|planos con medidas/.test(o[1].t), 'muebles: palabras clave en el mensaje');
+  if (!ventas.enHorarioSilencio()) {
+    store.obtenerConversacion(MV).ultimoDelCliente = Date.now() - 2.1 * 3600e3;
+    const nM = enviados.length; await seg.ejecutarSeguimientos();
+    const s1M = desde(nM).filter((e) => e.to === MV);
+    check(s1M.length === 1 && /regalo\/calculadora\?p=muebles/.test(s1M[0].t) && /\$8\.000/.test(s1M[0].t) && !/prenda|postre/.test(s1M[0].t), 'muebles: seguimiento 1 con la calculadora de muebles y $8.000');
+  }
+  o = await txt(MV, 'HONESTIDAD');
+  check(/prueba\//.test(o[0].t) && /catálogo de los/.test(o[0].t), 'muebles: HONESTIDAD con el detalle del pack de muebles');
+  let crash = null;
+  try { await txt('573000000032', 'Hola', { source_id: '1', headline: 'Oferta' }); } catch (e) { crash = e; }
+  check(!crash, 'anuncio desconocido sin palabras clave: no rompe la detección');
+
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

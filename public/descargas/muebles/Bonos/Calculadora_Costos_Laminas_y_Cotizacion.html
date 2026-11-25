@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Costos, Láminas y Cotización · Muebles en Melamina 2026</title>
+<style>
+:root{--c1:#2b1d12;--oro:#e0a84b;--crema:#fbf6ee;--linea:#e6dccb;--gris:#6b6257}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 Inter,"Noto Sans",Arial,sans-serif;color:#231a12;background:var(--crema)}
+header{background:var(--c1);color:#fff;padding:22px 20px;border-bottom:4px solid var(--oro)}header h1{margin:0;font:800 23px Georgia,serif}header p{margin:6px 0 0;color:#efe3d2;font-size:14px}
+main{max-width:1080px;margin:0 auto;padding:18px;display:grid;grid-template-columns:1.25fr 1fr;gap:18px}@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:16px;margin-bottom:14px}h2{margin:0 0 10px;font:700 17px Georgia,serif;color:var(--c1)}
+label{display:block;font-size:13px;color:var(--gris);margin:8px 0 3px}input{width:100%;padding:8px 10px;border:1px solid #d6cbb9;border-radius:6px;font:inherit}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tres{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}td{padding:6px 4px;border-bottom:1px solid var(--linea)}td:last-child{text-align:right;font-weight:600}
+.tot td{font-weight:800;color:var(--c1);border-top:2px solid var(--c1)}.precio{font:800 32px Georgia,serif;color:var(--c1)}
+.nota{font-size:12px;color:var(--gris)}.kpi{background:var(--crema);border-radius:8px;padding:10px;text-align:center}.kpi b{display:block;font:800 19px Georgia,serif;color:var(--c1)}
+button{background:var(--c1);color:#fff;border:0;border-radius:6px;padding:10px 14px;font:600 14px inherit;cursor:pointer;margin:6px 6px 0 0}button.sec{background:#efe6d8;color:var(--c1)}
+.aviso{background:#fff7e6;border:1px solid #f1d39b;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+textarea{width:100%;min-height:150px;font:13px/1.4 monospace;border:1px solid #d6cbb9;border-radius:6px;padding:8px}
+</style></head><body>
+<header><h1>Calculadora de Costos, Láminas y Cotización</h1><p>Mega Pack de Carpintería y Muebles en Melamina 2026 · Bono · Precios en pesos colombianos. Todo es editable.</p></header>
+<main>
+<div>
+<div class="aviso"><b>Los precios que trae son solo de ejemplo.</b> Cámbialos por los de tu depósito y tu ciudad antes de cotizar. Las cantidades del ejemplo son las del plano <span id="ejNom"></span>.</div>
+<section><h2>1 · Mueble y materiales</h2>
+<label>Nombre del trabajo</label><input id="nombre">
+<div class="dos"><div><label>Tableros de melamina</label><input id="tab" type="number" min="0" step="1"></div><div><label>Precio por tablero</label><input id="pTab" type="number" value="230000"></div></div>
+<div class="dos"><div><label>Láminas HDF 3 mm (fondos)</label><input id="hdf" type="number" min="0" step="1"></div><div><label>Precio por lámina HDF</label><input id="pHdf" type="number" value="45000"></div></div>
+<div class="dos"><div><label>Tapacanto 0,45 mm (metros)</label><input id="cf" type="number" step="0.1"></div><div><label>Precio por metro</label><input id="pCf" type="number" value="1200"></div></div>
+<div class="dos"><div><label>Tapacanto 2 mm (metros)</label><input id="cg" type="number" step="0.1"></div><div><label>Precio por metro</label><input id="pCg" type="number" value="3000"></div></div>
+<div class="dos"><div><label>Corte en el depósito (por tablero)</label><input id="pCorte" type="number" value="15000"></div><div><label>Enchape (por metro de canto)</label><input id="pEnch" type="number" value="1500"></div></div>
+</section>
+<section><h2>2 · Herrajes</h2>
+<div class="tres"><div><label>Bisagras</label><input id="bis" type="number" min="0"></div><div><label>Pares de correderas</label><input id="cor" type="number" min="0"></div><div><label>Manijas</label><input id="man" type="number" min="0"></div></div>
+<div class="tres"><div><label>Precio bisagra</label><input id="pBis" type="number" value="6000"></div><div><label>Precio par de correderas</label><input id="pCor" type="number" value="25000"></div><div><label>Precio manija</label><input id="pMan" type="number" value="5000"></div></div>
+<div class="dos"><div><label>Otros herrajes (rieles, patas, tubos…)</label><input id="otros" type="number" value="180000"></div><div><label>Tornillería y pegante</label><input id="torn" type="number" value="15000"></div></div>
+</section>
+<section><h2>3 · Trabajo y gastos</h2>
+<div class="dos"><div><label>Días de trabajo</label><input id="dias" type="number" step="0.5" value="2"></div><div><label>Valor de tu día</label><input id="vDia" type="number" value="120000"></div></div>
+<div class="dos"><div><label>Transporte</label><input id="trans" type="number" value="60000"></div><div><label>Instalación (si la cobras aparte)</label><input id="inst" type="number" value="0"></div></div>
+<div class="dos"><div><label>Indirectos e imprevistos (%)</label><input id="ind" type="number" value="15"></div><div><label>Ganancia sobre el precio (%)</label><input id="gan" type="number" value="30"></div></div>
+<p class="nota">La ganancia se calcula sobre el precio de venta: con 30 %, de cada $100.000 que cobras quedan $30.000 de ganancia.</p>
+</section>
+<section><h2>4 · ¿Cuántas láminas? (estimador rápido)</h2>
+<div class="tres"><div><label>m² de piezas de melamina</label><input id="m2" type="number" step="0.01"></div><div><label>Desperdicio (%)</label><input id="desp" type="number" value="20"></div><div><label>Formato (m)</label><input id="fmt" value="2,15 × 2,44"></div></div>
+<p class="nota" id="estim"></p>
+<p class="nota">Suma largo × ancho × cantidad de todas las piezas (en metros). El estimado sirve para cotizar rápido; el número exacto sale del plano de cortes de cada plano del pack.</p>
+</section>
+</div>
+<div>
+<section style="position:sticky;top:12px"><h2>Resultado</h2>
+<table id="res"></table>
+<p style="margin:14px 0 4px" class="nota">Precio sugerido al cliente</p><div class="precio" id="precio">—</div>
+<div class="dos" style="margin-top:10px"><div class="kpi"><b id="ant">—</b>Anticipo 50 %</div><div class="kpi"><b id="saldo">—</b>Saldo contra entrega</div></div>
+<div class="dos" style="margin-top:10px"><div class="kpi"><b id="ganV">—</b>Tu ganancia</div><div class="kpi"><b id="moV">—</b>Tu mano de obra</div></div>
+<h2 style="margin-top:16px">Cotización para WhatsApp</h2>
+<textarea id="cot" readonly></textarea>
+<button onclick="copiar()">Copiar cotización</button><button class="sec" onclick="window.print()">Imprimir o guardar en PDF</button>
+<p class="nota">Este cálculo es una guía. No es asesoría contable ni tributaria.</p>
+</section></div>
+</main>
+<script>
+const EJ = {"nombre":"Clóset de 2 puertas corredizas 1.800 × 2.200 mm (ejemplo del pack)","tableros":3,"fondos":3,"cantoFino":25.6,"cantoGrueso":18.1,"bisagras":0,"correderas":3,"manijas":5,"m2":13.685};
+const $ = (id) => document.getElementById(id);
+const n = (id) => { const v = parseFloat(String($(id).value).replace(',', '.')); return isFinite(v) ? v : 0; };
+const cop = (v) => '$' + Math.round(v).toLocaleString('es-CO');
+const q = new URLSearchParams(location.search);
+const ini = { nombre: q.get('n') || EJ.nombre, tab: q.get('t') ?? EJ.tableros, hdf: q.get('f') ?? EJ.fondos, cf: q.get('cf') ?? EJ.cantoFino, cg: q.get('cg') ?? EJ.cantoGrueso, bis: q.get('bis') ?? EJ.bisagras, cor: q.get('cor') ?? EJ.correderas, man: q.get('man') ?? EJ.manijas, m2: q.get('m2') ?? EJ.m2 };
+if (q.get('otros') !== null) $('otros').value = q.get('otros');
+for (const [k, v] of Object.entries(ini)) $(k).value = v;
+$('ejNom').textContent = q.get('n') ? '«' + q.get('n') + '»' : '«' + EJ.nombre + '»';
+function calc() {
+  const mat = n('tab') * n('pTab') + n('hdf') * n('pHdf') + n('cf') * n('pCf') + n('cg') * n('pCg');
+  const serv = n('tab') * n('pCorte') + (n('cf') + n('cg')) * n('pEnch');
+  const herr = n('bis') * n('pBis') + n('cor') * n('pCor') + n('man') * n('pMan') + n('otros') + n('torn');
+  const mo = n('dias') * n('vDia');
+  const otros = n('trans') + n('inst');
+  const directo = mat + serv + herr + mo + otros;
+  const ind = directo * n('ind') / 100;
+  const g = Math.min(90, Math.max(0, n('gan'))) / 100;
+  const precio = Math.ceil(((directo + ind) / (1 - g)) / 1000) * 1000;
+  const filas = [['Materiales (tableros, HDF, canto)', mat], ['Corte y enchape', serv], ['Herrajes y tornillería', herr], ['Mano de obra', mo], ['Transporte e instalación', otros], ['Indirectos e imprevistos', ind]];
+  $('res').innerHTML = filas.map(([a, b]) => `<tr><td>${a}</td><td>${cop(b)}</td></tr>`).join('') + `<tr class="tot"><td>Costo total</td><td>${cop(directo + ind)}</td></tr>`;
+  $('precio').textContent = cop(precio);
+  $('ant').textContent = cop(Math.ceil(precio / 2 / 1000) * 1000);
+  $('saldo').textContent = cop(precio - Math.ceil(precio / 2 / 1000) * 1000);
+  $('ganV').textContent = cop(precio - directo - ind);
+  $('moV').textContent = cop(mo);
+  const util = 2.13 * 2.42;
+  const est = Math.ceil(n('m2') * (1 + n('desp') / 100) / util);
+  $('estim').innerHTML = n('m2') ? `Estimado: <b>${est} tablero${est === 1 ? '' : 's'}</b> (${n('m2').toLocaleString('es-CO')} m² + ${n('desp')} % de desperdicio ÷ ${util.toFixed(2).replace('.', ',')} m² útiles por tablero de 2,15 × 2,44 m).` : '';
+  const hoy = new Date().toLocaleDateString('es-CO');
+  $('cot').value = `COTIZACIÓN · ${hoy}\n${$('nombre').value}\n\nIncluye: material en melamina, corte y enchape, herrajes${n('trans') ? ', transporte' : ''}${n('inst') || n('dias') ? ', armado' : ''}${n('inst') ? ' e instalación' : ''}.\n\nValor total: ${cop(precio)}\nAnticipo para iniciar (50 %): ${$('ant').textContent}\nSaldo contra entrega: ${$('saldo').textContent}\n\nValidez de la cotización: 8 días (el precio del tablero puede cambiar).\nLos cambios de medidas después del corte se cobran aparte.`;
+}
+function copiar() { $('cot').select(); try { navigator.clipboard.writeText($('cot').value); } catch (_) { document.execCommand('copy'); } }
+document.querySelectorAll('input').forEach((i) => i.addEventListener('input', calc));
+calc();
+</script>
+</body></html>

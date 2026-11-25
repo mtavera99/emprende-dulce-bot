@@ -1181,6 +1181,11 @@ function render(aviso = '') {
             <input type="text" name="driveLinkMoldes" value="${esc(settings.driveLinkMoldes || '')}" placeholder="https://drive.google.com/drive/folders/..." style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
           </div>
 
+          <div style="margin-top: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE (MUEBLES EN MELAMINA) · RESPALDO CUANDO EL ENLACE NO ABRE</label>
+            <input type="text" name="driveLinkMuebles" value="${esc(settings.driveLinkMuebles || '')}" placeholder="https://drive.google.com/drive/folders/..." style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
+          </div>
+
           <div style="margin-top: 20px;">
             <button type="submit" class="btn btn-green">💾 Guardar Cambios</button>
           </div>

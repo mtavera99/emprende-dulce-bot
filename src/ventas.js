@@ -48,7 +48,24 @@ function manifestMoldes() {
   try { return JSON.parse(fs.readFileSync(path.join(PUBLIC, 'moldes/manifest.json'), 'utf8')); } catch (_) { return { colecciones: [], totales: {} }; }
 }
 
+function manifestMuebles() {
+  try { return JSON.parse(fs.readFileSync(path.join(PUBLIC, 'muebles/manifest.json'), 'utf8')); } catch (_) { return { categorias: [], guias: [], bonos: [], totales: {}, muestra: {} }; }
+}
+
 function infoPack(producto) {
+  if (producto === 'muebles') {
+    const m = manifestMuebles();
+    const T = m.totales || {};
+    return {
+      producto,
+      nombre: 'Mega Pack de Carpintería y Muebles en Melamina 2026',
+      emoji: '🪚',
+      queIncluye: `los ${T.planos || 0} planos, las ${T.guias || 4} guías y los ${T.bonos || 2} bonos`,
+      categorias: m.categorias,
+      muestra: m.muestra || {},
+      totales: { planos: T.planos || 0, disenos: T.disenos || 0, categorias: T.categorias || 0, piezas: T.piezas || 0 },
+    };
+  }
   if (producto === 'moldes') {
     const m = manifestMoldes();
     const T = m.totales || {};
@@ -72,6 +89,22 @@ function infoPack(producto) {
 // Texto que se le da a la IA para que solo hable de lo que el pack trae de verdad
 function conocimiento(producto) {
   const p = infoPack(producto);
+  if (producto === 'muebles') {
+    const lista = p.categorias.map((c) => {
+      const porDiseno = {};
+      for (const pl of c.planos) (porDiseno[pl.nombre] = porDiseno[pl.nombre] || []).push(pl.A);
+      return `- ${c.id} ${c.nombre} (${c.planos.length} planos): ` + Object.entries(porDiseno).map(([d, anchos]) => `${d} (${anchos.length > 1 ? `anchos de ${anchos.join(', ')} mm` : `${anchos[0]} mm de ancho`})`).join('; ');
+    }).join('\n');
+    return `PRODUCTO: ${p.nombre}. Es digital (PDF y un catálogo web), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
+CONTENIDO EXACTO (no hay nada más): ${p.totales.planos} planos de ${p.totales.disenos} diseños en varias medidas, en 5 categorías:
+${lista}
+- Cada plano trae: vista frontal con medidas, despiece pieza por pieza en milímetros (cantidad, largo, ancho y tapacanto), lista de herrajes y tornillería, cuántos tableros de 2,15 × 2,44 m y láminas de HDF comprar, metros de tapacanto, plano de cortes por tablero y paso a paso de armado.
+- Melamina de 15 mm (las camas en 18 mm). En el catálogo web el comprador puede cambiar ancho, alto, fondo y espesor de los muebles de cuerpo, escritorios y tocadores, y se recalcula el despiece.
+- Sirve sin taller: se lleva el despiece a un depósito (Madecentro, Homecenter u otro) que corta y enchapa, y se arma en casa con taladro.
+- 4 guías en PDF: Materiales, tableros y herrajes; Cortar, cantear, perforar y unir (incluye el camino sin taller); Optimización de cortes y láminas; Diseño 3D con SketchUp y render.
+- 2 bonos: Calculadora de costos, láminas y cotización en pesos colombianos (se abre en el navegador) y Guía para cobrar un trabajo de carpintería en Colombia (márgenes, anticipo del 50 %, cotización).
+NO INCLUYE: archivos de SketchUp (.skp) ni renders hechos, videos, mesones (granito o postformado), módulos esquineros de cocina, camarotes ni camas altas, camas con cajones, puertas de vidrio, instalaciones eléctricas ni de plomería. Los planos no están probados en un taller físico: se calculan con reglas de construcción estándar y se recomienda revisar las medidas antes de cortar.`;
+  }
   if (producto === 'moldes') {
     const lista = p.colecciones.map((c) => `- ${c.id} ${c.titulo}: ${c.prendas.join('; ')}`).join('\n');
     return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
@@ -96,6 +129,13 @@ function host() {
 
 function imagenes(producto) {
   const h = host();
+  if (producto === 'muebles') {
+    return {
+      catalogo: `${h}/descargas/muestras/img/muebles_1_catalogo.jpg`,
+      plano: `${h}/descargas/muestras/img/muebles_2_plano.jpg`,
+      cortes: `${h}/descargas/muestras/img/muebles_3_cortes.jpg`,
+    };
+  }
   if (producto === 'moldes') {
     return {
       catalogo: `${h}/descargas/muestras/img/moldes_1_catalogo.jpg`,
@@ -110,6 +150,10 @@ function imagenes(producto) {
 // PDF de muestra que se envían por WhatsApp (abren directo en el celular)
 function documentosMuestra(producto) {
   const h = host();
+  if (producto === 'muebles') {
+    const m = infoPack('muebles').muestra;
+    return [{ url: `${h}/muestra/Muestra_Muebles_Plano_Mesa_de_Noche.pdf`, nombre: 'Muestra_Muebles_Plano_Mesa_de_Noche.pdf', caption: `Plano completo: ${m.nombre || 'Mesa de noche de 2 cajones'} (${m.cod || 'DOR-MN1-450'}), despiece en mm` }];
+  }
   if (producto === 'moldes') {
     return [
       { url: `${h}/muestra/Muestra_Falda_Ficha_Tecnica.pdf`, nombre: 'Muestra_Falda_Ficha_Tecnica.pdf', caption: 'Ficha técnica completa de la Falda Media Campana (6 páginas)' },
@@ -127,7 +171,24 @@ function cuentas(settings) {
     `👤 *Titular:* ${settings.nequiTitular || 'Manuel Tavera'} _(en Nequi o Daviplata te puede salir como MAN*** TAV***)_`;
 }
 
+// Qué es la muestra gratis, en pocas palabras (para reenvíos y para la IA)
+function descripcionMuestra(producto) {
+  if (producto === 'moldes') return '2 PDF: la ficha técnica y el molde de la talla M de la Falda Media Campana';
+  if (producto === 'muebles') return `1 PDF: el plano completo de la ${(infoPack('muebles').muestra.nombre || 'mesa de noche de 2 cajones').toLowerCase()}`;
+  return '1 PDF con 5 recetas de Postres en Vaso';
+}
+
 function textoPitch(producto) {
+  if (producto === 'muebles') {
+    const p = infoPack('muebles');
+    return `¡Hola! 🪚 Te cuento qué trae el *Mega Pack de Carpintería y Muebles en Melamina 2026*:\n\n` +
+      `✅ *${p.totales.planos} planos con medidas exactas en mm* (${p.totales.disenos} diseños en varias medidas): cocinas, alacenas y baño; clósets, vestidores y zapateras; escritorios, oficina y muebles de TV; camas, cómodas, mesas de noche y tocadores; infantiles y organizadores\n` +
+      `✅ Cada plano trae el *despiece pieza por pieza* con medidas y tapacanto, los herrajes, cuántas láminas comprar, el plano de cortes y el paso a paso de armado\n` +
+      `✅ Sirve aunque no tengas taller: llevas el despiece al depósito, allá te cortan y enchapan, y lo armas en casa con taladro\n` +
+      `✅ 4 guías (materiales y herrajes, cortar y armar, optimizar cortes, diseño 3D en SketchUp) + calculadora de costos y cotización en pesos + guía para cobrar tus trabajos\n\n` +
+      `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
+      `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* un plano completo de muestra 🎁`;
+  }
   if (producto === 'moldes') {
     return `¡Hola! 🧵 Te cuento qué trae el *Mega Pack de Moldes de Costura 2026*:\n\n` +
       `✅ *2.420 moldes a escala real* listos para imprimir en tu casa: son *34 prendas completas*, cada una con todas sus piezas en *todas sus tallas* (XS a XXL en adulto; también niños, bebé y mascotas), en hoja Carta y en A4\n` +
@@ -162,7 +223,7 @@ function textoRescate(tipo) {
 }
 
 function enlaceCalculadora(producto) {
-  return `${host()}/regalo/calculadora?p=${producto === 'moldes' ? 'moldes' : 'helados'}`;
+  return `${host()}/regalo/calculadora?p=${['moldes', 'muebles'].includes(producto) ? producto : 'helados'}`;
 }
 
 function textoPago(producto, settings, precio, opciones = {}) {
@@ -176,6 +237,10 @@ function textoPago(producto, settings, precio, opciones = {}) {
 
 function textoDespuesMuestra(producto, precio) {
   const p = infoPack(producto);
+  if (producto === 'muebles') {
+    return `Ahí te va 👆 el plano completo de la *${p.muestra.nombre || 'Mesa de noche de 2 cajones'}*: vista con medidas, despiece en mm con tapacanto, herrajes, láminas, plano de cortes y armado.\n\n` +
+      `Así vienen los *${p.totales.planos} planos* del pack. Si te gusta, el pack completo con ${p.queIncluye} vale *${cop(precio)}*. ¿Te paso los datos de pago?`;
+  }
   return producto === 'moldes'
     ? `Ahí te van 👆 la ficha técnica completa y el molde de la talla M. Ábrelo en el celular o imprímelo al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm.\n\n` +
       `Así vienen los *34 patrones* del pack, cada uno en todas sus tallas. Si te gusta, el pack completo con ${p.queIncluye} vale *${cop(precio)}*. ¿Te paso los datos de pago?`
@@ -183,6 +248,10 @@ function textoDespuesMuestra(producto, precio) {
 }
 
 function textoConfianza(producto) {
+  if (producto === 'muebles') {
+    return `Te entiendo, hay mucho engaño en internet 🙏 Por eso no te pido que confíes: *mira primero el material*.\n\n` +
+      `Te mando gratis un plano completo con su despiece en mm para que lo abras y lo revises antes de pagar. Si te convence, compras el pack; si no, no pierdes nada.`;
+  }
   return producto === 'moldes'
     ? `Te entiendo, hay mucho engaño en internet 🙏 Por eso no te pido que confíes: *mira primero el material*.\n\n` +
       `Te mando gratis un patrón completo (ficha técnica + molde a escala real) para que lo abras y lo revises antes de pagar. Si te convence, compras el pack; si no, no pierdes nada.`
@@ -195,9 +264,12 @@ function textoSeguimiento(paso, producto, precio) {
   const p = infoPack(producto);
   const e = p.emoji;
   if (paso === 1) {
-    return `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar ${producto === 'moldes' ? 'por cada prenda' : 'por cada postre'}:\n${enlaceCalculadora(producto)}\n\n` +
-      `Y si hoy te animas, te dejo el ${producto === 'moldes' ? 'pack completo' : 'paquete completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal())}. ` +
+    return `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar ${{ moldes: 'por cada prenda', muebles: 'por cada mueble (calcula láminas, herrajes y anticipo)' }[producto] || 'por cada postre'}:\n${enlaceCalculadora(producto)}\n\n` +
+      `Y si hoy te animas, te dejo el ${producto === 'helados' ? 'paquete completo' : 'pack completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal())}. ` +
       `Solo dime "sí" y te paso los datos ${e}`;
+  }
+  if (paso === 2 && producto === 'muebles') {
+    return `Te muestro cómo viene cada plano por dentro 👆 Despiece en mm con tapacanto, herrajes, cuántas láminas comprar y el plano de cortes.\n\n¿Quieres que te envíe gratis un plano completo para que lo revises? 🎁`;
   }
   if (paso === 2) {
     return producto === 'moldes'
@@ -283,12 +355,12 @@ function esNoLlego(texto) {
 // La IA ofrece la muestra ("¿Te envío gratis un patrón completo?") o dice que ya envió un archivo
 function iaOfreceMuestra(texto) {
   const n = normalizar(texto);
-  return /\b(te (envio|mando|comparto)|quieres que te (envie|mande|comparta)|te gustaria (que te envie|recibir|ver))\b.{0,80}\b(gratis|muestra|patron|molde|recetas?)\b/.test(n) || /\bmuestra gratis\b.{0,40}\?/.test(n) || /\?.{0,5}$/.test(n) && /\bmuestra\b/.test(n);
+  return /\b(te (envio|mando|comparto)|quieres que te (envie|mande|comparta)|te gustaria (que te envie|recibir|ver))\b.{0,80}\b(gratis|muestra|patron|molde|recetas?|plano)\b/.test(n) || /\bmuestra gratis\b.{0,40}\?/.test(n) || /\?.{0,5}$/.test(n) && /\bmuestra\b/.test(n);
 }
 function iaDiceQueEnvio(texto) {
   // Sin las preguntas ("¿Quieres que te envíe…?") ni el subjuntivo "que te envíe", que sin tildes se escribe igual que "te envié"
   const n = normalizar(texto).replace(/¿[^?]*\?/g, ' ').replace(/[^.!?]*\?/g, ' ').replace(/\b(que|si) te (lo |la |los |las )?(envie|mande|reenvie|adjunte|comparta|comparti)\b/g, ' ');
-  return /\b(te (lo |la |los |las )?acabo de (enviar|mandar|reenviar|adjuntar|compartir)|te (lo |la |los |las )?(envie|mande|reenvie|adjunte|comparti)|ya te (lo |la |los |las )?(envie|mande|reenvie|adjunte)|te (lo |la |los |las )?(estoy enviando|reenvio|adjunto)|aqui (te )?(va|van|tienes) (el|la|los|las) (patron|molde|muestra|pdf|archivo|ficha))\b/.test(n);
+  return /\b(te (lo |la |los |las )?acabo de (enviar|mandar|reenviar|adjuntar|compartir)|te (lo |la |los |las )?(envie|mande|reenvie|adjunte|comparti)|ya te (lo |la |los |las )?(envie|mande|reenvie|adjunte)|te (lo |la |los |las )?(estoy enviando|reenvio|adjunto)|aqui (te )?(va|van|tienes) (el|la|los|las) (patron|molde|muestra|pdf|archivo|ficha|plano))\b/.test(n);
 }
 
 // Promete pagar después: "pago mañana al mediodía", "cuando baje al pueblo", "estoy sin señal"
@@ -349,7 +421,7 @@ function esSoporteDescarga(texto) {
 
 module.exports = {
   precioNormal, precioDescuento, precioDe, cop, enHorarioSilencio, horaColombia,
-  infoPack, conocimiento, imagenes, documentosMuestra, host,
+  infoPack, conocimiento, imagenes, documentosMuestra, descripcionMuestra, host,
   textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
   normalizar, esAfirmacion, esPedidoPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,
   esNoLlego, esNoAbre, iaOfreceMuestra, iaDiceQueEnvio, esPagoPospuesto, momentoRecordatorio, textoPagoPospuesto, textoRecordatorioPago,

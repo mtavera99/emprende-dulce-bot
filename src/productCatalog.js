@@ -14,7 +14,7 @@
  * 
  * 3. PRIORIDAD 3: Historial previo del lead (si ya tenía producto asignado).
  * 
- * 4. FALLBACK: Helados y Postres (Emprende Dulce) como producto base.
+ * 4. FALLBACK: el producto por defecto de la configuración del panel.
  */
 
 const PRODUCTOS = {
@@ -40,6 +40,20 @@ const PRODUCTOS = {
     ],
     // Detección por palabras clave en titular del anuncio o mensaje del cliente
     keywords: /(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|hoja carta)/i
+  },
+
+  // 🪚 MEGA PACK DE CARPINTERÍA Y MUEBLES EN MELAMINA 2026 ($10.000 COP)
+  muebles: {
+    id: 'muebles',
+    nombre: 'Mega Pack de Carpintería y Muebles en Melamina 2026',
+    emoji: '🪚',
+    etiqueta: 'Muebles',
+    color: '#b45309',
+    precio: 10000,
+    // Agregar aquí los IDs de la campaña, los conjuntos y los anuncios de muebles cuando se creen en Meta.
+    // Mientras tanto, el producto se detecta por el titular del anuncio o por las palabras clave.
+    metaIds: [],
+    keywords: /(mueble|melamina|carpinter|ebanist|cl[oó]set|vestier|vestidor|alacena|cocinas? integral|escritorio|despiece|tablero|aglomerado|madecentro|zapater[oa]|tocador|repisa|cajonera|organizador de cubos|planos? (de|para) (mueble|cocina|cl[oó]set|cama|escritorio))/i
   },
 
   // 🍰 UPSELL POST-COMPRA: EMPRENDE DULCE 2026 ($5.000 COP)
@@ -69,6 +83,10 @@ const PRODUCTOS = {
   }
 };
 
+// Orden para las palabras clave: muebles antes que moldes ("pantalla" contiene "pantal"); los
+// productos sin palabras clave (upsell) no se detectan por texto.
+const ORDEN_PALABRAS = ['muebles', 'moldes', 'helados'];
+
 /**
  * Identifica el producto de una conversación entrante.
  * @param {string} phone - Teléfono del cliente
@@ -80,61 +98,40 @@ const PRODUCTOS = {
 function identificarProducto(phone, text = '', message = null, lead = null) {
   const t = (text || '').toLowerCase().trim();
 
-  // 1. REGLA SUPREMA: REFERRAL DE META ADS (source_id del anuncio)
+  // 1. REGLA SUPREMA: REFERRAL DE META ADS. Primero el ID exacto en todos los productos;
+  //    solo si ningún ID coincide (anuncio nuevo aún sin registrar) se usa el titular o el texto del anuncio.
   if (message && message.referral) {
     const ref = message.referral;
     const sourceId = String(ref.source_id || '').trim();
     const headline = (ref.headline || '').toLowerCase();
     const body = (ref.body || '').toLowerCase();
     const sourceUrl = (ref.source_url || '').toLowerCase();
+    const todos = Object.values(PRODUCTOS);
 
-    for (const prodKey of Object.keys(PRODUCTOS)) {
-      const prod = PRODUCTOS[prodKey];
-      
-      // Coincidencia exacta por ID de Meta (anuncio, conjunto o campaña)
-      if (sourceId && prod.metaIds.includes(sourceId)) {
-        console.log(`[CATALOG] ✅ Producto detectado por Meta Ad ID (${sourceId}): ${prod.id.toUpperCase()}`);
-        return {
-          producto: prod.id,
-          metodo: 'META_AD_ID',
-          adId: sourceId,
-          referral: ref
-        };
-      }
-
-      // Coincidencia por ID dentro del source_url si vino allí
-      if (sourceUrl && prod.metaIds.some(id => sourceUrl.includes(id))) {
-        console.log(`[CATALOG] ✅ Producto detectado por Meta source_url: ${prod.id.toUpperCase()}`);
-        return {
-          producto: prod.id,
-          metodo: 'META_AD_URL',
-          adId: sourceId,
-          referral: ref
-        };
-      }
-
-      // Coincidencia por titular o cuerpo del anuncio de Meta
-      if (prod.keywords.test(headline) || prod.keywords.test(body)) {
-        console.log(`[CATALOG] ✅ Producto detectado por titular del anuncio ("${ref.headline}"): ${prod.id.toUpperCase()}`);
-        return {
-          producto: prod.id,
-          metodo: 'META_AD_HEADLINE',
-          adId: sourceId,
-          referral: ref
-        };
-      }
+    const porId = sourceId && todos.find((prod) => (prod.metaIds || []).includes(sourceId));
+    if (porId) {
+      console.log(`[CATALOG] ✅ Producto detectado por Meta Ad ID (${sourceId}): ${porId.id.toUpperCase()}`);
+      return { producto: porId.id, metodo: 'META_AD_ID', adId: sourceId, referral: ref };
+    }
+    const porUrl = sourceUrl && todos.find((prod) => (prod.metaIds || []).some((id) => sourceUrl.includes(id)));
+    if (porUrl) {
+      console.log(`[CATALOG] ✅ Producto detectado por Meta source_url: ${porUrl.id.toUpperCase()}`);
+      return { producto: porUrl.id, metodo: 'META_AD_URL', adId: sourceId, referral: ref };
+    }
+    const porTitular = ORDEN_PALABRAS.map((k) => PRODUCTOS[k]).find((prod) => prod.keywords && (prod.keywords.test(headline) || prod.keywords.test(body)));
+    if (porTitular) {
+      console.log(`[CATALOG] ✅ Producto detectado por titular del anuncio ("${ref.headline}"): ${porTitular.id.toUpperCase()}`);
+      return { producto: porTitular.id, metodo: 'META_AD_HEADLINE', adId: sourceId, referral: ref };
     }
   }
 
   // 2. Coincidencia por palabras clave en el texto del mensaje
   if (t) {
-    if (PRODUCTOS.moldes.keywords.test(t)) {
-      console.log(`[CATALOG] ✅ Producto detectado por palabras clave de Moldes/Costura`);
-      return { producto: 'moldes', metodo: 'TEXT_KEYWORD_MOLDES' };
-    }
-    if (PRODUCTOS.helados.keywords.test(t)) {
-      console.log(`[CATALOG] ✅ Producto detectado por palabras clave de Helados/Postres`);
-      return { producto: 'helados', metodo: 'TEXT_KEYWORD_HELADOS' };
+    for (const k of ORDEN_PALABRAS) {
+      if (PRODUCTOS[k].keywords.test(t)) {
+        console.log(`[CATALOG] ✅ Producto detectado por palabras clave: ${k.toUpperCase()}`);
+        return { producto: k, metodo: `TEXT_KEYWORD_${k.toUpperCase()}` };
+      }
     }
   }
 

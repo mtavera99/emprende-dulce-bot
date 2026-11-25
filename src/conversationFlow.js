@@ -102,7 +102,11 @@ class ConversationFlow {
     const updates = { producto: detection.producto };
     if (detection.adId) updates.adId = detection.adId;
     if (detection.metodo) updates.metodoDeteccion = detection.metodo;
-    if (detection.referral) updates.referral = detection.referral;
+    // Atribución del anuncio aunque el producto se haya detectado por texto (anuncio nuevo sin ID registrado)
+    const ref = detection.referral || (message && message.referral) || null;
+    if (ref) { updates.referral = ref; if (!updates.adId && ref.source_id) updates.adId = String(ref.source_id); }
+    // Identificador del clic en el anuncio (para enviar la compra a Meta con la API de conversiones)
+    if (ref && ref.ctwa_clid) updates.ctwaClid = ref.ctwa_clid;
 
     store.saveLead(phone, updates);
     return detection.producto;
@@ -197,7 +201,7 @@ class ConversationFlow {
         return await this.enviarMuestra(phone, producto, { reenvio: true });
       }
       store.marcarAtendido(phone, false);
-      return await this.decir(phone, `Ya te la reenvié 🙏 Son 2 PDF más arriba en este chat. Un asesor revisa tu caso y te escribe en un momento.`);
+      return await this.decir(phone, `Ya te la reenvié 🙏 Es ${ventas.descripcionMuestra(producto).replace(/^\d+ PDF: /, 'el PDF con ')}, más arriba en este chat. Un asesor revisa tu caso y te escribe en un momento.`);
     }
 
     // C4. Promete pagar después ("pago mañana al mediodía", "estoy sin señal"): se le guarda el precio y se pausan los seguimientos
@@ -261,21 +265,26 @@ class ConversationFlow {
     const manual = accesos.completoDe(phone);
     // Productos que tiene (el upsell de Emprende Dulce se entrega como 'helados')
     const comprados = new Set(ventasCliente.map((p) => (p.producto === 'upsell_helados' ? 'helados' : p.producto || 'helados')));
-    for (const a of ['moldes', 'helados']) if (accesos.completoDe(phone, a)) comprados.add(a);
+    for (const a of ['moldes', 'helados', 'muebles']) if (accesos.completoDe(phone, a)) comprados.add(a);
     let producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
     if (producto === 'upsell_helados') producto = 'helados';
-    // Quien tiene los dos packs recibe soporte del de moldes, salvo que pregunte por las recetas
-    if (comprados.has('moldes') && comprados.has('helados')) producto = /receta|helado|postre|dulce/i.test(text) ? 'helados' : 'moldes';
+    // Quien tiene varios packs recibe soporte del que menciona; si no menciona ninguno, del principal (muebles o moldes)
+    if (comprados.size > 1) {
+      if (/receta|helado|postre|dulce/i.test(text) && comprados.has('helados')) producto = 'helados';
+      else if (/mueble|melamina|plano|cl[oó]set|cocina|escritorio/i.test(text) && comprados.has('muebles')) producto = 'muebles';
+      else if (/molde|patr[oó]n|costura|ropa/i.test(text) && comprados.has('moldes')) producto = 'moldes';
+      else if (!comprados.has(producto) || producto === 'helados') producto = comprados.has('muebles') ? 'muebles' : comprados.has('moldes') ? 'moldes' : producto;
+    }
     const acceso = accesos.crear(phone, producto, 'completo');
     let enlace = `${ventas.host()}/acceso/${acceso.token}`;
-    const otro = producto === 'moldes' ? 'helados' : 'moldes';
-    if (comprados.has(otro)) {
+    const NOMBRE_PACK = { helados: '🍰 Tu pack Emprende Dulce (recetas)', moldes: '🧵 Tu Mega Pack de Moldes', muebles: '🪚 Tu Mega Pack de Muebles en Melamina' };
+    for (const otro of ['moldes', 'muebles', 'helados']) {
+      if (otro === producto || !comprados.has(otro)) continue;
       const a2 = accesos.crear(phone, otro, 'completo');
-      enlace += `\n\n${otro === 'helados' ? '🍰 Tu pack Emprende Dulce (recetas)' : '🧵 Tu Mega Pack de Moldes'}:\n${ventas.host()}/acceso/${a2.token}`;
+      enlace += `\n\n${NOMBRE_PACK[otro]}:\n${ventas.host()}/acceso/${a2.token}`;
     }
     store.marcarAtendido(phone, false); // que el operador lo vea en el panel
-    const s = this.getSettings();
-    const drive = String((producto === 'moldes' ? s.driveLinkMoldes : s.driveLink) || '').trim();
+    const drive = store.driveDe(producto);
     const ult = this.ultimoDelBot(phone);
     // Ya recibió la guía y sigue sin poder abrir: Google Drive primero
     if (drive && ventas.esNoAbre(text) && ult && /Ya tienes tu compra activa/.test(ult.text || '')) {
@@ -285,7 +294,12 @@ class ConversationFlow {
         `Si tampoco te abre, mándame un pantallazo de lo que te sale y un asesor te ayuda ya mismo.`);
     }
     const respaldoDrive = drive ? `\n\n📁 *Si el enlace no te abre*, aquí está todo en Google Drive (ábrelo con la app de Google Drive o en Chrome):\n${drive}` : '';
-    if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack)\b/i.test(text)) {
+    if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack|planos)\b/i.test(text)) {
+      if (producto === 'muebles') {
+        return await this.decir(phone, `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
+          `📱 *En el celular:* toca el enlace y ábrelo en Chrome o Safari. Toca «Abrir el catálogo interactivo de planos»: ahí buscas cada mueble y ves su despiece, herrajes y cortes sin descargar nada.\n` +
+          `📄 Los PDF de cada categoría y las guías se descargan desde la misma página y abren directo en el celular.` + respaldoDrive + `\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`);
+      }
       const ayuda = producto === 'moldes'
         ? `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
           `📱 *Para abrir en el celular:* toca el enlace, ábrelo en Chrome o Safari y busca el patrón que quieres. Cada patrón tiene sus PDF sueltos (ficha técnica y cada talla) que abren directo en el celular.\n` +
@@ -316,17 +330,20 @@ class ConversationFlow {
     if (lead.muestraEnviada) {
       const img = ventas.imagenes(producto);
       await this.enviarImagen(phone, img.catalogo);
-      if (img.mapa) await this.enviarImagen(phone, img.mapa);
+      if (img.mapa || img.plano) await this.enviarImagen(phone, img.mapa || img.plano);
       return await this.decir(phone, `Así viene el pack por dentro 👆 La muestra gratis te la envié arriba en PDF.\n\nEl pack completo con ${ventas.infoPack(producto).queIncluye} vale *${ventas.cop(precio)}*. ¿Te paso los datos de pago?`);
     }
     if (opciones.reenvio) {
-      await this.decir(phone, `Te la reenvío 🙌 Son 2 PDF: la ficha técnica y el molde de la talla M. Tócalos para abrirlos.`);
+      await this.decir(phone, `Te la reenvío 🙌 Es ${ventas.descripcionMuestra(producto)}. Tócalo para abrirlo.`);
     } else if (!opciones.sinIntro) {
       await this.decir(phone, producto === 'moldes'
         ? `¡Claro! 🎁 Te envío gratis el patrón completo de la *Falda Media Campana*: la ficha técnica y el molde de la talla M a escala real.`
-        : `¡Claro! 🎁 Te envío gratis 5 recetas de muestra.`);
+        : producto === 'muebles'
+          ? `¡Claro! 🎁 Te envío gratis el plano completo de la *${ventas.infoPack('muebles').muestra.nombre || 'Mesa de noche de 2 cajones'}*: vista con medidas, despiece en mm, herrajes, láminas, plano de cortes y armado.`
+          : `¡Claro! 🎁 Te envío gratis 5 recetas de muestra.`);
     }
     if (producto === 'moldes' && !opciones.reenvio) await this.enviarImagen(phone, ventas.imagenes(producto).mapa, 'Así se arma el molde: se imprime en hojas Carta o A4 y se unen por las marcas');
+    if (producto === 'muebles' && !opciones.reenvio) await this.enviarImagen(phone, ventas.imagenes(producto).plano, 'Así viene cada plano: despiece pieza por pieza en milímetros');
     let enviados = 0;
     for (const doc of ventas.documentosMuestra(producto)) if (await this.enviarDocumento(phone, doc)) enviados++;
     store.saveLead(phone, { muestraEnviada: enviados > 0, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO',
@@ -347,7 +364,9 @@ class ConversationFlow {
     const duracion = minutos >= 60 ? `${Math.round(minutos / 60)} horas` : `${minutos} minutos`;
     const detalle = producto === 'moldes'
       ? `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis un patrón completo en todas sus tallas, la tabla de medidas y la calculadora. El resto se desbloquea con el pago)_`
-      : `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
+      : producto === 'muebles'
+        ? `_(Tienes ${duracion} para ver el catálogo de los ${ventas.infoPack('muebles').totales.planos} planos, abrir gratis un plano completo y usar la calculadora de cotización. El resto se desbloquea con el pago)_`
+        : `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
     const reply =
       `¡Trato hecho! 🤝 Aquí tienes tu acceso de prueba:\n\n👉 ${portalUrl}\n\n${detalle}\n\n` +
       `Si te convence, transfieres *${ventas.cop(precio)}* a:\n\n${ventas.cuentas(settings)}\n\n` +
@@ -381,8 +400,8 @@ class ConversationFlow {
         : `- Precio que se le ofreció a este cliente: ${ventas.cop(precio)} pago único.
 - NO envíes números de cuenta ni datos de pago: si el cliente quiere pagar, pregúntale "¿Te paso los datos de pago?" y el sistema se los envía.
 ${lead.muestraEnviada
-    ? '- La muestra gratis (2 PDF de la Falda Media Campana: ficha técnica y talla M) ya se le envió más arriba en el chat. No la vuelvas a ofrecer; si no la ve, dile que escriba "no me llegó".'
-    : '- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis un patrón completo para que lo revises?").'}
+    ? `- La muestra gratis (${ventas.descripcionMuestra(producto)}) ya se le envió más arriba en el chat. No la vuelvas a ofrecer; si no la ve, dile que escriba "no me llegó".`
+    : `- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis ${producto === 'muebles' ? 'un plano completo' : producto === 'moldes' ? 'un patrón completo' : '5 recetas de muestra'} para que lo revises?").`}
 - Tú NO puedes enviar archivos, PDF ni imágenes. Nunca digas que enviaste, adjuntaste o reenviaste algo: el sistema los envía cuando el cliente acepta.`;
       const prompt = `Eres Sofía, asesora por WhatsApp de una tienda de productos digitales en Colombia. Tono cálido, colombiano, sencillo y honesto.
 ${ventas.conocimiento(producto)}
@@ -420,7 +439,7 @@ Sofía:`;
         if (ventas.iaDiceQueEnvio(aiText)) {
           console.warn(`[FLOW IA] La IA dijo que envió un archivo a +${phone}; se envía la muestra real.`);
           if (!lead.muestraEnviada) return await this.enviarMuestra(phone, producto);
-          return await this.decir(phone, `La muestra gratis te la envié más arriba en este chat 👆 (2 PDF: ficha técnica y molde talla M). Si no los ves, escríbeme *no me llegó* y te los reenvío.`);
+          return await this.decir(phone, `La muestra gratis te la envié más arriba en este chat 👆 (${ventas.descripcionMuestra(producto)}). Si no la ves, escríbeme *no me llegó* y te la reenvío.`);
         }
         // Si ofreció la muestra, un "sí", "dale" o "me parece bien" la envía (punto J)
         if (!lead.muestraEnviada && ventas.iaOfreceMuestra(aiText)) store.saveLead(phone, { step: 'MUESTRA_OFRECIDA', muestraOfrecidaAt: Date.now() });
@@ -632,6 +651,8 @@ Sofía:`;
           ? `Esa imagen no parece un comprobante de transferencia 🤔 Cuando hagas el pago, envíame la captura donde se vea el valor, la fecha y la referencia, y te llega tu enlace.`
           : (leadImg.producto === 'moldes'
             ? `¡Recibí tu imagen! 😊 ¿Es un modelo que estás buscando? Cuéntame qué prenda es y te digo si está en el pack.`
+            : leadImg.producto === 'muebles'
+            ? `¡Recibí tu imagen! 😊 ¿Es un mueble que quieres hacer? Cuéntame cuál es y sus medidas, y te digo qué plano del pack se parece.`
             : `¡Recibí tu imagen! 😊 Cuéntame en qué te puedo ayudar.`);
         store.marcarAtendido(phone, false);
         return await this.decir(phone, msg);
@@ -740,7 +761,21 @@ Sofía:`;
     if (pedido) store.actualizarPedido(pedido.id, { accesoToken: acceso.token });
     let confirmMsg = '';
 
-    if (producto === 'moldes') {
+    if (producto === 'muebles') {
+      const info = ventas.infoPack('muebles');
+      confirmMsg =
+        `¡Pago verificado con éxito en nuestro sistema! 🎉🪚\n\n` +
+        `Bienvenido(a) al *Mega Pack de Carpintería y Muebles en Melamina 2026*. Aquí tienes tu acceso personal a todo el material:\n\n` +
+        `📥 *Tu enlace personal (guárdalo, es solo tuyo):*\n` +
+        `${enlace}\n\n` +
+        `📁 *Tu pack contiene:*\n` +
+        `✓ ${info.totales.planos} planos con medidas exactas en mm (${info.totales.disenos} diseños en varias medidas), en 5 PDF por categoría\n` +
+        `✓ Catálogo interactivo: buscas cada mueble, ves su despiece, herrajes y plano de cortes en el celular y puedes ajustar las medidas a tu espacio\n` +
+        `✓ 4 guías: materiales y herrajes; cortar, cantear y armar; optimización de cortes; diseño 3D en SketchUp\n` +
+        `✓ 2 bonos: calculadora de costos, láminas y cotización en pesos, y guía para cobrar trabajos de carpintería\n\n` +
+        `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir el catálogo interactivo de planos».\n\n` +
+        `Antes de pedir el corte, revisa las medidas de tu espacio. Si tienes cualquier duda con un plano, aquí estamos para ayudarte 🙌`;
+    } else if (producto === 'moldes') {
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
         `Bienvenido(a) al *Mega Pack de +2.000 Moldes y Patrones de Costura 2026*. Aquí tienes tu acceso oficial e inmediato a todo el material:\n\n` +

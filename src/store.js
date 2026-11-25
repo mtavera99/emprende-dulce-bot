@@ -316,7 +316,7 @@ const store = {
       origen: origenDeLead(lead),
       producto: prodId,
       product: nombreProd,
-      amount: settings.precioOferta || 10000,
+      amount: require('./ventas').precioDe({ ...(lead || {}), producto: prodId }),
       status: 'PENDIENTE', // PENDIENTE, VERIFICADO, RECHAZADO, ENTREGADO
       createdAt: Date.now(),
       paymentMethod: 'NEQUI',
@@ -469,6 +469,7 @@ const store = {
     const lead = store.getLead(phone);
     if (!lead) return;
     lead.precioOfrecido = Number(precio) || 10000;
+    lead.precioProducto = lead.producto || null;
     saveJSON(LEADS_FILE, leads);
   },
 

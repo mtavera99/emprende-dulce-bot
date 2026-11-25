@@ -32,7 +32,7 @@ async function ejecutarSeguimientos() {
 
       // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva
       if (paso === 1 || paso === 3) {
-        if (!actual.precioOfrecido || actual.precioOfrecido >= ventas.precioNormal()) store.setLeadPrecio(phone, ventas.precioDescuento());
+        if (!actual.precioOfrecido || ventas.precioDe(actual) >= ventas.precioNormal(producto)) store.setLeadPrecio(phone, ventas.precioDescuento(producto));
       }
       const precio = ventas.precioDe(store.getLead(phone));
 

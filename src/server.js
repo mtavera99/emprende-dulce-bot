@@ -384,7 +384,7 @@ app.post('/api/pedidos/:id/rechazar', authPanel, async (req, res) => {
   if (pedido) {
     store.rechazarPedido(id, motivo);
     const mensajeRechazo =
-      `Hola 🙌 Revisamos tu comprobante pero no pudimos validar la transferencia de los $10.000 COP en la cuenta bancaria (${motivo}).\n\n` +
+      `Hola 🙌 Revisamos tu comprobante pero no pudimos validar la transferencia de los ${'$' + Number(pedido.amount || require('./ventas').precioNormal(pedido.producto)).toLocaleString('es-CO')} COP en la cuenta bancaria (${motivo}).\n\n` +
       `Si ya realizaste el pago, por favor envíanos de nuevo una captura donde se vea clara la fecha, hora y número de referencia para verificarlo de inmediato.`;
     try {
       await waService.sendTextMessage(pedido.phone, mensajeRechazo);
@@ -452,7 +452,7 @@ app.post('/api/chats/:id/dar-acceso', authPanel, async (req, res) => {
     store.saveLead(phone, { producto, productoFijado: true });
     const pend = store.pedidosDeTelefono(phone).filter((p) => p.status === 'PENDIENTE').pop();
     if (req.body?.venta === '1') {
-      const ped = pend || store.crearPedido(phone, { producto, amount: lead.precioOfrecido || store.getSettings().precioOferta || 10000, notas: 'Venta registrada a mano desde el chat' });
+      const ped = pend || store.crearPedido(phone, { producto, amount: require('./ventas').precioDe({ ...lead, producto }), notas: 'Venta registrada a mano desde el chat' });
       store.actualizarPedido(ped.id, { producto });
       store.aprobarPedido(ped.id, { aprobadoPor: 'operador' });
       await conversationFlow.enviarEntregaProducto(phone, store.getSettings(), { pedidoId: ped.id, producto });

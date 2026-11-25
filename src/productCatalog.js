@@ -42,14 +42,17 @@ const PRODUCTOS = {
     keywords: /(molde|patr[oó]n|costur|confecci|ropa|vestid|blusa|pantal|panties|lencer|coser|modist|talla|imprimir.*casa|hoja carta)/i
   },
 
-  // 🪚 MEGA PACK DE CARPINTERÍA Y MUEBLES EN MELAMINA 2026 ($10.000 COP)
+  // 🪚 MEGA PACK DE CARPINTERÍA Y MUEBLES EN MELAMINA 2026 ($15.000 COP; seguimiento con descuento a $12.000)
   muebles: {
     id: 'muebles',
     nombre: 'Mega Pack de Carpintería y Muebles en Melamina 2026',
     emoji: '🪚',
     etiqueta: 'Muebles',
     color: '#b45309',
-    precio: 10000,
+    // Precio propio: no usa el precio general del panel (que es el de moldes y postres)
+    precioPropio: true,
+    precio: Number(process.env.PRECIO_MUEBLES) || 15000,
+    precioDescuento: Number(process.env.PRECIO_DESCUENTO_MUEBLES) || 12000,
     // Agregar aquí los IDs de la campaña, los conjuntos y los anuncios de muebles cuando se creen en Meta.
     // Mientras tanto, el producto se detecta por el titular del anuncio o por las palabras clave.
     metaIds: [],

@@ -100,6 +100,8 @@ class ConversationFlow {
     
     // Guardar el producto y la atribución del anuncio en el lead
     const updates = { producto: detection.producto };
+    // Cambió de producto (otro anuncio): una oferta vieja sin producto marcado no se arrastra al nuevo
+    if (lead && lead.producto && lead.producto !== detection.producto && lead.precioOfrecido && !lead.precioProducto) updates.precioOfrecido = null;
     if (detection.adId) updates.adId = detection.adId;
     if (detection.metodo) updates.metodoDeteccion = detection.metodo;
     // Atribución del anuncio aunque el producto se haya detectado por texto (anuncio nuevo sin ID registrado)
@@ -220,9 +222,9 @@ class ConversationFlow {
     if (ventas.esPedidoPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
 
     // F. Pide el descuento que se le ofreció en el seguimiento
-    const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal()) || (lead.seguimientosEnviados || 0) >= 1;
+    const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal(producto)) || (lead.seguimientosEnviados || 0) >= 1;
     if (ofrecioDescuento && ventas.esPedidoDescuento(text)) {
-      if (!lead.precioOfrecido || lead.precioOfrecido >= ventas.precioNormal()) store.setLeadPrecio(phone, ventas.precioDescuento());
+      if (!lead.precioOfrecido || ventas.precioDe(lead) >= ventas.precioNormal(producto)) store.setLeadPrecio(phone, ventas.precioDescuento(producto));
       return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
     }
 
@@ -356,7 +358,8 @@ class ConversationFlow {
 
   async enviarHonestidad(phone, settings, producto) {
     const leadPrevio = store.getLead(phone) || {};
-    const precio = leadPrevio.precioOfrecido && leadPrevio.precioOfrecido < ventas.precioNormal() ? leadPrevio.precioOfrecido : ventas.precioDescuento();
+    const precioPrevio = ventas.precioDe(leadPrevio);
+    const precio = precioPrevio < ventas.precioNormal(producto) ? precioPrevio : ventas.precioDescuento(producto);
     store.setLeadPrecio(phone, precio);
     const prueba = accesos.crear(phone, producto, 'prueba');
     const portalUrl = `${ventas.host()}/prueba/${prueba.token}`;
@@ -457,8 +460,8 @@ Sofía:`;
     await this.enviarImagen(phone, img.catalogo);
     const texto = ventas.textoPitch(producto);
     // Botones: comprar ya o ver la muestra. Si Meta no los acepta, sendButtons manda el mismo texto (pide responder 1 o 2)
-    await waService.sendButtons(phone, texto, ventas.botonesPitch());
-    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${ventas.botonesPitch().map((b) => b.title).join(' | ')}]`, type: 'interactive' });
+    await waService.sendButtons(phone, texto, ventas.botonesPitch(producto));
+    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${ventas.botonesPitch(producto).map((b) => b.title).join(' | ')}]`, type: 'interactive' });
     store.saveLead(phone, { status: 'INTERESADO', step: 'BOTONES_ENVIADOS', producto });
   }
 
@@ -467,7 +470,7 @@ Sofía:`;
     const lead = store.getLead(phone) || {};
     const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
     await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto, { ofrecerMuestra: !lead.muestraEnviada }));
-    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: lead.precioOfrecido || monto,
+    store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: ventas.precioDe(lead) === monto ? monto : (lead.precioOfrecido || monto), precioProducto: lead.producto || null,
       rescate: { tipo: 'datos', at: Date.now(), enviado: false } });
     // El pedido solo se crea cuando el cliente envía el comprobante (handleImageMessage).
   }
@@ -511,7 +514,7 @@ Sofía:`;
       let ocrResult = { isValid: false };
       const lead = store.getLead(phone) || {};
       // Mínimo aceptado: $5.000 si está pagando el Upsell, o el menor precio que se le ofreció
-      const minEsperado = lead.esperaUpsell ? 5000 : Math.min(ventas.precioDe(lead), ventas.precioNormal());
+      const minEsperado = lead.esperaUpsell ? 5000 : Math.min(ventas.precioDe(lead), ventas.precioNormal(lead.producto));
       if (buffer) {
         ocrResult = await ocrValidator.validateReceipt(buffer, {
           minAmount: minEsperado,

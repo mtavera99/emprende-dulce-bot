@@ -13,17 +13,29 @@ const PUBLIC = path.join(__dirname, '../public/descargas');
 const TZ = 'America/Bogota';
 
 // ---------------------------------------------------------------------------- precios
-function precioNormal() {
-  return Number(store.getSettings().precioOferta) || 10000;
+// Productos con precio propio en productCatalog (muebles: $15.000 / $12.000). Los demás usan el precio del panel.
+function preciosPropios(producto) {
+  const p = producto && require('./productCatalog').PRODUCTOS[producto];
+  return p && p.precioPropio ? p : null;
 }
 
-function precioDescuento() {
-  return Number(store.getSettings().precioDescuento) || Number(process.env.PRECIO_DESCUENTO) || 8000;
+function precioNormal(producto) {
+  const p = preciosPropios(producto);
+  return p ? p.precio : Number(store.getSettings().precioOferta) || 10000;
 }
 
-// Precio que se le ofreció a este cliente (quien ya recibió $7.000 lo conserva)
+function precioDescuento(producto) {
+  const p = preciosPropios(producto);
+  return p ? p.precioDescuento : Number(store.getSettings().precioDescuento) || Number(process.env.PRECIO_DESCUENTO) || 8000;
+}
+
+// Precio que se le ofreció a este cliente (quien ya recibió $7.000 lo conserva).
+// Una oferta hecha para otro producto no cuenta (precioProducto marca de qué producto era).
 function precioDe(lead) {
-  return (lead && Number(lead.precioOfrecido)) || precioNormal();
+  const prod = lead && lead.producto;
+  const ofrecido = lead && Number(lead.precioOfrecido);
+  if (ofrecido && (!lead.precioProducto || lead.precioProducto === prod)) return ofrecido;
+  return precioNormal(prod);
 }
 
 function cop(v) {
@@ -95,7 +107,7 @@ function conocimiento(producto) {
       for (const pl of c.planos) (porDiseno[pl.nombre] = porDiseno[pl.nombre] || []).push(pl.A);
       return `- ${c.id} ${c.nombre} (${c.planos.length} planos): ` + Object.entries(porDiseno).map(([d, anchos]) => `${d} (${anchos.length > 1 ? `anchos de ${anchos.join(', ')} mm` : `${anchos[0]} mm de ancho`})`).join('; ');
     }).join('\n');
-    return `PRODUCTO: ${p.nombre}. Es digital (PDF y un catálogo web), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
+    return `PRODUCTO: ${p.nombre}. Es digital (PDF y un catálogo web), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal('muebles'))} pago único.
 CONTENIDO EXACTO (no hay nada más): ${p.totales.planos} planos de ${p.totales.disenos} diseños en varias medidas, en 5 categorías:
 ${lista}
 - Cada plano trae: vista frontal con medidas, despiece pieza por pieza en milímetros (cantidad, largo, ancho y tapacanto), lista de herrajes y tornillería, cuántos tableros de 2,15 × 2,44 m y láminas de HDF comprar, metros de tapacanto, plano de cortes por tablero y paso a paso de armado.
@@ -107,7 +119,7 @@ NO INCLUYE: archivos de SketchUp (.skp) ni renders hechos, videos, mesones (gran
   }
   if (producto === 'moldes') {
     const lista = p.colecciones.map((c) => `- ${c.id} ${c.titulo}: ${c.prendas.join('; ')}`).join('\n');
-    return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
+    return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal(producto))} pago único.
 CONTENIDO EXACTO (no hay nada más): ${p.totales.patrones} patrones profesionales en 10 colecciones:
 ${lista}
 - Tallas: adulto XS a XXL (6 tallas); bebé 0-3 a 18-24 meses; niña y niño 2 a 10; mascotas S a XL; bolsos en 3 tamaños.
@@ -117,7 +129,7 @@ ${lista}
 - Si dicen que 34 son pocos o preguntan cómo así 34 si son +2.000 moldes: explica con honestidad que son 34 prendas distintas; cada prenda trae todas sus piezas (delantero, espalda, mangas, cuello…) en cada talla, y eso da ${p.totales.moldes.toLocaleString('es-CO')} moldes de pieza, que se pueden imprimir en Carta o en A4 (${p.totales.imprimibles.toLocaleString('es-CO')}). No digas que son 2.000 prendas o modelos distintos.
 NO INCLUYE: fotos de prendas reales (las fichas traen dibujos técnicos), videos, ni prendas que no estén en la lista. Para hombre solo hay la Bermuda Clásica Formal (Hombre), el Hoodie unisex, el Jogger y el Scrub médico; NO hay camisas polo, pantalones de dril de hombre ni bóxers. Los archivos vienen en carpetas ZIP por colección y también se pueden abrir los PDF sueltos desde el enlace.`;
   }
-  return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal())} pago único.
+  return `PRODUCTO: ${p.nombre}. Es digital (PDF), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal(producto))} pago único.
 CONTENIDO EXACTO: 3 libros en PDF: Guía Maestra de Helados Artesanales (47 páginas), Postres en Vaso para Emprender (41 páginas, 12 recetas: tres leches, pie de limón, cheesecake, tiramisú, marquesa, entre otras) y Recetario Navideño y Cajas de Regalo (35 páginas). Bonos: calculadora de costos y precios (Excel y web), directorio de proveedores en Colombia y guía de ventas por WhatsApp.
 NO INCLUYE videos, cursos en vivo ni asesoría personalizada.`;
 }
@@ -186,7 +198,7 @@ function textoPitch(producto) {
       `✅ Cada plano trae el *despiece pieza por pieza* con medidas y tapacanto, los herrajes, cuántas láminas comprar, el plano de cortes y el paso a paso de armado\n` +
       `✅ Sirve aunque no tengas taller: llevas el despiece al depósito, allá te cortan y enchapan, y lo armas en casa con taladro\n` +
       `✅ 4 guías (materiales y herrajes, cortar y armar, optimizar cortes, diseño 3D en SketchUp) + calculadora de costos y cotización en pesos + guía para cobrar tus trabajos\n\n` +
-      `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
+      `Todo por *${cop(precioNormal(producto))}* pago único. Te llega por este chat.\n\n` +
       `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* un plano completo de muestra 🎁`;
   }
   if (producto === 'moldes') {
@@ -195,7 +207,7 @@ function textoPitch(producto) {
       `✅ 10 colecciones: vestidos, blusas y camisas, pantalones y shorts, faldas, ropa deportiva, lencería y pijamas, infantil y bebé, mascotas, bolsos y uniformes\n` +
       `✅ Ficha técnica de cada prenda: medidas, consumo de tela, despiece y paso a paso de armado\n` +
       `✅ 4 bonos: manual de costura, guía de telas y agujas, tabla de medidas y calculadora de costos\n\n` +
-      `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
+      `Todo por *${cop(precioNormal(producto))}* pago único. Te llega por este chat.\n\n` +
       `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* un patrón completo de muestra 🎁`;
   }
   return `¡Hola! 🍰 Te cuento qué trae la colección *Emprende Dulce 2026*:\n\n` +
@@ -203,14 +215,14 @@ function textoPitch(producto) {
     `🧁 *Postres en Vaso* (41 págs): 12 recetas para vender, con costeo\n` +
     `🎄 *Recetario Navideño y Cajas de Regalo* (35 págs)\n` +
     `🎁 Bonos: calculadora de costos, directorio de proveedores y guía de ventas por WhatsApp\n\n` +
-    `Todo por *${cop(precioNormal())}* pago único. Te llega por este chat.\n\n` +
+    `Todo por *${cop(precioNormal(producto))}* pago único. Te llega por este chat.\n\n` +
     `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* 5 recetas de muestra 🎁`;
 }
 
 // Botones del primer mensaje (título máximo 20 caracteres en WhatsApp)
-function botonesPitch() {
+function botonesPitch(producto) {
   return [
-    { id: 'comprar', title: `💳 Comprar ${cop(precioNormal())}` },
+    { id: 'comprar', title: `💳 Comprar ${cop(precioNormal(producto))}` },
     { id: 'muestra', title: '🎁 Muestra gratis' },
   ];
 }
@@ -265,7 +277,7 @@ function textoSeguimiento(paso, producto, precio) {
   const e = p.emoji;
   if (paso === 1) {
     return `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar ${{ moldes: 'por cada prenda', muebles: 'por cada mueble (calcula láminas, herrajes y anticipo)' }[producto] || 'por cada postre'}:\n${enlaceCalculadora(producto)}\n\n` +
-      `Y si hoy te animas, te dejo el ${producto === 'helados' ? 'paquete completo' : 'pack completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal())}. ` +
+      `Y si hoy te animas, te dejo el ${producto === 'helados' ? 'paquete completo' : 'pack completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal(producto))}. ` +
       `Solo dime "sí" y te paso los datos ${e}`;
   }
   if (paso === 2 && producto === 'muebles') {
@@ -337,7 +349,7 @@ function esRechazo(texto) {
 function esPedidoDescuento(texto) {
   const n = normalizar(texto);
   if (n.includes('?') || /\b(sera|todavia|aun|hasta cuando|el lunes|manana|despues)\b/.test(n)) return false;
-  return /\b(quiero|dame|pasame|aprovechar|tomo|acepto|si)\b.*\b(descuento|promo|promocion|oferta|datos actualizados)\b/.test(n) || /^(7|8)\s?000$/.test(n.replace(/\s/g, ''));
+  return /\b(quiero|dame|pasame|aprovechar|tomo|acepto|si)\b.*\b(descuento|promo|promocion|oferta|datos actualizados)\b/.test(n) || /^(7|8|12)\s?000$/.test(n.replace(/\s/g, ''));
 }
 
 // Avisa que ya pagó o que manda el comprobante

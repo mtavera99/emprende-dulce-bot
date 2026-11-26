@@ -141,7 +141,7 @@ check(/PAGO CONFIRMADO/.test(pc) && pc.includes(`/planos/${aC.token}"`) && /Abri
 check(man.categorias.every((c) => pc.includes(`/d/${aC.token}/p${c.id}"`)) && man.guias.every((g, i) => pc.includes(`/d/${aC.token}/g${i + 1}"`)) && pc.includes(`/d/${aC.token}/zip"`), 'compra: los 5 PDF de planos, las 4 guías y el ZIP');
 check(pc.includes(`/d/${aC.token}/b1"`) && pc.includes(`/d/${aC.token}/b2"`) && /Calculadora de Costos/.test(pc) && /Cómo Cobrar/.test(pc), 'compra: los 2 bonos');
 check((pc.match(/<summary>📱 Ver los planos en el celular sin descargar/g) || []).length === 5 && (pc.match(new RegExp(`/planos/${aC.token}/d/`, 'g')) || []).length === 40, 'compra: cada categoría abre sus diseños en el celular sin descomprimir (40 diseños)');
-check(!/drive\.google/.test(pc), 'compra: sin carpeta de Drive configurada no muestra el botón');
+check(/drive\.google\.com\/drive\/folders\/16kOME2qExkNVuo_t2HOx90mZDYYVg1xs/.test(pc) && /Abrir también en Google Drive/.test(pc), 'compra: botón de Google Drive con la carpeta de muebles');
 store.updateSettings({ driveLinkMuebles: 'https://drive.google.com/drive/folders/PRUEBA_MUEBLES' });
 const pcD = pagina.paginaCompleta(aC);
 check(/drive\.google\.com\/drive\/folders\/PRUEBA_MUEBLES/.test(pcD) && /Abrir también en Google Drive/.test(pcD), 'compra: con la carpeta de Drive configurada en el panel, muestra el botón de Drive');

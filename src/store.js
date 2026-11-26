@@ -77,6 +77,9 @@ let leads = loadJSON(LEADS_FILE, {});
 let orders = loadJSON(ORDERS_FILE, {});
 let conversations = loadJSON(CONVS_FILE, {});
 let deliveryStatuses = loadJSON(DELIVERY_FILE, []);
+// Carpeta de Google Drive de respaldo del pack de muebles (se puede cambiar en el panel o con GOOGLE_DRIVE_LINK_MUEBLES)
+const DRIVE_MUEBLES = 'https://drive.google.com/drive/folders/16kOME2qExkNVuo_t2HOx90mZDYYVg1xs?usp=sharing';
+
 let settings = loadJSON(SETTINGS_FILE, {
   precioOferta: 10000,
   nequiNumero: process.env.NEQUI_NUMERO || '3058742138',
@@ -85,7 +88,7 @@ let settings = loadJSON(SETTINGS_FILE, {
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
   driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing',
   driveLinkMoldes: process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing',
-  driveLinkMuebles: process.env.GOOGLE_DRIVE_LINK_MUEBLES || '',
+  driveLinkMuebles: process.env.GOOGLE_DRIVE_LINK_MUEBLES || DRIVE_MUEBLES,
   botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478',
   modoAutoEntregaLeona: true
 });
@@ -94,7 +97,7 @@ let settings = loadJSON(SETTINGS_FILE, {
 if (!settings.precioDescuento) settings.precioDescuento = Number(process.env.PRECIO_DESCUENTO) || 8000;
 if (!settings.productoPorDefecto) settings.productoPorDefecto = process.env.PRODUCTO_POR_DEFECTO || 'moldes';
 
-if (settings.driveLinkMuebles === undefined) settings.driveLinkMuebles = process.env.GOOGLE_DRIVE_LINK_MUEBLES || '';
+if (!settings.driveLinkMuebles) settings.driveLinkMuebles = process.env.GOOGLE_DRIVE_LINK_MUEBLES || DRIVE_MUEBLES;
 
 if (!settings.driveLinkMoldes) {
   settings.driveLinkMoldes = process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
@@ -104,7 +107,7 @@ const store = {
   // Carpeta de Google Drive de respaldo de cada producto ('' si no hay)
   driveDe(producto) {
     const s = settings;
-    const link = producto === 'moldes' ? s.driveLinkMoldes : producto === 'muebles' ? s.driveLinkMuebles : s.driveLink;
+    const link = producto === 'moldes' ? s.driveLinkMoldes : producto === 'muebles' ? (s.driveLinkMuebles || DRIVE_MUEBLES) : s.driveLink;
     return String(link || '').trim();
   },
 

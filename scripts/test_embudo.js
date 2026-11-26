@@ -420,6 +420,35 @@ async function img(phone) {
   try { await txt('573000000032', 'Hola', { source_id: '1', headline: 'Oferta' }); } catch (e) { crash = e; }
   check(!crash, 'anuncio desconocido sin palabras clave: no rompe la detección');
 
+  // 16. Cambio de producto: quien ya tenía moldes (o lo compró) y ahora pide muebles
+  const CA = '573000000040';
+  await txt(CA, SALUDO, REF);
+  o = await txt(CA, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+  check(store.getLead(CA).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t) && /\$15\.000/.test(e.t)), 'prospecto de moldes que pide muebles: recibe el primer mensaje de muebles por $15.000');
+  const CB = '573000000041';
+  await txt(CB, SALUDO, REF); await txt(CB, 'como pago');
+  ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'CB-MOLDES', bank: 'nequi', titularValido: true };
+  await img(CB);
+  check(store.compradorDe(CB, 'moldes'), 'CB compró moldes');
+  o = await txt(CB, 'Quiero ver los planos de muebles en melamina');
+  check(store.getLead(CB).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t)) && !o.some((e) => /Ya tienes tu compra activa/.test(e.t)), 'comprador de moldes que pide muebles: se le vende muebles (no soporte de moldes)');
+  o = await txt(CB, 'como pago');
+  check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t), 'comprador de moldes: datos de pago de muebles por $15.000');
+  o = await img(CB); // reenvía el comprobante de moldes
+  check(/compra que ya tienes/.test(o[o.length - 1].t) && !store.compradorDe(CB, 'muebles'), 'reenviar el comprobante de moldes no entrega muebles');
+  ocrRespuesta = { isValid: true, esComprobante: true, amount: 15000, reference: 'CB-MUEBLES', bank: 'nequi', titularValido: true };
+  o = await img(CB);
+  check(store.compradorDe(CB, 'muebles') && o.some((e) => /Carpintería y Muebles/.test(e.t) && /acceso\//.test(e.t)), 'comprobante de $15.000: entrega muebles');
+  o = await txt(CB, 'No me abre el archivo');
+  check(/catálogo interactivo/.test(o[0].t) && /Tu Mega Pack de Moldes/.test(o[0].t), 'comprador de los dos: soporte de muebles con el enlace de moldes también');
+  o = await txt(CB, 'y los moldes de costura no me abren');
+  check(store.getLead(CB).producto === 'moldes' && /15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5/.test(o[0].t) && !/Nequi/.test(o[0].t), 'si pregunta por moldes vuelve al soporte de moldes (Drive de moldes), sin cobrar');
+  const CC = '573000000042';
+  await txt(CC, SALUDO, REF);
+  o = await txt(CC, 'no me interesan los muebles, solo los moldes');
+  check(store.getLead(CC).producto === 'moldes', '"no me interesan los muebles": no cambia de producto');
+  check(!store.obtenerCandidatosSeguimiento().some((c) => c.phone === CB), 'comprador de los dos packs: sin seguimientos');
+
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

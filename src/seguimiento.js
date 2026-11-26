@@ -27,7 +27,7 @@ async function ejecutarSeguimientos() {
     try {
       // Doble verificación justo antes de enviar
       const actual = store.getLead(phone) || {};
-      if (actual.status === 'PAGADO' || actual.paused || actual.optOut || store.yaCompro(phone) || accesos.completoDe(phone) || store.isPaused(phone)) continue;
+      if (actual.status === 'PAGADO' || actual.paused || actual.optOut || store.compradorDe(phone, actual.producto) || accesos.completoDe(phone, actual.producto) || store.isPaused(phone)) continue;
       const producto = actual.producto || lead.producto || 'helados';
 
       // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva
@@ -108,7 +108,7 @@ async function ejecutarSeguimientoPruebas() {
   for (const { phone, lead } of store.leadsConPrueba()) {
     try {
       const pr = lead.prueba;
-      if (lead.status === 'PAGADO' || lead.paused || lead.optOut || store.isPaused(phone) || store.yaCompro(phone)) continue;
+      if (lead.status === 'PAGADO' || lead.paused || lead.optOut || store.isPaused(phone) || store.compradorDe(phone, lead.producto)) continue;
       if (ventas.enHorarioSilencio()) continue;
       const pasos = pr.pasos || 0;
       let paso = 0;
@@ -143,7 +143,7 @@ async function ejecutarRescate15(ahora = Date.now()) {
     if (espera < 15 * 60 * 1000 || espera > 90 * 60 * 1000) continue;
     const conv = convs[phone];
     if (!conv || conv.pausado || (conv.ultimoDelCliente || 0) > r.at) continue; // ya respondió
-    if (lead.paused || lead.optOut || lead.status === 'PAGADO' || store.yaCompro(phone) || accesos.completoDe(phone) || store.comprobantePendiente(phone)) continue;
+    if (lead.paused || lead.optOut || lead.status === 'PAGADO' || store.compradorDe(phone, lead.producto) || accesos.completoDe(phone, lead.producto) || store.comprobantePendiente(phone)) continue;
     if (lead.rescateEnviadoAt && ahora - lead.rescateEnviadoAt < 24 * 60 * 60 * 1000) { store.saveLead(phone, { rescate: { ...r, enviado: true } }); continue; }
     try {
       const texto = ventas.textoRescate(r.tipo);
@@ -171,7 +171,7 @@ async function ejecutarRecordatorioPago(ahora = Date.now()) {
     const conv = convs[phone];
     if (!conv || conv.pausado || (conv.ultimoDelCliente || 0) > pp.at) continue; // ya volvió a escribir
     if (ahora - (conv.ultimoDelCliente || 0) >= 23.5 * 60 * 60 * 1000) { store.saveLead(phone, { pagoPospuesto: { ...pp, enviado: true, vencido: true } }); continue; }
-    if (lead.paused || lead.optOut || store.yaCompro(phone) || accesos.completoDe(phone) || store.comprobantePendiente(phone)) continue;
+    if (lead.paused || lead.optOut || store.compradorDe(phone, lead.producto) || accesos.completoDe(phone, lead.producto) || store.comprobantePendiente(phone)) continue;
     try {
       const texto = ventas.textoRecordatorioPago(ventas.precioDe(lead), ventas.cuentas(store.getSettings()));
       await waService.sendTextMessage(phone, texto);

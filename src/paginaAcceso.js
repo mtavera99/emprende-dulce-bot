@@ -57,6 +57,11 @@ function lista(c, token, modo) {
     }
     const enlace = `<a class="item" href="/d/${encodeURIComponent(token)}/${encodeURIComponent(it.id)}" ${it.abrir ? 'target="_blank"' : 'download'}>
       <div class="meta"><div class="t">${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">${it.abrir ? 'Abrir' : modo === 'completo' && it.prendas ? 'ZIP' : 'Descargar'}</span></a>`;
+    // Muebles: cada categoría lleva a sus diseños en el catálogo web, que se ven en el celular sin descargar nada
+    if (modo === 'completo' && it.disenosCat) {
+      return `${enlace}<details class="sueltos"><summary>📱 Ver los planos en el celular sin descargar (${it.disenosCat.length} diseños)</summary>${it.disenosCat.map((d) =>
+        `<div class="pat"><a href="/planos/${encodeURIComponent(token)}/d/${encodeURIComponent(d.slug)}">${esc(d.nombre)}</a> <span class="tl">${d.n} planos</span></div>`).join('')}</details>`;
+    }
     if (modo !== 'completo' || !it.prendas) return enlace;
     // PDF sueltos de cada patrón: abren directo en el celular, sin descomprimir el ZIP
     const base = `/d/${encodeURIComponent(token)}/${encodeURIComponent(it.id)}/`;
@@ -79,6 +84,7 @@ function paginaCompleta(a) {
   return base(`${c.emoji} ${c.titulo} · Tu acceso`, `
     <div class="header"><span class="badge b-ok">✅ PAGO CONFIRMADO · ACCESO PERSONAL</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="box"><b>Este enlace es solo tuyo.</b> Guárdalo para volver a descargar cuando quieras. ${esc(c.nota)}
+      ${a.producto === 'muebles' ? '<br><br><b>📱 En el celular:</b> abre el catálogo interactivo o toca «Ver los planos en el celular sin descargar» en cada categoría: cada plano se ve completo en el navegador, sin descomprimir nada. Los PDF de cada categoría también se descargan sueltos.' : ''}
       ${a.producto === 'moldes' ? '<br><br><b>📱 En el celular:</b> abre los PDF sueltos de cada patrón (botón «Abrir los PDF sueltos»). Los ZIP traen la colección completa: en Android ábrelos con la app <b>Files de Google</b> y en iPhone con <b>Archivos</b>.' : ''}
       ${drive ? `<a class="drive" href="${esc(drive)}" target="_blank" rel="noopener">📁 Abrir también en Google Drive</a>` : ''}</div>
     ${botonCatalogo(c, a)}
@@ -88,7 +94,8 @@ function paginaCompleta(a) {
 
 function paginaPrueba(a) {
   const c = accesos.contenido(a.producto);
-  const precio = require('./ventas').precioDe(store.getLead(a.phone));
+  // Precio del producto de esta prueba (muebles $15.000 o el descuento que se le ofreció)
+  const precio = require('./ventas').precioDe({ ...(store.getLead(a.phone) || {}), producto: a.producto });
   return base(`${c.emoji} Prueba gratis · ${c.titulo}`, `
     <div class="header"><span class="badge b-prueba">🤝 ACCESO DE PRUEBA · HONESTIDAD</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="timer">Tu acceso de prueba vence en<b id="t">--:--</b><span style="font-size:.8rem;color:#fcd34d">Descarga la muestra gratis y mira por dentro todo lo que trae el pack.</span></div>

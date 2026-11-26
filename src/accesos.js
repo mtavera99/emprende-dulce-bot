@@ -104,7 +104,8 @@ function contenidoMuebles() {
   // Los PDF de planos viven dentro del ZIP del pack (sin duplicarlos en disco); se sirven desde ahí
   for (const c of man.categorias) {
     items.push({ id: `p${c.id}`, grupo: 'Planos por categoría (PDF)', titulo: `${c.id} · ${c.nombre}`, sub: `${c.planos.toLocaleString('es-CO')} planos · ${c.disenos.map((d) => d.nombre).join(' · ')}`,
-      archivo: `muebles/${man.zip}`, entradaZip: `${man.zipRaiz}${c.archivo}` });
+      archivo: `muebles/${man.zip}`, entradaZip: `${man.zipRaiz}${c.archivo}`,
+      disenosCat: c.disenos.map((d) => ({ slug: d.slug, nombre: d.nombre, n: d.medidas.length })) });
   }
   man.guias.forEach((g, i) => items.push({ id: `g${i + 1}`, grupo: 'Guías prácticas (PDF)', titulo: g.titulo, sub: g.sub, archivo: `muebles/${g.archivo}` }));
   man.bonos.forEach((b, i) => items.push({ id: `b${i + 1}`, grupo: 'Bonos de negocio', titulo: b.titulo, sub: b.sub, archivo: `muebles/${b.archivo}`, abrir: !!b.abrir, gratis: !!b.abrir }));

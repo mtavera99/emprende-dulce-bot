@@ -1,6 +1,22 @@
 /**
  * Servicio de transcripción de notas de voz de WhatsApp usando Gemini 2.5 Flash / OpenAI Whisper
  */
+// Respuestas del modelo que NO son una transcripción: dice que no recibió el audio, pide que se lo envíen,
+// o habla de sí mismo. Pasa cuando el audio no le llega (por ejemplo, un intermediario descarta el archivo).
+const NO_TRANSCRIPCION = [
+  /\btranscrib\w*\b/,                                                            // un cliente casi nunca dice "transcribir"
+  /\bproporcion\w*\b.{0,40}\b(audio|nota de voz|grabacion)\b/,
+  /\bno (he |se ha |se han )?(recibido|recibi|adjuntado|incluido|proporcionado)\b.{0,25}\b(audio|nota de voz|grabacion)\b/,
+  /\bno (veo|encuentro)\b.{0,15}\b(ningun|ninguna|el|la|un|una)? ?(audio|nota de voz|grabacion)\b/,
+  /\b(no puedo|no me es posible|no tengo (la )?(capacidad|acceso))\b.{0,30}\b(escuchar|oir|reproducir|procesar|transcribir|acceder a)\b.{0,30}\b(audio|audios|nota|notas|grabacion|archivos? de audio)\b/,
+  /\b(como (un |una )?(modelo de lenguaje|asistente virtual|ia|inteligencia artificial)|soy (un|una) (modelo de lenguaje|asistente virtual|ia))\b/,
+  /\b(please (provide|upload|share|send)|i can.?t (hear|listen|access|process)|no audio (was )?(provided|attached)|didn.?t (receive|get) (the|any) audio|as an ai)\b/,
+];
+function esRespuestaSinAudio(texto) {
+  const n = String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return NO_TRANSCRIPCION.some((re) => re.test(n));
+}
+
 class AudioService {
   constructor() {
     this.maxBytes = 16 * 1024 * 1024; // 16 MB max
@@ -45,11 +61,14 @@ class AudioService {
     }
 
     const geminiKey = this.getGeminiKey();
+    const openaiKey = this.getOpenAIKey();
     if (geminiKey) {
-      return await this._transcribeWithGemini(buffer, mimeType, geminiKey);
+      const r = await this._transcribeWithGemini(buffer, mimeType, geminiKey);
+      // Si Gemini no recibió el audio o falló, y hay clave de OpenAI, se intenta con Whisper
+      if (!r.ok && !r.inaudible && openaiKey) return await this._transcribeWithWhisper(buffer, mimeType, openaiKey);
+      return r;
     }
 
-    const openaiKey = this.getOpenAIKey();
     if (openaiKey) {
       return await this._transcribeWithWhisper(buffer, mimeType, openaiKey);
     }
@@ -89,12 +108,9 @@ class AudioService {
               role: 'user',
               parts: [
                 { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: cleanMime,
-                    data: base64Data
-                  }
-                }
+                // Nombres oficiales de la API (camelCase). Con "inline_data" en snake_case algunos intermediarios
+                // (como el proveedor de GEMINI_BASE_URL) descartan el audio y el modelo solo recibe el texto.
+                { inlineData: { mimeType: cleanMime, data: base64Data } }
               ]
             }
           ],
@@ -128,6 +144,10 @@ class AudioService {
       }
       if (/^INAUDIBLE\.?$/i.test(rawText)) {
         return { ok: false, inaudible: true, error: 'Audio inaudible o sin voz humana' };
+      }
+      if (esRespuestaSinAudio(rawText)) {
+        console.error('[AUDIO ERROR] El modelo no recibió el audio y respondió:', rawText.slice(0, 120));
+        return { ok: false, sinAudio: true, error: 'El modelo no recibió el audio' };
       }
 
       // Limpieza de comillas extras que a veces agrega el modelo
@@ -189,6 +209,7 @@ class AudioService {
       const data = await res.json();
       const text = (data?.text || '').trim();
       if (!text) return { ok: false, inaudible: true, error: 'Transcripción vacía' };
+      if (esRespuestaSinAudio(text)) return { ok: false, sinAudio: true, error: 'El modelo no recibió el audio' };
 
       return { ok: true, text };
     } catch (err) {
@@ -198,4 +219,6 @@ class AudioService {
   }
 }
 
-module.exports = new AudioService();
+const audioService = new AudioService();
+audioService.esRespuestaSinAudio = esRespuestaSinAudio;
+module.exports = audioService;

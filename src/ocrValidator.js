@@ -71,17 +71,13 @@ Reglas:
 5. "referencia": extrae el código alfanumérico o número de comprobante/aprobación (ej: M1234567, 839201).
 6. "exitoso": true si la transferencia fue exitosa/enviada/aprobada.`
                 },
-                {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: base64Image
-                  }
-                }
+                // Nombres oficiales de la API (camelCase): con "inline_data" algunos intermediarios descartan la imagen
+                { inlineData: { mimeType: "image/jpeg", data: base64Image } }
               ]
             }
           ],
           generationConfig: {
-            response_mime_type: "application/json",
+            responseMimeType: "application/json",
             temperature: 0.0
           }
         })

@@ -24,6 +24,9 @@ function limpiarRespuestaIA(texto, finishReason) {
 // Minutos entre la entrega del pack de moldes y la oferta del pack Emprende Dulce
 const UPSELL_MS = () => Number(process.env.UPSELL_MINUTOS || 3) * 60 * 1000;
 
+// Palabra que la IA escribe cuando el cliente quiere pagar; el sistema la cambia por las cuentas reales
+const MARCA_PAGO = '[ENVIAR_DATOS_PAGO]';
+
 class ConversationFlow {
   constructor() {
     this.defaultPrice = 10000;
@@ -245,8 +248,14 @@ class ConversationFlow {
     // D. Desconfianza: se le muestra el material gratis en vez de pedirle que confíe
     if (ventas.esDesconfianza(text)) return await this.responderDesconfianza(phone, producto);
 
-    // E. Pide cómo pagar
+    // E. Pide cómo pagar ("saque número le envío", "a ese número", "dónde pago", "quiero el pack")
     if (ventas.esPedidoPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
+
+    // E2. Responde a "¿te paso los datos?" con cualquier intención de seguir ("quiero el diseño", "o cómo", "dale"):
+    //     se mandan las cuentas de una vez, sin volver a preguntar
+    const ultBot = this.ultimoDelBot(phone);
+    const ofrecioDatos = lead.step === 'DATOS_OFRECIDOS' || (ultBot && ventas.ofreceDatosPago(ultBot.text || ''));
+    if (pitchYaEnviado && ofrecioDatos && ventas.aceptaDatosPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
 
     // F. Pide el descuento que se le ofreció en el seguimiento
     const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal(producto)) || (lead.seguimientosEnviados || 0) >= 1;
@@ -428,7 +437,7 @@ class ConversationFlow {
       const reglasVenta = opciones.comprador
         ? `- ESTE CLIENTE YA COMPRÓ. Nunca le pidas pago ni le des datos de cuenta. Ayúdalo con la descarga, la impresión o dudas del contenido. Su enlace personal es: ${opciones.enlace}`
         : `- Precio que se le ofreció a este cliente: ${ventas.cop(precio)} pago único.
-- NO envíes números de cuenta ni datos de pago: si el cliente quiere pagar, pregúntale "¿Te paso los datos de pago?" y el sistema se los envía.
+- NO escribas números de cuenta. Si el cliente quiere comprar o pagar, pide el número, la cuenta o cómo pagar, o ya aceptó que le pases los datos, responde SOLO con la palabra ${MARCA_PAGO} y nada más: el sistema le envía las cuentas reales. No le preguntes otra vez si se los envías.
 ${lead.muestraEnviada
     ? `- La muestra gratis (${ventas.descripcionMuestra(producto)}) ya se le envió más arriba en el chat. No la vuelvas a ofrecer; si no la ve, dile que escriba "no me llegó".`
     : `- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis ${producto === 'muebles' ? 'un plano completo' : producto === 'moldes' ? 'un patrón completo' : '5 recetas de muestra'} para que lo revises?").`}
@@ -462,8 +471,22 @@ Sofía:`;
       const data = await res.json();
       const cand = data?.candidates?.[0] || {};
       let aiText = (cand.content?.parts || []).map(p => p.text || '').join('').trim().replace(/^Sof[ií]a:\s*/i, '');
+      // La IA detectó que quiere pagar: se envían las cuentas reales (antes de limpiar, que borra los corchetes)
+      if (!opciones.comprador && aiText.includes(MARCA_PAGO)) {
+        console.log(`[FLOW IA] La IA pidió enviar los datos de pago a +${phone}`);
+        return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
+      }
       aiText = limpiarRespuestaIA(aiText, cand.finishReason);
       if (!aiText) throw new Error('Respuesta vacía');
+      if (!opciones.comprador && ventas.ofreceDatosPago(aiText)) {
+        // No preguntar dos veces seguidas "¿te paso los datos?": si ya se le preguntó, se le mandan
+        const previos = (conv?.messages || []).filter((m) => m.from !== 'cliente').slice(-3);
+        if (previos.some((m) => ventas.ofreceDatosPago(m.text || ''))) {
+          console.warn(`[FLOW IA] Iba a preguntar otra vez por los datos a +${phone}; se envían.`);
+          return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
+        }
+        store.saveLead(phone, { step: 'DATOS_OFRECIDOS' });
+      }
       if (!opciones.comprador) {
         // La IA no envía archivos: si dice que mandó la muestra, se manda de verdad (o se recuerda dónde está)
         if (ventas.iaDiceQueEnvio(aiText)) {
@@ -972,6 +995,11 @@ Sofía:`;
       // 2. Transcribir el audio usando Gemini 2.5 Flash
       const resTrans = await audioService.transcribe(media.buffer, media.mimeType);
 
+      // Segunda barrera: nunca se guarda ni se procesa una respuesta del modelo que no sea lo que dijo el cliente
+      if (resTrans.ok && resTrans.text && audioService.esRespuestaSinAudio && audioService.esRespuestaSinAudio(resTrans.text)) {
+        console.error(`[FLOW] La transcripción de +${phone} no es del cliente: "${resTrans.text.slice(0, 100)}"`);
+        resTrans.ok = false; resTrans.sinAudio = true; resTrans.error = 'El modelo no recibió el audio';
+      }
       if (resTrans.ok && resTrans.text) {
         const text = resTrans.text.trim();
         console.log(`[FLOW] 🎙️ Audio de +${phone} transcrito con éxito: "${text}"`);

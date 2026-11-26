@@ -324,7 +324,41 @@ function esPedidoPago(texto) {
     /\b(pasame|mandame|enviame|dame|regalame|deme|envieme|mandeme)\b.*\b(datos|dato|numero|cuenta|nequi|daviplata|llave)\b/.test(n) ||
     /\b(como|donde|a donde|a que numero|a cual)\b.*\b(pago|pagar|pagarle|consigno|consignar|consignarle|transfiero|transferir|transferirle|compro|comprar|comprarlo|cancelo|cancelar|adquirir|adquirirlo)\b/.test(n) ||
     /\b(quiero|voy a)\s+(comprar|pagar|adquirir|consignar|transferir)/.test(n) ||
-    /^(por )?(nequi|daviplata|bre b|llave)$/.test(n);
+    /^(por )?(nequi|daviplata|bre b|llave)$/.test(n) ||
+    // "saque número le envío", "páseme el número", "deme la cuenta", "cuál es el número"
+    /\b(saque|saca|sacame|saqueme|pase|pasa|paseme|passe|mande|manda|envie|envia|digame|dime|regale|cual es|cual seria|me da|me das|me pasa|me pasas|me manda|me envia)\b.{0,15}\b(el |su |ese |la |los )?(numero|nequi|daviplata|cuenta|llave|datos)\b/.test(n) ||
+    // "a ese número", "a qué número", "a cuál número", "al nequi"
+    /^(y |o |entonces |ok |listo |bueno )?(a|al|en) (ese|este|que|cual|su|el|cual es el) ?(numero|nequi|daviplata|cuenta|llave)\b/.test(n) ||
+    /^(y |o |entonces )?(a|al|por) (nequi|daviplata)$/.test(n) ||
+    /\b(a|al) (que|cual) (numero|nequi|daviplata|cuenta)\b/.test(n) ||
+    // "le envío ya", "le transfiero", "le consigno ahorita" (avisa que va a pagar, sin comprobante todavía)
+    /^(ya |listo |bueno |ok |entonces )?(le|te) (consigno|transfiero|pago|giro|envio la plata|mando la plata|envio el dinero|mando el dinero)( ya| ahorita| de una| ahora)?$/.test(n) ||
+    // "sí, pásamelos", "mándelos", "envíemelos"
+    /\b(pasamelos|pasemelos|mandamelos|mandemelos|enviamelos|enviemelos|mandelos|envielos|pasalos|mandalos|envialos|regalamelos)\b/.test(n) ||
+    // "quiero el pack", "lo quiero", "me lo llevo", "lo compro", "quiero comprarlo"
+    /^(si |ok |listo |bueno |dale )?(quiero (el|ese|este) (pack|paquete|kit|combo|mega pack)|(lo|la|los) quiero|me (lo|la|los) llevo|(lo|la|los) compro|quiero (comprarlo|comprarla|adquirirlo|pagarlo))( ya| de una| por favor| porfa)?$/.test(n);
+}
+
+// La última pregunta del bot fue si le pasa los datos de pago ("¿Te los envío de una vez?", "¿Te paso los datos?")
+function ofreceDatosPago(texto) {
+  const n = normalizar(texto);
+  if (/nequi|daviplata/.test(n) && /\d{3} ?\d{3} ?\d{4}/.test(n)) return false; // ya trae las cuentas
+  if (/\b(muestra|gratis|patron|receta)/.test(n)) return false; // ofrece la muestra, no los datos de pago
+  return /\b(te|le) (los |las )?(paso|envio|mando|comparto|doy) (ya |de una |de una vez |ahora |ahorita )?.{0,25}\b(datos|cuentas?|numero|nequi|daviplata|pago)\b/.test(n) ||
+    /\b(te|le) (los|las) (paso|envio|mando)\s*\?\s*$/.test(n) ||
+    /\b(te|le) (los |las )?(paso|envio|mando|comparto) (ya|de una|de una vez|ahora|ahorita)\b/.test(n) ||
+    /\bquieres que te (pase|envie|mande|comparta) (los datos|las cuentas|el numero)\b/.test(n) ||
+    /\b(datos|cuentas) (de pago|para (pagar|la transferencia))\b.{0,20}\?/.test(n);
+}
+
+// Respuesta a "¿te paso los datos?": cualquier intención de seguir ("quiero el diseño", "o cómo", "dale", "sí")
+// que no sea un no, una duda de confianza ni otra pregunta larga
+function aceptaDatosPago(texto) {
+  const n = normalizar(texto);
+  if (!n || esRechazo(texto) || esDesconfianza(texto) || /^no\b/.test(n)) return false;
+  if (n.split(' ').length > 8) return false;
+  if (esAfirmacion(texto) || esPedidoPago(texto)) return true;
+  return /\b(si+|quiero|dale|listo|ok\w*|bueno|hagale|de una|como|claro|porfa\w*|favor|envie\w*|mande\w*|pase\w*|numero|nequi|daviplata|cuenta|perfecto|va|vale|ya|ahora|ahorita|comprar|compro|pago|pagar)\b/.test(n);
 }
 
 // Pide ver el producto: fotos, catálogo, ejemplo, muestra
@@ -436,6 +470,6 @@ module.exports = {
   precioNormal, precioDescuento, precioDe, cop, enHorarioSilencio, horaColombia,
   infoPack, conocimiento, imagenes, documentosMuestra, descripcionMuestra, host,
   textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
-  normalizar, esAfirmacion, esPedidoPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,
+  normalizar, esAfirmacion, esPedidoPago, ofreceDatosPago, aceptaDatosPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,
   esNoLlego, esNoAbre, iaOfreceMuestra, iaDiceQueEnvio, esPagoPospuesto, momentoRecordatorio, textoPagoPospuesto, textoRecordatorioPago,
 };

@@ -61,7 +61,8 @@ function manifestMoldes() {
 }
 
 function manifestMuebles() {
-  try { return JSON.parse(fs.readFileSync(path.join(PUBLIC, 'muebles/manifest.json'), 'utf8')); } catch (_) { return { categorias: [], guias: [], bonos: [], totales: {}, muestra: {} }; }
+  const m = require('./muebles/portal').manifest();
+  return m && m.categorias ? { guias: [], bonos: [], ...m } : { categorias: [], guias: [], bonos: [], totales: {}, muestra: {} };
 }
 
 function infoPack(producto) {
@@ -72,7 +73,7 @@ function infoPack(producto) {
       producto,
       nombre: 'Mega Pack de Carpintería y Muebles en Melamina 2026',
       emoji: '🪚',
-      queIncluye: `los ${T.planos || 0} planos, las ${T.guias || 4} guías y los ${T.bonos || 2} bonos`,
+      queIncluye: `los ${(T.planos || 0).toLocaleString('es-CO')} planos, las ${T.guias || 4} guías y los ${T.bonos || 2} bonos`,
       categorias: m.categorias,
       muestra: m.muestra || {},
       totales: { planos: T.planos || 0, disenos: T.disenos || 0, categorias: T.categorias || 0, piezas: T.piezas || 0 },
@@ -102,15 +103,15 @@ function infoPack(producto) {
 function conocimiento(producto) {
   const p = infoPack(producto);
   if (producto === 'muebles') {
-    const lista = p.categorias.map((c) => {
-      const porDiseno = {};
-      for (const pl of c.planos) (porDiseno[pl.nombre] = porDiseno[pl.nombre] || []).push(pl.A);
-      return `- ${c.id} ${c.nombre} (${c.planos.length} planos): ` + Object.entries(porDiseno).map(([d, anchos]) => `${d} (${anchos.length > 1 ? `anchos de ${anchos.join(', ')} mm` : `${anchos[0]} mm de ancho`})`).join('; ');
-    }).join('\n');
+    // Por diseño: cuántas medidas tiene y sus rangos (la lista completa de medidas no cabe en el mensaje a la IA)
+    const r = (xs) => { const u = [...new Set(xs)].sort((a, b) => a - b); return u.length > 1 ? `${u[0]} a ${u[u.length - 1]}` : `${u[0]}`; };
+    const lista = p.categorias.map((c) => `- ${c.id} ${c.nombre} (${c.planos} planos): ` +
+      c.disenos.map((d) => `${d.nombre} (${d.medidas.length} planos; ancho ${r(d.medidas.map((m) => m.A))} mm, alto ${r(d.medidas.map((m) => m.H))} mm, fondo ${r(d.medidas.map((m) => m.P))} mm)`).join('; ')).join('\n');
     return `PRODUCTO: ${p.nombre}. Es digital (PDF y un catálogo web), se entrega por este chat con un enlace personal. Precio ${cop(precioNormal('muebles'))} pago único.
-CONTENIDO EXACTO (no hay nada más): ${p.totales.planos} planos de ${p.totales.disenos} diseños en varias medidas, en 5 categorías:
+CONTENIDO EXACTO (no hay nada más): ${p.totales.planos.toLocaleString('es-CO')} planos: ${p.totales.disenos} diseños base, cada uno en sus medidas estándar (anchos, altos y fondos comerciales) y configuraciones, en 5 categorías:
 ${lista}
 - Cada plano trae: vista frontal con medidas, despiece pieza por pieza en milímetros (cantidad, largo, ancho y tapacanto), lista de herrajes y tornillería, cuántos tableros de 2,15 × 2,44 m y láminas de HDF comprar, metros de tapacanto, plano de cortes por tablero y paso a paso de armado.
+- Si preguntan cómo así tantos planos: son ${p.totales.disenos} diseños de mueble, cada uno calculado en sus medidas estándar; cada medida es un plano propio con su despiece, herrajes y cortes. No digas que son ${p.totales.planos.toLocaleString('es-CO')} muebles o modelos distintos.
 - Melamina de 15 mm (las camas en 18 mm). En el catálogo web el comprador puede cambiar ancho, alto, fondo y espesor de los muebles de cuerpo, escritorios y tocadores, y se recalcula el despiece.
 - Sirve sin taller: se lleva el despiece a un depósito (Madecentro, Homecenter u otro) que corta y enchapa, y se arma en casa con taladro.
 - 4 guías en PDF: Materiales, tableros y herrajes; Cortar, cantear, perforar y unir (incluye el camino sin taller); Optimización de cortes y láminas; Diseño 3D con SketchUp y render.
@@ -194,7 +195,7 @@ function textoPitch(producto) {
   if (producto === 'muebles') {
     const p = infoPack('muebles');
     return `¡Hola! 🪚 Te cuento qué trae el *Mega Pack de Carpintería y Muebles en Melamina 2026*:\n\n` +
-      `✅ *${p.totales.planos} planos con medidas exactas en mm* (${p.totales.disenos} diseños en varias medidas): cocinas, alacenas y baño; clósets, vestidores y zapateras; escritorios, oficina y muebles de TV; camas, cómodas, mesas de noche y tocadores; infantiles y organizadores\n` +
+      `✅ *${p.totales.planos.toLocaleString('es-CO')} planos reales con medidas exactas en mm*: ${p.totales.disenos} diseños base en todas sus medidas estándar (anchos, altos y fondos comerciales). Cocinas, alacenas y baño; clósets, vestidores y zapateras; escritorios, oficina y muebles de TV; camas, cómodas, mesas de noche y tocadores; infantiles y organizadores\n` +
       `✅ Cada plano trae el *despiece pieza por pieza* con medidas y tapacanto, los herrajes, cuántas láminas comprar, el plano de cortes y el paso a paso de armado\n` +
       `✅ Sirve aunque no tengas taller: llevas el despiece al depósito, allá te cortan y enchapan, y lo armas en casa con taladro\n` +
       `✅ 4 guías (materiales y herrajes, cortar y armar, optimizar cortes, diseño 3D en SketchUp) + calculadora de costos y cotización en pesos + guía para cobrar tus trabajos\n\n` +
@@ -251,7 +252,7 @@ function textoDespuesMuestra(producto, precio) {
   const p = infoPack(producto);
   if (producto === 'muebles') {
     return `Ahí te va 👆 el plano completo de la *${p.muestra.nombre || 'Mesa de noche de 2 cajones'}*: vista con medidas, despiece en mm con tapacanto, herrajes, láminas, plano de cortes y armado.\n\n` +
-      `Así vienen los *${p.totales.planos} planos* del pack. Si te gusta, el pack completo con ${p.queIncluye} vale *${cop(precio)}*. ¿Te paso los datos de pago?`;
+      `Así vienen los *${p.totales.planos.toLocaleString('es-CO')} planos* del pack. Si te gusta, el pack completo con ${p.queIncluye} vale *${cop(precio)}*. ¿Te paso los datos de pago?`;
   }
   return producto === 'moldes'
     ? `Ahí te van 👆 la ficha técnica completa y el molde de la talla M. Ábrelo en el celular o imprímelo al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm.\n\n` +

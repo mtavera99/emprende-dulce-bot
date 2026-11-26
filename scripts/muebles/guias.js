@@ -1,6 +1,6 @@
 // Contenido de las 4 guías prácticas y del bono "Cómo cobrar un trabajo de carpintería en Colombia".
 // Los ejemplos numéricos salen del motor (planos reales del pack), no se escriben a mano.
-module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
+module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm, res }) {
   const cap = (n, kicker, titulo, cuerpo) => `<section class="cap"><header class="cap-cab"><span class="n">${String(n).padStart(2, '0')}</span><div><small>${esc(kicker)}</small><h2>${esc(titulo)}</h2></div></header>${cuerpo}</section>`;
   const caja = (t, h, cls = 'caja') => `<div class="${cls}"><h4>${esc(t)}</h4>${h}</div>`;
   const ul = (a) => '<ul>' + a.map((x) => `<li>${x}</li>`).join('') + '</ul>';
@@ -9,13 +9,13 @@ module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
   const plano = (cod) => { const x = M.buscar(cod); return { ...x, r: M.construir(x.item) }; };
   const cop = (v) => '$' + Math.round(v).toLocaleString('es-CO');
   const arte = (cod) => { const p = plano(cod); return D.frente(p.r, p.item.spec); };
-  const kp = [[TOTAL, 'planos'], [DISENOS.length, 'diseños'], ['mm', 'medidas'], ['COP', 'Colombia']];
+  const kp = [[TOTAL.toLocaleString('es-CO'), 'planos'], [DISENOS.length, 'diseños'], ['mm', 'medidas'], ['COP', 'Colombia']];
   const guias = [];
 
   // ====================================================================== GUÍA 1
-  const b800 = plano('COC-B2P-800');
+  const b800 = plano('COC-B2P-800x720x560');
   guias.push({ id: 'g1', archivo: 'Guias/01_Guia_Materiales_Tableros_y_Herrajes.pdf', titulo: 'Guía 1 · Materiales, Tableros y Herrajes', sub: 'Tableros de 15 y 18 mm, tapacanto PVC, tornillos, bisagras, correderas y minifix', html: [
-    portada('Materiales, Tableros y Herrajes', 'Guía 1', 'Qué comprar, en qué espesor y con qué herrajes, para que el mueble dure y no te equivoques en el depósito.', kp, arte('CLO-2000-2200')),
+    portada('Materiales, Tableros y Herrajes', 'Guía 1', 'Qué comprar, en qué espesor y con qué herrajes, para que el mueble dure y no te equivoques en el depósito.', kp, arte('CLO-ABA-2000x2200x550-CC')),
     cap(1, 'Tableros', 'La melamina y sus parientes', `
       <p>Lo que en Colombia llamamos <b>melamina</b> es un tablero de partículas de madera (aglomerado o MDP) recubierto por las dos caras con una lámina decorativa de papel impregnado en resina. Es económica, viene en colores lisos y maderados, y no necesita pintura ni laca.</p>
       ${tabla(['Tablero', 'Para qué sirve', 'Cuidado'], [
@@ -93,7 +93,7 @@ module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
 
   // ====================================================================== GUÍA 2
   guias.push({ id: 'g2', archivo: 'Guias/02_Guia_Cortar_Cantear_Perforar_y_Unir.pdf', titulo: 'Guía 2 · Cortar, Cantear, Perforar y Unir', sub: 'Paso a paso, incluso sin taller: pedir el corte en el depósito y armar en casa con taladro', html: [
-    portada('Cortar, Cantear, Perforar y Unir', 'Guía 2', 'De la lista de despiece al mueble armado, con taller o sin taller.', kp, arte('DOR-CO4-800')),
+    portada('Cortar, Cantear, Perforar y Unir', 'Guía 2', 'De la lista de despiece al mueble armado, con taller o sin taller.', kp, arte('DOR-COM-800x900x450-4C')),
     cap(1, 'Dos caminos', 'Con taller o sin taller', `
       ${tabla(['', 'Sin taller', 'Con taller'], [
         ['Corte', 'Lo hace el depósito con su seccionadora', 'Sierra circular con riel o sierra de mesa'],
@@ -164,12 +164,12 @@ module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
 
   // ====================================================================== GUÍA 3
   const W = 2130, Hh = 2420, UTIL = (W * Hh) / 1e6;
-  const porCat = FAM.map((f) => { const rs = f.items.map((i) => M.construir(i)); return [esc(f.nombre), f.items.length, `${Math.min(...rs.map((r) => r.tableros))} a ${Math.max(...rs.map((r) => r.tableros))}`, `${Math.round(rs.reduce((n, r) => n + r.aprovechamiento, 0) / rs.length)} %`]; });
-  const mn = plano('DOR-MN1-450'), co = plano('DOR-CO4-800');
+  const porCat = FAM.map((f) => { const rs = f.items.map((i) => (res ? res(i) : M.construir(i))); return [esc(f.nombre), f.items.length, `${Math.min(...rs.map((r) => r.tableros))} a ${Math.max(...rs.map((r) => r.tableros))}`, `${Math.round(rs.reduce((n, r) => n + r.aprovechamiento, 0) / rs.length)} %`]; });
+  const mn = plano('DOR-MN2C-450x500x400'), co = plano('DOR-COM-800x900x450-4C');
   const juntos = M.optimizar([...mn.r.piezas, ...mn.r.piezas, ...co.r.piezas].filter((p) => p.material === 'melamina'), M.CONFIG);
   const separados = 2 * mn.r.tableros + co.r.tableros;
   const est = (m2) => Math.ceil((m2 * 1.2) / UTIL);
-  const clo = plano('CLO-COR-1800');
+  const clo = plano('CLO-COR-1800x2200x600-CC');
   guias.push({ id: 'g3', archivo: 'Guias/03_Guia_Optimizacion_de_Cortes_y_Laminas.pdf', titulo: 'Guía 3 · Optimización de Cortes y Aprovechamiento de Láminas', sub: 'Cuántas láminas comprar para que no falte material ni se pierda plata en retazos', html: [
     portada('Optimización de Cortes y Láminas', 'Guía 3', 'Cuántas láminas comprar, cómo acomodar las piezas y qué hacer con los retazos.', kp, D.tablero(clo.r.optimizacion, 0, (k) => k + 1)),
     cap(1, 'Por qué importa', 'Cada lámina mal calculada es plata', `
@@ -206,7 +206,7 @@ module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
 
   // ====================================================================== GUÍA 4
   guias.push({ id: 'g4', archivo: 'Guias/04_Guia_Diseno_3D_SketchUp_y_Render.pdf', titulo: 'Guía 4 · Diseño 3D para Carpintería (SketchUp + Render)', sub: 'Presenta el mueble en 3D al cliente antes de cortar una sola pieza', html: [
-    portada('Diseño 3D para Carpintería', 'Guía 4', 'Cómo modelar en SketchUp un mueble del pack con sus medidas exactas y presentarlo al cliente antes de cortar.', kp, arte('TV-CEN-2400')),
+    portada('Diseño 3D para Carpintería', 'Guía 4', 'Cómo modelar en SketchUp un mueble del pack con sus medidas exactas y presentarlo al cliente antes de cortar.', kp, arte('TV-CEN-2400x1800-T400')),
     cap(1, 'Por qué en 3D', 'Vender antes de cortar', `
       <p>Un cliente aprueba más rápido lo que ve. Con una imagen 3D del mueble en su color, en su espacio y con sus medidas, se reducen los cambios después de cortar (que son los que más plata cuestan) y puedes cobrar el anticipo con tranquilidad.</p>
       ${caja('Importante', '<p>Este pack <b>no incluye archivos de SketchUp (.skp) ni renders hechos</b>. Esta guía te enseña a modelar cualquier plano del pack con las medidas del despiece, que es lo que necesitas para presentar tus propios proyectos.</p>', 'alerta')}`),
@@ -261,7 +261,7 @@ module.exports = function ({ M, D, FAM, TOTAL, DISENOS, portada, esc, mm }) {
   const conInd = directo * 1.15;
   const precio = Math.ceil(conInd / (1 - 0.3) / 1000) * 1000;
   guias.push({ id: 'cobrar', bono: true, archivo: 'Bonos/Bono_Como_Cobrar_un_Trabajo_de_Carpinteria_en_Colombia.pdf', titulo: 'Bono · Cómo Cobrar un Trabajo de Carpintería en Colombia', sub: 'Márgenes, anticipo del 50 % y cotización profesional, sin cotizar al ojo', html: [
-    portada('Cómo Cobrar un Trabajo de Carpintería', 'Bono', 'Una forma ordenada de calcular el precio, pedir el anticipo y presentar una cotización profesional en Colombia.', [[TOTAL, 'planos'], ['50 %', 'anticipo'], ['COP', 'pesos'], ['1', 'fórmula']], arte('CLO-COR-1800')),
+    portada('Cómo Cobrar un Trabajo de Carpintería', 'Bono', 'Una forma ordenada de calcular el precio, pedir el anticipo y presentar una cotización profesional en Colombia.', [[TOTAL.toLocaleString('es-CO'), 'planos'], ['50 %', 'anticipo'], ['COP', 'pesos'], ['1', 'fórmula']], arte('CLO-COR-1800x2200x600-CC')),
     cap(1, 'El problema', 'Cotizar «al ojo» sale caro', `
       <p>El error más común es cobrar «lo que cobra el otro» o sumar solo el material. Así se trabaja gratis sin darse cuenta: se olvidan el corte, el canto, el transporte, los días de trabajo, la broca que se partió y la visita para medir.</p>
       ${caja('La idea de esta guía', '<p>Calcular el <b>costo real</b> con la lista de materiales del plano, sumarle tu trabajo y los gastos que no se ven, y ponerle una <b>ganancia sobre el precio</b>. La calculadora del pack hace estas cuentas por ti.</p>')}`),

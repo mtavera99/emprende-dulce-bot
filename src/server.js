@@ -138,12 +138,38 @@ app.get('/planos/:token', (req, res) => {
   accesos.registrarUso(st.acceso.token, 'vistas');
   res.send(portalMuebles.catalogo(st.acceso, paginaAcceso.waLink));
 });
+// Acceso válido de muebles para las páginas del portal de planos (o null si ya respondió con error)
+function accesoMuebles(req, res) {
+  const st = accesos.estado(req.params.token);
+  res.set('Cache-Control', 'no-store');
+  if (!st.ok) { res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso)); return null; }
+  if (st.acceso.producto !== 'muebles') { res.redirect(`/acceso/${encodeURIComponent(st.acceso.token)}`); return null; }
+  return st.acceso;
+}
+app.get('/planos/:token/buscar', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  res.send(portalMuebles.buscarMedida(a, req.query));
+});
+app.get('/planos/:token/d/:slug', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  const html = portalMuebles.diseno(a, String(req.params.slug || '').toLowerCase(), paginaAcceso.waLink);
+  if (!html) return res.status(404).send('Diseño no encontrado');
+  res.send(html);
+});
+app.get('/planos/:token/:cod/despiece.csv', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  const cod = String(req.params.cod || '');
+  const csv = portalMuebles.despieceCSV(a, cod, req.query);
+  if (!csv) return res.status(404).send('Plano no encontrado');
+  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="Despiece_${cod.replace(/[^A-Z0-9x-]/gi, '')}.csv"` });
+  res.send(csv);
+});
 app.get('/planos/:token/:cod', (req, res) => {
   const st = accesos.estado(req.params.token);
   res.set('Cache-Control', 'no-store');
   if (!st.ok) return res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
   if (st.acceso.producto !== 'muebles') return res.redirect(`/acceso/${encodeURIComponent(st.acceso.token)}`);
-  const html = portalMuebles.plano(st.acceso, String(req.params.cod || '').toUpperCase(), req.query, paginaAcceso.waLink);
+  const html = portalMuebles.plano(st.acceso, String(req.params.cod || ''), req.query, paginaAcceso.waLink);
   if (!html) return res.status(404).send('Plano no encontrado');
   res.send(html);
 });
@@ -157,6 +183,15 @@ app.get('/d/:token/:id', (req, res) => {
   if (!f.startsWith(accesos.PUBLIC) || !fs.existsSync(f)) return res.status(404).send('Archivo no encontrado');
   accesos.registrarUso(st.acceso.token, 'descargas');
   res.set('Cache-Control', 'private, no-store');
+  if (it.entradaZip) {
+    // PDF guardado dentro del ZIP del pack: se envía por partes, sin cargarlo entero en memoria
+    const en = accesos.entradaZip(it);
+    if (!en) return res.status(404).send('Archivo no encontrado');
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Length': en.tamano, 'Content-Disposition': `attachment; filename="${path.basename(en.nombre).replace(/"/g, '')}"` });
+    const flujo = zipLector.abrirEntrada(f, en);
+    flujo.on('error', (e) => { console.error('[ZIP]', e.message); res.destroy(e); });
+    return flujo.pipe(res);
+  }
   if (it.abrir) return res.sendFile(f);
   res.download(f, path.basename(f));
 });

@@ -91,7 +91,7 @@ function textoPrueba(paso, lead, settings) {
   if (paso === 1) {
     return `¿Qué tal te pareció? 😊 Ya pudiste ver por dentro la calidad ${moldes ? 'de los moldes' : muebles ? 'de los planos' : 'de las recetas'}.\n\n` +
       `Si es lo que buscabas, te dejo las cuentas para tus *$${precio} COP*:\n\n${cuentas}\n\n` +
-      `Apenas me envíes la foto del comprobante te desbloqueo ${moldes ? 'las 10 colecciones completas' : muebles ? `los ${ventas.infoPack('muebles').totales.planos} planos, las guías y los bonos` : 'los 3 libros y todos los bonos'} al instante ${moldes ? '🧵' : muebles ? '🪚' : '🍰'}`;
+      `Apenas me envíes la foto del comprobante te desbloqueo ${moldes ? 'las 10 colecciones completas' : muebles ? `los ${ventas.infoPack('muebles').totales.planos.toLocaleString('es-CO')} planos, las guías y los bonos` : 'los 3 libros y todos los bonos'} al instante ${moldes ? '🧵' : muebles ? '🪚' : '🍰'}`;
   }
   if (paso === 2) {
     return `Tu acceso de prueba se cierra en 10 minutos ⏳\n\n` +

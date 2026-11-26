@@ -67,3 +67,15 @@ p { margin: 0 0 2.4mm; } ul, ol { margin: 0 0 2.6mm; padding-left: 5mm; } li { m
 .portada .p-arte { background: #fffaf2; } .portada .p-arte svg { max-height: 120mm; }
 .arm { border: .3mm solid var(--linea); border-left: 1.4mm solid #15803d; border-radius: 1.6mm; padding: 2.5mm 3.5mm; margin: 0 0 3mm; background: #f7fbf7; break-inside: avoid; }
 .arm h4 { margin: 0 0 1.5mm; } .arm ol { margin: 0; font-size: 8.2pt; } .arm li { margin: 0 0 .6mm; }
+/* página compacta: un plano por página */
+.cp { break-before: page; font-size: 7.6pt; }
+.cp-cab { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: .6mm solid var(--c1); padding-bottom: 1.5mm; margin-bottom: 2mm; gap: 4mm; }
+.cp-cab small { font: 700 6.6pt var(--sans); letter-spacing: .1em; color: #a26a10; } .cp-cab h3 { margin: 0; font-size: 12pt; } .cp-cab > b { font: 800 11pt var(--serif); color: var(--c1); white-space: nowrap; }
+.cp-g { display: grid; grid-template-columns: 1fr 1.3fr; gap: 4mm; margin-bottom: 2mm; }
+.cp-dib { border: .3mm solid var(--linea); border-radius: 1.6mm; height: 50mm; display: flex; align-items: center; justify-content: center; padding: 1mm; } .cp-dib svg { max-width: 100%; max-height: 100%; }
+.cp-kpi { display: flex; flex-wrap: wrap; gap: 1.2mm; margin-bottom: 1.5mm; } .cp-kpi span { background: var(--c3); border-radius: 1.2mm; padding: .8mm 1.6mm; font-size: 7pt; } .cp-kpi b { color: var(--c1); }
+.cp-herr { margin: 0; padding-left: 4mm; font-size: 7pt; columns: 2; column-gap: 4mm; } .cp-herr li { margin: 0 0 .4mm; break-inside: avoid; }
+.cp-t td, .cp-t th { font-size: 7pt; padding: .7mm 1.4mm; }
+.cp-nota { font-size: 7pt; color: var(--gris); margin: 0 0 1.5mm; }
+.cp-cortes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; } .cp-cortes .tab { padding: 1mm; } .cp-cortes .tab-t { font-size: 6pt; }
+.t.idx td, .t.idx th { font-size: 7.2pt; padding: .8mm 1.6mm; }

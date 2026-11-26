@@ -14,10 +14,16 @@ const ICONO = { '01': '🍳', '02': '👗', '03': '💻', '04': '🛏', '05': '�
 // Tipos de plano a los que se les puede cambiar ancho, alto y fondo
 const AJUSTABLES = new Set([undefined, 'escritorio', 'bibliotecaPuertas', 'corredizo', 'gamer', 'tocador', 'baul']);
 
+// El manifest (~0,5 MB) se lee una vez y se vuelve a leer solo si cambia el archivo
+let cache = { mtime: 0, man: null };
 function manifest() {
-  try { return JSON.parse(fs.readFileSync(MANIFEST, 'utf8')); } catch (_) { return { categorias: [], totales: {}, muestra: {} }; }
+  try {
+    const mt = fs.statSync(MANIFEST).mtimeMs;
+    if (!cache.man || cache.mtime !== mt) cache = { mtime: mt, man: JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) };
+    return cache.man;
+  } catch (_) { return { categorias: [], totales: {}, muestra: {} }; }
 }
-function codMuestra() { return (manifest().muestra || {}).cod || 'DOR-MN1-450'; }
+function codMuestra() { return (manifest().muestra || {}).cod || 'DOR-MN2C-450x500x400'; }
 
 function base(titulo, cuerpo) {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -44,37 +50,93 @@ h2{font:700 17px Georgia,serif;color:var(--c1);margin:4px 0 10px}ol{padding-left
 .cortes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}.cortes div{border:1px solid var(--linea);border-radius:10px;padding:6px;background:#fff}.cortes svg{width:100%}
 form.aj{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-items:end}form.aj label{font-size:12px;color:var(--gris)}form.aj input,form.aj select{width:100%;padding:8px;border:1px solid #d6cbb9;border-radius:8px;font:inherit}
 @media(max-width:560px){form.aj{grid-template-columns:1fr 1fr}.kpi{grid-template-columns:1fr 1fr}table{font-size:12.5px}.desp td:nth-child(6),.desp th:nth-child(6){display:none}.wrap{padding:10px}}
+@media print{header a,.btn,form.aj,.aviso a{display:none!important}body{background:#fff}.box,.dib{break-inside:avoid;border-color:#ccc}.cortes div{break-inside:avoid}}
 .alerta{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13.5px}
 .aviso{background:#fff7e6;border:1px solid #f1d39b;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13.5px}
 </style></head><body>${cuerpo}</body></html>`;
 }
 
+const rango = (xs) => { const a = Math.min(...xs), b = Math.max(...xs); return a === b ? mm(a) : `${mm(a)} a ${mm(b)}`; };
+
+// Catálogo: los diseños de cada categoría, con cuántas medidas tiene cada uno
 function catalogo(acceso, waLink) {
   const man = manifest();
   const prueba = acceso.tipo === 'prueba';
   const muestra = codMuestra();
   const T = man.totales || {};
-  const cards = man.categorias.flatMap((c) => c.planos.map((p) => {
-    const libre = !prueba || p.cod === muestra;
-    const txt = `${p.cod} ${p.nombre} ${c.nombre} ${p.diseno}`.toLowerCase();
-    const inner = `<small>${esc(c.id)} · ${esc(p.cod)}</small><b>${libre ? '' : '🔒 '}${esc(p.nombre)}</b><span>${mm(p.A)} × ${mm(p.H)} × ${mm(p.P)} mm · ${p.tableros} tablero${p.tableros > 1 ? 's' : ''} · ${p.piezas} piezas</span>`;
-    return libre
-      ? `<a class="card" data-cat="${esc(c.id)}" data-t="${esc(txt)}" href="/planos/${encodeURIComponent(acceso.token)}/${encodeURIComponent(p.cod)}">${inner}</a>`
-      : `<div class="card lock" data-cat="${esc(c.id)}" data-t="${esc(txt)}">${inner}</div>`;
+  const t = encodeURIComponent(acceso.token);
+  const cards = man.categorias.flatMap((c) => c.disenos.map((d) => {
+    const txt = `${d.pref} ${d.nombre} ${c.nombre} ${[...new Set(d.medidas.map((m) => m.A))].join(' ')}`.toLowerCase();
+    const tieneMuestra = d.medidas.some((m) => m.cod === muestra);
+    return `<a class="card" data-cat="${esc(c.id)}" data-t="${esc(txt)}" href="/planos/${t}/d/${encodeURIComponent(d.slug)}">
+      <small>${esc(c.id)} · ${esc(d.pref)}</small><b>${esc(d.nombre)}</b>
+      <span>${d.medidas.length} planos · anchos de ${rango(d.medidas.map((m) => m.A))} mm${prueba ? (tieneMuestra ? ' · 🎁 incluye la muestra' : ' · 🔒') : ''}</span></a>`;
   })).join('');
   return base('📐 Catálogo de planos · Muebles en Melamina', `
-  <header><h1>📐 Catálogo de planos</h1><p>${T.planos || 0} planos de ${T.disenos || 0} diseños · medidas en mm · <a href="/${prueba ? 'prueba' : 'acceso'}/${encodeURIComponent(acceso.token)}">← Volver a mis descargas</a></p></header>
+  <header><h1>📐 Catálogo de planos</h1><p>${(T.planos || 0).toLocaleString('es-CO')} planos de ${T.disenos || 0} diseños en sus medidas estándar · medidas en mm · <a href="/${prueba ? 'prueba' : 'acceso'}/${t}">← Volver a mis descargas</a></p></header>
   <div class="wrap">
-    ${prueba ? `<div class="aviso">🤝 <b>Acceso de prueba:</b> puedes abrir el plano de muestra (<b>${esc(muestra)}</b>) y ver la lista completa. Los demás se desbloquean al pagar. <a href="${esc(waLink('Ya revisé la prueba y quiero el pack completo de muebles'))}">Quiero el pack completo</a></div>` : ''}
-    <input class="buscar" id="q" placeholder="Buscar: clóset, cocina, 1200, cama doble, escritorio en L…" oninput="filtrar()">
-    <div class="pills"><span class="pill on" data-c="" onclick="cat(this)">Todos</span>${man.categorias.map((c) => `<span class="pill" data-c="${esc(c.id)}" onclick="cat(this)">${ICONO[c.id] || '📁'} ${esc(c.corto)} (${c.planos.length})</span>`).join('')}</div>
+    ${prueba ? `<div class="aviso">🤝 <b>Acceso de prueba:</b> puedes ver todos los diseños y sus medidas, y abrir el plano de muestra (<a href="/planos/${t}/${encodeURIComponent(muestra)}">${esc(muestra)}</a>). Los demás se desbloquean al pagar. <a href="${esc(waLink('Ya revisé la prueba y quiero el pack completo de muebles'))}">Quiero el pack completo</a></div>` : ''}
+    <form class="aj" method="get" action="/planos/${t}/buscar" style="margin-bottom:10px"><div><label>Ancho (mm)</label><input name="A" type="number" placeholder="1200"></div><div><label>Alto (mm)</label><input name="H" type="number" placeholder="opcional"></div><div><label>Fondo (mm)</label><input name="P" type="number" placeholder="opcional"></div><button class="btn" type="submit">Buscar medida</button></form>
+    <input class="buscar" id="q" placeholder="Buscar diseño: clóset, cocina, cama, escritorio, zapatero…" oninput="filtrar()">
+    <div class="pills"><span class="pill on" data-c="" onclick="cat(this)">Todos</span>${man.categorias.map((c) => `<span class="pill" data-c="${esc(c.id)}" onclick="cat(this)">${ICONO[c.id] || '📁'} ${esc(c.corto)} (${c.planos.toLocaleString('es-CO')})</span>`).join('')}</div>
     <p class="cnt" id="cnt"></p>
     <div class="grid" id="g">${cards}</div>
   </div>
   <script>let C='';function cat(el){document.querySelectorAll('.pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');C=el.dataset.c;filtrar()}
-  function filtrar(){const q=document.getElementById('q').value.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').split(/\\s+/).filter(Boolean);let n=0;
-  document.querySelectorAll('#g .card').forEach(c=>{const t=c.dataset.t.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');const ok=(!C||c.dataset.cat===C)&&q.every(w=>t.includes(w));c.style.display=ok?'':'none';if(ok)n++});
-  document.getElementById('cnt').textContent=n+' plano'+(n===1?'':'s')}filtrar()</script>`);
+  function filtrar(){const q=document.getElementById('q').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\s+/).filter(Boolean);let n=0;
+  document.querySelectorAll('#g .card').forEach(c=>{const t=c.dataset.t.normalize('NFD').replace(/[\u0300-\u036f]/g,'');const ok=(!C||c.dataset.cat===C)&&q.every(w=>t.includes(w));c.style.display=ok?'':'none';if(ok)n++});
+  document.getElementById('cnt').textContent=n+' diseño'+(n===1?'':'s')}filtrar()</script>`);
+}
+
+// Fila de una medida en las tablas del portal
+function filaMedida(m, t, libre) {
+  const celdas = `<td><b>${esc(m.cod)}</b>${m.cfg ? `<div class="nota">${esc(m.cfg)}</div>` : ''}</td><td class="r">${mm(m.A)} × ${mm(m.H)} × ${mm(m.P)}</td><td class="r">${m.tableros}</td><td class="r">${m.piezas}</td>`;
+  return libre ? `<tr data-a="${m.A}" data-h="${m.H}" data-p="${m.P}" onclick="location.href='/planos/${t}/${encodeURIComponent(m.cod)}'" style="cursor:pointer">${celdas}<td><a href="/planos/${t}/${encodeURIComponent(m.cod)}">Abrir</a></td></tr>`
+    : `<tr data-a="${m.A}" data-h="${m.H}" data-p="${m.P}" style="opacity:.55">${celdas}<td>🔒</td></tr>`;
+}
+
+// Página de un diseño: todas sus medidas, con filtro por ancho, alto y fondo
+function diseno(acceso, slug, waLink) {
+  const man = manifest();
+  let c = null, d = null;
+  for (const cc of man.categorias) { const dd = cc.disenos.find((x) => x.slug === slug); if (dd) { c = cc; d = dd; break; } }
+  if (!d) return null;
+  const prueba = acceso.tipo === 'prueba';
+  const t = encodeURIComponent(acceso.token);
+  const opciones = (k) => [...new Set(d.medidas.map((m) => m[k]))].sort((a, b) => a - b).map((v) => `<option value="${v}">${mm(v)}</option>`).join('');
+  return base(`${d.nombre} · ${d.medidas.length} planos`, `
+  <header><h1>${esc(d.nombre)}</h1><p>${esc(c.id)} · ${esc(c.corto)} · ${d.medidas.length} planos · <a href="/planos/${t}">← Catálogo</a></p></header>
+  <div class="wrap">
+    ${prueba ? `<div class="aviso">🤝 Acceso de prueba: las medidas se desbloquean con el pack completo. <a href="${esc(waLink('Ya revisé la prueba y quiero el pack completo de muebles'))}">Quiero el pack completo</a></div>` : ''}
+    <div class="box"><form class="aj" onsubmit="return false"><div><label>Ancho (mm)</label><select id="fa" onchange="f()"><option value="">Todos</option>${opciones('A')}</select></div>
+      <div><label>Alto (mm)</label><select id="fh" onchange="f()"><option value="">Todos</option>${opciones('H')}</select></div>
+      <div><label>Fondo (mm)</label><select id="fp" onchange="f()"><option value="">Todos</option>${opciones('P')}</select></div><div class="nota" id="cnt"></div></form></div>
+    <div class="box tabla"><table><thead><tr><th>Código</th><th class="r">Ancho × alto × fondo</th><th class="r">Tableros</th><th class="r">Piezas</th><th></th></tr></thead><tbody id="tb">
+    ${d.medidas.map((m) => filaMedida(m, t, !prueba || m.cod === codMuestra())).join('')}</tbody></table></div>
+  </div>
+  <script>function f(){const a=fa.value,h=fh.value,p=fp.value;let n=0;document.querySelectorAll('#tb tr').forEach(r=>{const ok=(!a||r.dataset.a===a)&&(!h||r.dataset.h===h)&&(!p||r.dataset.p===p);r.style.display=ok?'':'none';if(ok)n++});cnt.textContent=n+' plano'+(n===1?'':'s')}f()</script>`);
+}
+
+// Buscar por medida: los planos más cercanos al ancho (y alto/fondo) pedidos
+function buscarMedida(acceso, q) {
+  const man = manifest();
+  const t = encodeURIComponent(acceso.token);
+  const prueba = acceso.tipo === 'prueba';
+  const n = (v) => { const x = Math.round(Number(String(v || '').replace(',', '.'))); return Number.isFinite(x) && x > 0 ? x : null; };
+  const A = n(q.A), H = n(q.H), P = n(q.P);
+  const todos = man.categorias.flatMap((c) => c.disenos.flatMap((d) => d.medidas.map((m) => ({ ...m, d, c }))));
+  const dist = (m) => (A ? Math.abs(m.A - A) : 0) + (H ? Math.abs(m.H - H) : 0) + (P ? Math.abs(m.P - P) : 0);
+  const porDiseno = {};
+  for (const m of todos) { const k = m.d.slug; if (!porDiseno[k] || dist(m) < dist(porDiseno[k])) porDiseno[k] = m; }
+  const mejores = Object.values(porDiseno).filter((m) => !A || Math.abs(m.A - A) <= 300).sort((x, y) => dist(x) - dist(y));
+  return base('Buscar por medida', `
+  <header><h1>📏 Planos para ${A ? `${mm(A)} mm de ancho` : 'tu medida'}${H ? ` · ${mm(H)} de alto` : ''}${P ? ` · ${mm(P)} de fondo` : ''}</h1><p><a href="/planos/${t}">← Catálogo</a></p></header>
+  <div class="wrap">
+    <p class="cnt">La medida más cercana de cada diseño. Si no está exacta, abre el plano y usa «Ajustar medidas a tu espacio».</p>
+    <div class="box tabla"><table><thead><tr><th>Código</th><th class="r">Ancho × alto × fondo</th><th class="r">Tableros</th><th class="r">Piezas</th><th></th></tr></thead><tbody>
+    ${mejores.map((m) => `<tr><td colspan="5" style="background:#f3ebdf;font-weight:700">${esc(m.d.nombre)}</td></tr>${filaMedida(m, t, !prueba || m.cod === codMuestra())}`).join('') || '<tr><td colspan="5">No hay planos cerca de esa medida.</td></tr>'}
+    </tbody></table></div>
+  </div>`);
 }
 
 // Medidas pedidas por el comprador (con límites razonables)
@@ -90,7 +152,7 @@ function plano(acceso, cod, q, waLink) {
   if (!enc) return null;
   const prueba = acceso.tipo === 'prueba';
   const t = encodeURIComponent(acceso.token);
-  if (prueba && cod !== codMuestra()) {
+  if (prueba && enc.item.cod !== codMuestra()) {
     return base('🔒 Plano bloqueado', `<header><h1>🔒 ${esc(enc.item.nombre)}</h1><p><a href="/planos/${t}">← Volver al catálogo</a></p></header>
       <div class="wrap"><div class="box">Este plano se desbloquea con el pack completo. En tu prueba puedes abrir el plano de muestra <a href="/planos/${t}/${encodeURIComponent(codMuestra())}">${esc(codMuestra())}</a>.</div>
       <a class="btn ok" href="${esc(waLink('Ya revisé la prueba y quiero el pack completo de muebles'))}">✅ Quiero el pack completo</a></div>`);
@@ -106,6 +168,7 @@ function plano(acceso, cod, q, waLink) {
   const herr = M.herrajesLista(r.herr);
   const man = manifest();
   const cat = man.categorias.find((c) => c.id === fam.id);
+  const dMan = cat && cat.disenos.find((x) => x.slug === item.slug);
   const pdfId = `p${fam.id}`;
   const cambiado = aj.cambiado || (e && e !== (item.e || 15));
   const extras = (r.herr.extra || []).map(([n]) => n);
@@ -113,7 +176,7 @@ function plano(acceso, cod, q, waLink) {
   const calc = `/regalo/calculadora?p=muebles&n=${encodeURIComponent(`${item.nombre} ${mm(md.A)} × ${mm(md.H)} × ${mm(md.P)} mm`)}&t=${r.tableros}&f=${r.fondos}&cf=${r.cantoFino}&cg=${r.cantoGrueso}&bis=${r.herr.bisagras}&cor=${nCorr}&man=${r.herr.manijas + (extras.some((x) => /Manija embutida/.test(x)) ? (item.spec.puertas || 2) : 0)}&m2=${r.m2mel}&otros=0`;
   const noCaben = r.optimizacion.noCaben || [];
   return base(`${item.cod} · ${item.nombre}`, `
-  <header><h1>${esc(item.nombre)}</h1><p>${esc(fam.id)} · ${esc(fam.corto)} · Código <b>${esc(item.cod)}</b> · <a href="/planos/${t}">← Catálogo</a></p></header>
+  <header><h1>${esc(item.nombre)}</h1><p>${esc(fam.id)} · ${esc(fam.corto)} · Código <b>${esc(item.cod)}</b> · <a href="/planos/${t}/d/${encodeURIComponent(item.slug)}">← Otras medidas${dMan ? ` (${dMan.medidas.length})` : ''}</a> · <a href="/planos/${t}">Catálogo</a></p></header>
   <div class="wrap">
     ${cambiado ? `<div class="aviso">📏 Medidas ajustadas: <b>${mm(md.A)} × ${mm(md.H)} × ${mm(md.P)} mm</b>${e ? `, melamina de ${e} mm` : ''}. El despiece, los herrajes y los cortes se recalcularon. <a href="/planos/${t}/${encodeURIComponent(item.cod)}">Volver a las medidas del plano</a></div>` : ''}
     ${noCaben.length ? `<div class="alerta">⚠ ${noCaben.length} pieza(s) no caben en un tablero de 2,15 × 2,44 m con estas medidas. Reduce la medida o divide la pieza.</div>` : ''}
@@ -140,9 +203,24 @@ function plano(acceso, cod, q, waLink) {
       <button class="btn" type="submit">Recalcular</button></form><p class="nota">Se recalculan todas las piezas, los herrajes y el plano de cortes. Revisa siempre las medidas antes de pedir el corte.</p></div>` : ''}
     <div class="box"><h2>Cotizar y descargar</h2>
       <a class="btn ok" href="${esc(calc)}" target="_blank">🧮 Cotizar este mueble en pesos</a>
-      ${prueba ? '' : `<a class="btn sec" href="/d/${t}/${pdfId}">📄 PDF de la categoría (${esc(cat ? cat.planos.length : '')} planos)</a>`}
+      <button class="btn sec" onclick="window.print()">🖨 Imprimir o guardar este plano en PDF</button>
+      <a class="btn sec" href="/planos/${t}/${encodeURIComponent(item.cod)}/despiece.csv${cambiado ? `?A=${md.A}&H=${md.H}&P=${md.P}${e ? `&e=${e}` : ''}` : ''}">⬇ Lista de corte para el depósito (CSV)</a>
+      ${prueba ? '' : `<a class="btn sec" href="/d/${t}/${pdfId}">📄 PDF de la categoría (${esc(cat ? cat.planos.toLocaleString('es-CO') : '')} planos)</a>`}
       ${extras.length ? `<p class="nota">En la calculadora, suma en «Otros herrajes» el valor de: ${esc(extras.join(' · '))}.</p>` : ''}</div>
   </div>`);
 }
 
-module.exports = { catalogo, plano, manifest, codMuestra };
+// Lista de corte en CSV (la piden muchos depósitos para cotizar el corte y el enchape)
+function despieceCSV(acceso, cod, q) {
+  const enc = M.buscar(cod);
+  if (!enc || (acceso.tipo === 'prueba' && enc.item.cod !== codMuestra())) return null;
+  const aj = ajustes(enc.item, q);
+  const e = [15, 18].includes(Number(q && q.e)) ? Number(q.e) : null;
+  const r = M.construir({ ...enc.item, spec: aj.spec }, e ? { e, forzarE: true } : {});
+  const c = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const filas = [['#', 'Pieza', 'Cantidad', 'Largo veta (mm)', 'Ancho (mm)', 'Material', 'Tapacanto', 'Nota']]
+    .concat(r.piezas.map((p, i) => [i + 1, p.nombre, p.cant, mm(p.largo), mm(p.ancho), p.material === 'melamina' ? `Melamina ${r.e} mm` : 'HDF 3 mm', M.notacion(p), p.nota || '']));
+  return '\ufeff' + [`${c(enc.item.cod)};${c(enc.item.nombre)};${c(`${mm(r.medidas.A)} × ${mm(r.medidas.H)} × ${mm(r.medidas.P)} mm`)}`, ...filas.map((f) => f.map(c).join(';'))].join('\r\n');
+}
+
+module.exports = { catalogo, diseno, buscarMedida, plano, despieceCSV, manifest, codMuestra };

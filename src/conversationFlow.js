@@ -368,7 +368,7 @@ class ConversationFlow {
     const detalle = producto === 'moldes'
       ? `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis un patrón completo en todas sus tallas, la tabla de medidas y la calculadora. El resto se desbloquea con el pago)_`
       : producto === 'muebles'
-        ? `_(Tienes ${duracion} para ver el catálogo de los ${ventas.infoPack('muebles').totales.planos} planos, abrir gratis un plano completo y usar la calculadora de cotización. El resto se desbloquea con el pago)_`
+        ? `_(Tienes ${duracion} para ver el catálogo de los ${ventas.infoPack('muebles').totales.planos.toLocaleString('es-CO')} planos, abrir gratis un plano completo y usar la calculadora de cotización. El resto se desbloquea con el pago)_`
         : `_(Tienes ${duracion} para ver el pack por dentro y descargar gratis 5 recetas de Postres en Vaso y la calculadora de costos. El resto se desbloquea con el pago)_`;
     const reply =
       `¡Trato hecho! 🤝 Aquí tienes tu acceso de prueba:\n\n👉 ${portalUrl}\n\n${detalle}\n\n` +
@@ -772,8 +772,8 @@ Sofía:`;
         `📥 *Tu enlace personal (guárdalo, es solo tuyo):*\n` +
         `${enlace}\n\n` +
         `📁 *Tu pack contiene:*\n` +
-        `✓ ${info.totales.planos} planos con medidas exactas en mm (${info.totales.disenos} diseños en varias medidas), en 5 PDF por categoría\n` +
-        `✓ Catálogo interactivo: buscas cada mueble, ves su despiece, herrajes y plano de cortes en el celular y puedes ajustar las medidas a tu espacio\n` +
+        `✓ ${info.totales.planos.toLocaleString('es-CO')} planos con medidas exactas en mm (${info.totales.disenos} diseños base en todas sus medidas estándar), en 5 PDF por categoría\n` +
+        `✓ Catálogo interactivo: buscas el mueble y la medida, ves su despiece, herrajes y plano de cortes en el celular, descargas la lista de corte para el depósito y puedes ajustar las medidas a tu espacio\n` +
         `✓ 4 guías: materiales y herrajes; cortar, cantear y armar; optimización de cortes; diseño 3D en SketchUp\n` +
         `✓ 2 bonos: calculadora de costos, láminas y cotización en pesos, y guía para cobrar trabajos de carpintería\n\n` +
         `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir el catálogo interactivo de planos».\n\n` +

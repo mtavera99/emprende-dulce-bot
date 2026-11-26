@@ -449,74 +449,126 @@
     return { piezas, herr, dibujo: { A, H: 750, e, rects, soloAlto: 750 }, medidas: { A, H: 750, P } };
   }
 
-  // ------------------------------------------------------------------ catálogo de planos (5 categorías)
-  const B = (A, extra) => Object.assign({ A, H: 720, P: 560, techo: false, patas: true }, extra);
+  // ------------------------------------------------------------------ catálogo: diseños × medidas estándar
+  // Cada diseño se genera en las medidas comerciales usadas en Colombia (anchos, altos y fondos) y en sus
+  // configuraciones prácticas. Cada combinación es un plano propio: su despiece, herrajes y cortes se calculan aparte.
+  // Límites prácticos: puertas de máximo 620 mm, entrepaños de 15 mm de máximo 900 mm de largo (más largos
+  // se pandean), cajones de máximo 1 m de ancho. Por eso hay medidas que no se generan.
   const RH = 'Usa melamina RH (resistente a la humedad) y sella con silicona los cantos cercanos al agua.';
-  const clo = (A, c, H) => ({ cod: `CLO-${A}-${H}`, nombre: `Clóset de ${c.length} cuerpos con puertas abatibles`, spec: { A, H, P: 550, zocalo: 80, compartimentos: c } });
-  const familias = [
-    { id: '01', nombre: 'Cocinas integrales, alacenas y baño', corto: 'Cocina y baño', items: [
-      ...[300, 350, 400, 450, 500].map((A) => ({ cod: `COC-B1P-${A}`, nombre: 'Módulo bajo de cocina de 1 puerta', spec: B(A, { compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 1 }] }) })),
-      ...[600, 700, 800, 900, 1000].map((A) => ({ cod: `COC-B2P-${A}`, nombre: 'Módulo bajo de cocina de 2 puertas', spec: B(A, { compartimentos: [{ tipo: 'puertas', puertas: 2, entrepanos: 1 }] }) })),
-      ...[800, 900, 1000, 1200].map((A) => ({ cod: `COC-LAV-${A}`, nombre: 'Módulo bajo de lavaplatos', spec: B(A, { compartimentos: [{ tipo: 'puertas', puertas: 2, entrepanos: 0 }] }), nota: 'Perfora el fondo y la base para la tubería antes de instalar. ' + RH })),
-      ...[400, 450, 500, 600, 800].map((A) => ({ cod: `COC-B3C-${A}`, nombre: 'Módulo bajo de cocina de 3 cajones', spec: B(A, { compartimentos: [{ tipo: 'cajones', cajones: 3 }] }) })),
-      ...[400, 500, 600, 800, 900].map((A) => ({ cod: `COC-BCP-${A}`, nombre: 'Módulo bajo de cocina con cajón y puertas', spec: B(A, { compartimentos: [{ tipo: 'mixto', puertas: A > 500 ? 2 : 1, entrepanos: 1 }] }) })),
-      ...[300, 350, 400, 450, 500].map((A) => ({ cod: `COC-A1P-${A}`, nombre: 'Alacena (módulo aéreo) de 1 puerta', spec: { A, H: 700, P: 330, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 1 }] } })),
-      ...[600, 700, 800, 900, 1000].map((A) => ({ cod: `COC-A2P-${A}`, nombre: 'Alacena (módulo aéreo) de 2 puertas', spec: { A, H: 700, P: 330, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: 2, entrepanos: 1 }] } })),
-      ...[600, 800].map((A) => ({ cod: `COC-AAB-${A}`, nombre: 'Alacena abierta (repisa de cocina)', spec: { A, H: 700, P: 330, colgado: true, compartimentos: [{ tipo: 'abierto', entrepanos: 2 }] } })),
-      ...[450, 600].map((A) => ({ cod: `COC-TOR-${A}`, nombre: 'Torre despensa de piso a techo', spec: { A, H: 2100, P: 560, zocalo: 80, compartimentos: [{ tipo: 'puertas', puertas: A > 500 ? 2 : 1, entrepanos: 5 }] } })),
-      ...[600, 800].map((A) => ({ cod: `BAN-LAV-${A}`, nombre: 'Mueble de lavamanos colgado (baño)', spec: { A, H: 500, P: 450, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, entrepanos: 0 }] }, nota: RH + ' Se cuelga al muro.' })),
-      ...[600, 800].map((A) => ({ cod: `BAN-LPI-${A}`, nombre: 'Mueble de lavamanos de piso (baño)', spec: { A, H: 800, P: 450, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, entrepanos: 0 }] }, nota: RH })),
-      ...[500, 600].map((A) => ({ cod: `BAN-BOT-${A}`, nombre: 'Botiquín aéreo de baño', spec: { A, H: 600, P: 150, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: A > 500 ? 2 : 1, entrepanos: 2 }] }, nota: RH })),
-    ] },
-    { id: '02', nombre: 'Clósets, armarios, vestidores y zapateras', corto: 'Clósets y zapateras', items: [
-      ...[2000, 2200].flatMap((H) => [
-        clo(1000, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'puertas', puertas: 'auto', entrepanos: 4 }], H),
-        clo(1200, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'puertas', puertas: 'auto', entrepanos: 4 }], H),
-        clo(1400, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' }], H),
-        clo(1600, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' }], H),
-        clo(1800, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' }, { tipo: 'colgar', puertas: 'auto' }], H),
-        clo(2000, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'puertas', puertas: 'auto', entrepanos: 4 }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' }], H),
-        clo(2400, [{ tipo: 'colgar', puertas: 'auto' }, { tipo: 'puertas', puertas: 'auto', entrepanos: 4 }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' }, { tipo: 'colgar', puertas: 'auto' }], H),
-      ]),
-      ...[[1200, 2, [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }]],
-        [1500, 2, [{ tipo: 'colgar' }, { tipo: 'cajones', cajones: 3, altoZona: 600, entrepanos: 3 }]],
-        [1800, 2, [{ tipo: 'colgar' }, { tipo: 'cajones', cajones: 3, altoZona: 600, entrepanos: 3 }, { tipo: 'colgar' }]],
-        [2400, 3, [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }, { tipo: 'cajones', cajones: 3, altoZona: 600, entrepanos: 3 }, { tipo: 'colgar' }]]]
-        .map(([A, k, comps]) => ({ cod: `CLO-COR-${A}`, nombre: `Clóset de ${k} puertas corredizas`, tipo: 'corredizo', spec: { A, H: 2200, P: 600, zocalo: 80, puertas: k, compartimentos: comps } })),
-      ...[1200, 1800, 2400].map((A) => ({ cod: `CLO-ABI-${A}`, nombre: 'Vestier abierto (sin puertas)', spec: { A, H: 2200, P: 550, zocalo: 80, compartimentos: A === 1200 ? [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }] : A === 1800 ? [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }, { tipo: 'colgar' }] : [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 3 }, { tipo: 'colgar' }] } })),
-      ...[600, 800, 1000].map((A) => ({ cod: `ZAP-PUE-${A}`, nombre: 'Zapatero con puertas', spec: { A, H: 1000, P: 350, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, entrepanos: 3 }] } })),
-      ...[800, 1000, 1200].map((A) => ({ cod: `ZAP-BAN-${A}`, nombre: 'Banca zapatera de entrada', spec: { A, H: 450, P: 350, zocalo: 0, compartimentos: Array.from({ length: A > 1000 ? 3 : 2 }, () => ({ tipo: 'abierto', entrepanos: 1 })) } })),
-    ] },
-    { id: '03', nombre: 'Escritorios, oficina y centros de entretenimiento', corto: 'Escritorios y TV', items: [
-      ...[900, 1000, 1200, 1400].map((A) => ({ cod: `ESC-BAS-${A}`, nombre: 'Escritorio básico', tipo: 'escritorio', spec: { A, H: 750, P: 600 } })),
-      ...[1200, 1400, 1600].map((A) => ({ cod: `ESC-CAJ-${A}`, nombre: 'Escritorio con cajonera de 3 cajones', tipo: 'escritorio', spec: { A, H: 750, P: 600, cajonera: true } })),
-      ...[[1400, 1200], [1600, 1400], [1800, 1600]].map(([A, Bl]) => ({ cod: `ESC-L-${A}`, nombre: `Escritorio en L (ala de ${Bl} mm)`, tipo: 'escritorioL', spec: { A, B: Bl, H: 750, P: 600 } })),
-      ...[1200, 1400, 1600].map((A) => ({ cod: `ESC-GAM-${A}`, nombre: 'Escritorio gamer con repisa para monitor y nicho de CPU', tipo: 'gamer', spec: { A, H: 750, P: 650 } })),
-      ...[450, 500].map((A) => ({ cod: `OFI-ARC-${A}`, nombre: 'Archivador de oficina de 2 cajones', spec: { A, H: 720, P: 600, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: 2 }] }, nota: 'Para carpetas colgantes, agrega barras laterales o un marco metálico dentro del cajón (no incluidos).' })),
-      ...[600, 800, 1000].map((A) => ({ cod: `OFI-BIB-${A}`, nombre: 'Biblioteca abierta', spec: { A, H: 1800, P: 300, zocalo: 60, compartimentos: [{ tipo: 'abierto', entrepanos: 4 }] } })),
-      ...[800, 1000].map((A) => ({ cod: `OFI-BIP-${A}`, nombre: 'Biblioteca con puertas abajo', tipo: 'bibliotecaPuertas', spec: { A, H: 2000, P: 350, zocalo: 60 } })),
-      ...[1200, 1400, 1600, 1800, 2000].map((A) => ({ cod: `TV-PIS-${A}`, nombre: 'Mueble de TV de piso (puertas + nicho)', spec: { A, H: 500, P: 400, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 'auto', entrepanos: 0 }, { tipo: 'abierto', entrepanos: 1 }, { tipo: 'puertas', puertas: 'auto', entrepanos: 0 }] } })),
-      ...[1200, 1500, 1800].map((A) => ({ cod: `TV-FLO-${A}`, nombre: 'Mueble de TV flotante (cajones + nicho)', spec: { A, H: 350, P: 350, colgado: true, compartimentos: [{ tipo: 'cajones', cajones: 1 }, { tipo: 'abierto', entrepanos: 0 }, { tipo: 'cajones', cajones: 1 }] }, nota: 'Se cuelga con 3 escuadras o un riel francés atornillado al muro con chazos de 3/8".' })),
-      ...[2000, 2400, 2800].map((A) => ({ cod: `TV-CEN-${A}`, nombre: 'Centro de entretenimiento (mueble bajo + 2 torres + repisa)', tipo: 'centroTV', spec: { A } })),
-      ...[600, 800, 1000, 1200].map((A) => ({ cod: `REP-FLO-${A}`, nombre: 'Repisa flotante (listón oculto)', tipo: 'repisa', spec: { A, P: 250, h: 80 }, nota: 'Para carga liviana: libros y decoración. En drywall, atornilla el listón a los parales.' })),
-    ] },
-    { id: '04', nombre: 'Dormitorio: camas, cómodas, mesas de noche y tocadores', corto: 'Dormitorio', items: [
-      ...[[1000, 'sencilla'], [1200, 'semidoble'], [1400, 'doble'], [1600, 'queen'], [2000, 'king']].map(([W, t]) => ({ cod: `CAM-${t.toUpperCase()}`, nombre: `Cama ${t} con cabecero (colchón de ${W / 10} × ${t === 'king' ? 200 : 190} cm)`, tipo: 'cama', e: 18, spec: { colchonA: W, colchonL: t === 'king' ? 2000 : 1900 }, nota: 'Estructura en melamina de 18 mm. Mide tu colchón antes de pedir el corte: el plano deja 10 mm de holgura por lado.' })),
-      ...[400, 450, 500].map((A) => ({ cod: `DOR-MN1-${A}`, nombre: 'Mesa de noche de 2 cajones', spec: { A, H: 520, P: 400, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: 2 }] } })),
-      ...[400, 450, 500].map((A) => ({ cod: `DOR-MN2-${A}`, nombre: 'Mesa de noche de 1 puerta y entrepaño', spec: { A, H: 520, P: 400, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 1 }] } })),
-      ...[600, 800, 1000].map((A) => ({ cod: `DOR-CO4-${A}`, nombre: 'Cómoda de 4 cajones', spec: { A, H: 900, P: 450, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: 4 }] } })),
-      { cod: 'DOR-CO6-1200', nombre: 'Cómoda de 6 cajones (2 columnas)', spec: { A: 1200, H: 900, P: 450, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: 3 }, { tipo: 'cajones', cajones: 3 }] } },
-      ...[800, 1000, 1200].map((A) => ({ cod: `DOR-TOC-${A}`, nombre: 'Tocador con cajones y panel para espejo', tipo: 'tocador', spec: { A, H: 760, P: 420 } })),
-    ] },
-    { id: '05', nombre: 'Infantiles, ahorradores de espacio y organizadores', corto: 'Infantil y organizadores', items: [
-      ...[[2, 2], [2, 3], [3, 3], [2, 4], [4, 4]].map(([f, k]) => ({ cod: `ORG-CUB-${f}X${k}`, nombre: `Organizador de cubos ${f} × ${k}`, tipo: 'cubos', spec: { filas: f, cols: k } })),
-      ...[800, 1000].map((A) => ({ cod: `INF-BAU-${A}`, nombre: 'Baúl juguetero con tapa', tipo: 'baul', spec: { A, H: 450, P: 450 }, nota: 'Usa soportes de tapa con freno para que la tapa no caiga sobre los dedos. Haz 2 perforaciones de 25 mm en la trasera para ventilación.' })),
-      ...[800, 1000].map((A) => ({ cod: `INF-ESC-${A}`, nombre: 'Escritorio infantil', tipo: 'escritorio', spec: { A, H: 580, P: 500 }, nota: 'Altura de 58 cm para niños de 6 a 10 años aproximadamente; usa una silla acorde.' })),
-      ...[[900, 'INF-CAM-90'], [1000, 'INF-CAM-100']].map(([W, cod]) => ({ cod, nombre: `Cama infantil con baranda (colchón de ${W / 10} × 190 cm)`, tipo: 'cama', e: 18, spec: { colchonA: W, colchonL: 1900, hb: 300, hc: 800, baranda: true }, nota: 'Estructura en melamina de 18 mm. Instala la cama contra el muro y la baranda del lado libre.' })),
-      ...[800, 1000, 1200].map((A) => ({ cod: `AHO-MAB-${A}`, nombre: 'Mesa abatible de pared', tipo: 'mesaAbatible', spec: { A, P: 600 }, nota: 'Solo en muro de ladrillo o concreto; en drywall, ancla el listón a los parales.' })),
-      { cod: 'AHO-LAV-800', nombre: 'Organizador de lavandería (escobas + entrepaños)', spec: { A: 800, H: 1800, P: 400, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 0 }, { tipo: 'puertas', puertas: 1, entrepanos: 4 }] } },
-    ] },
+  const X = (...listas) => listas.reduce((acc, l) => acc.flatMap((a) => l.map((b) => [...a, b])), [[]]);
+  const ent = (alto, paso = 350) => Math.max(1, Math.round(alto / paso) - 1);
+  const dims = (A, H, P) => `${A}x${H}x${P}`;
+  // Medidas A × H × P con la misma función de spec
+  const porMedidas = (As, Hs, Ps, fn) => X(As, Hs, Ps).map(([A, H, P]) => ({ spec: fn(A, H, P), partes: [dims(A, H, P)] }));
+  const bajo = (A, H, P, comps) => ({ A, H, P, techo: false, patas: true, compartimentos: comps });
+  const ALTO_BAJO = [700, 720, 760, 800], FONDO_BAJO = [480, 560];
+  const puertasEn = (A, ancho, extra) => (A > ancho ? [{ tipo: 'puertas', puertas: 1, ...extra }, { tipo: 'puertas', puertas: 1, ...extra }] : [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, ...extra }]);
+
+  function closetAbatible(A, H, P, conCajones) {
+    const n = A <= 1600 ? 2 : A <= 2200 ? 3 : 4;
+    const caj = { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 2, puertasArriba: 'auto' };
+    const pue = { tipo: 'puertas', puertas: 'auto', entrepanos: 4 };
+    const col = { tipo: 'colgar', puertas: 'auto' };
+    const c = { 2: [col, conCajones ? caj : pue], 3: [col, conCajones ? caj : pue, col], 4: [col, pue, conCajones ? caj : pue, col] }[n];
+    return { A, H, P, zocalo: 80, compartimentos: c };
+  }
+  function closetCorredizo(A, H, P, conCajones) {
+    const n = A <= 1500 ? 2 : A <= 2000 ? 3 : 4;
+    const caj = conCajones ? { tipo: 'cajones', cajones: 3, altoZona: 600, entrepanos: 3 } : { tipo: 'abierto', entrepanos: 5 };
+    const c = { 2: [{ tipo: 'colgar' }, caj], 3: [{ tipo: 'colgar' }, caj, { tipo: 'colgar' }], 4: [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: 5 }, caj, { tipo: 'colgar' }] }[n];
+    return { A, H, P, zocalo: 80, puertas: A > 2000 ? 3 : 2, compartimentos: c };
+  }
+  function vestier(A, H, P) {
+    const n = A <= 1200 ? 2 : A <= 1800 ? 3 : 4;
+    const c = { 2: [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: ent(H - 110) }], 3: [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: ent(H - 110) }, { tipo: 'colgar' }],
+      4: [{ tipo: 'colgar' }, { tipo: 'abierto', entrepanos: ent(H - 110) }, { tipo: 'cajones', cajones: 3, altoZona: 800, entrepanos: 3 }, { tipo: 'colgar' }] }[n];
+    return { A, H, P, zocalo: 80, compartimentos: c };
+  }
+  const cfg = (lista) => lista.map(([partes, cfgTxt, spec, extra]) => ({ partes, cfg: cfgTxt, spec, ...(extra || {}) }));
+
+  const DISENOS = [
+    // ============================ 01 · Cocinas integrales, alacenas y baño
+    { cat: '01', pref: 'COC-B1P', nombre: 'Módulo bajo de cocina de 1 puerta', medidas: porMedidas([300, 350, 400, 450, 500, 550, 600], ALTO_BAJO, FONDO_BAJO, (A, H, P) => bajo(A, H, P, [{ tipo: 'puertas', puertas: 1, entrepanos: 1 }])) },
+    { cat: '01', pref: 'COC-B2P', nombre: 'Módulo bajo de cocina de 2 puertas', medidas: porMedidas([600, 700, 800, 900, 1000, 1100, 1200], ALTO_BAJO, FONDO_BAJO, (A, H, P) => bajo(A, H, P, puertasEn(A, 900, { entrepanos: 1 }))) },
+    { cat: '01', pref: 'COC-LAV', nombre: 'Módulo bajo de lavaplatos', nota: 'Perfora el fondo y la base para la tubería antes de instalar. ' + RH, medidas: porMedidas([800, 900, 1000, 1200], ALTO_BAJO, FONDO_BAJO, (A, H, P) => bajo(A, H, P, [{ tipo: 'puertas', puertas: 2, entrepanos: 0 }])) },
+    { cat: '01', pref: 'COC-CAJ', nombre: 'Módulo bajo de cocina de cajones', medidas: X([400, 450, 500, 600, 700, 800, 900], ALTO_BAJO, FONDO_BAJO, [2, 3, 4]).map(([A, H, P, n]) => ({ partes: [dims(A, H, P), `${n}C`], cfg: `${n} cajones`, spec: bajo(A, H, P, [{ tipo: 'cajones', cajones: n }]) })) },
+    { cat: '01', pref: 'COC-BCP', nombre: 'Módulo bajo de cocina con cajón y puertas', medidas: porMedidas([400, 450, 500, 600, 700, 800, 900], ALTO_BAJO, FONDO_BAJO, (A, H, P) => bajo(A, H, P, [{ tipo: 'mixto', puertas: A > 500 ? 2 : 1, entrepanos: 1 }])) },
+    { cat: '01', pref: 'COC-A1P', nombre: 'Alacena (módulo aéreo) de 1 puerta', medidas: porMedidas([300, 350, 400, 450, 500, 550, 600], [500, 600, 700, 800, 900], [300, 330, 350], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: H > 700 ? 2 : 1 }] })) },
+    { cat: '01', pref: 'COC-A2P', nombre: 'Alacena (módulo aéreo) de 2 puertas', medidas: porMedidas([600, 700, 800, 900, 1000, 1100, 1200], [500, 600, 700, 800, 900], [300, 330, 350], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: puertasEn(A, 900, { entrepanos: H > 700 ? 2 : 1 }) })) },
+    { cat: '01', pref: 'COC-AAB', nombre: 'Alacena abierta (repisa de cocina)', medidas: porMedidas([400, 600, 800, 1000, 1200], [350, 500, 700], [300, 330], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: Array.from({ length: A > 900 ? 2 : 1 }, () => ({ tipo: 'abierto', entrepanos: H >= 700 ? 2 : H >= 500 ? 1 : 0 })) })) },
+    { cat: '01', pref: 'COC-TOR', nombre: 'Torre despensa de piso a techo', medidas: porMedidas([400, 450, 500, 600], [2000, 2100, 2200, 2400], [560, 600], (A, H, P) => ({ A, H, P, zocalo: 80, compartimentos: [{ tipo: 'puertas', puertas: A > 500 ? 2 : 1, entrepanos: ent(H - 110) }] })) },
+    { cat: '01', pref: 'BAN-LAV', nombre: 'Mueble de lavamanos colgado (baño)', nota: RH + ' Se cuelga al muro.', medidas: porMedidas([500, 600, 700, 800, 900, 1000, 1200], [450, 500, 550], [400, 450, 500], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, entrepanos: 0 }] })) },
+    { cat: '01', pref: 'BAN-LPI', nombre: 'Mueble de lavamanos de piso (baño)', nota: RH, medidas: porMedidas([500, 600, 700, 800, 900, 1000, 1200], [800, 850], [400, 450, 500], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: A > 600 ? 2 : 1, entrepanos: 0 }] })) },
+    { cat: '01', pref: 'BAN-BOT', nombre: 'Botiquín aéreo de baño', nota: RH, medidas: porMedidas([400, 500, 600, 700, 800], [500, 600, 700], [120, 150], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: [{ tipo: 'puertas', puertas: A > 500 ? 2 : 1, entrepanos: H >= 600 ? 2 : 1 }] })) },
+
+    // ============================ 02 · Clósets, armarios, vestidores y zapateras
+    { cat: '02', pref: 'CLO-ABA', nombre: 'Clóset con puertas abatibles', medidas: X([1000, 1200, 1400, 1500, 1600, 1800, 2000, 2200, 2400], [2000, 2100, 2200, 2400], [500, 550, 600], [true, false]).map(([A, H, P, cc]) => {
+      const n = A <= 1600 ? 2 : A <= 2200 ? 3 : 4;
+      return { partes: [dims(A, H, P), cc ? 'CC' : 'SC'], cfg: `${n} cuerpos, ${cc ? 'con cajonera' : 'sin cajonera'}`, spec: closetAbatible(A, H, P, cc) };
+    }) },
+    { cat: '02', pref: 'CLO-COR', nombre: 'Clóset de puertas corredizas', tipo: 'corredizo', medidas: X([1200, 1400, 1500, 1600, 1800, 2000, 2200, 2400], [2000, 2200, 2400], [600, 650], [true, false]).map(([A, H, P, cc]) => ({
+      partes: [dims(A, H, P), cc ? 'CC' : 'SC'], cfg: `${A > 2000 ? 3 : 2} puertas, ${cc ? 'con cajonera' : 'sin cajonera'}`, spec: closetCorredizo(A, H, P, cc) })) },
+    { cat: '02', pref: 'CLO-VES', nombre: 'Vestier abierto (sin puertas)', medidas: porMedidas([900, 1200, 1500, 1800, 2100, 2400], [2000, 2200, 2400], [450, 550], vestier) },
+    { cat: '02', pref: 'ZAP-PUE', nombre: 'Zapatero con puertas', medidas: porMedidas([500, 600, 700, 800, 900, 1000, 1200], [800, 1000, 1200], [300, 350, 400], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: puertasEn(A, 900, { entrepanos: Math.max(2, Math.floor((H - 90) / 190)) }) })) },
+    { cat: '02', pref: 'ZAP-BAN', nombre: 'Banca zapatera de entrada', medidas: porMedidas([600, 800, 1000, 1200, 1400], [420, 450, 480], [300, 350, 400], (A, H, P) => ({ A, H, P, zocalo: 0, compartimentos: Array.from({ length: A > 1000 ? 3 : 2 }, () => ({ tipo: 'abierto', entrepanos: 1 })) })) },
+
+    // ============================ 03 · Escritorios, oficina y centros de entretenimiento
+    { cat: '03', pref: 'ESC-BAS', nombre: 'Escritorio básico', tipo: 'escritorio', medidas: porMedidas([800, 900, 1000, 1100, 1200, 1400, 1500, 1600, 1800], [720, 750], [450, 500, 600, 700], (A, H, P) => ({ A, H, P })) },
+    { cat: '03', pref: 'ESC-CAJ', nombre: 'Escritorio con cajonera de 3 cajones', tipo: 'escritorio', medidas: porMedidas([1000, 1200, 1400, 1500, 1600, 1800], [720, 750], [500, 600, 700], (A, H, P) => ({ A, H, P, cajonera: true })) },
+    { cat: '03', pref: 'ESC-L', nombre: 'Escritorio en L', tipo: 'escritorioL', medidas: X([1200, 1400, 1600, 1800], [1000, 1200, 1400, 1600], [500, 600]).map(([A, Bl, P]) => ({ partes: [`${A}x${Bl}`, `P${P}`], cfg: `ala de ${Bl} mm, fondo de ${P} mm`, spec: { A, B: Bl, H: 750, P, P2: Math.min(500, P) } })) },
+    { cat: '03', pref: 'ESC-GAM', nombre: 'Escritorio gamer con repisa para monitor y nicho de CPU', tipo: 'gamer', medidas: porMedidas([1000, 1200, 1400, 1600, 1800], [720, 750], [600, 650, 700], (A, H, P) => ({ A, H, P })) },
+    { cat: '03', pref: 'OFI-ARC', nombre: 'Archivador de oficina', nota: 'Para carpetas colgantes, agrega barras laterales o un marco metálico dentro del cajón (no incluidos).', medidas: X([400, 450, 500], [2, 3], [500, 600]).map(([A, n, P]) => {
+      const H = n === 2 ? 720 : 1000;
+      return { partes: [dims(A, H, P), `${n}C`], cfg: `${n} cajones`, spec: { A, H, P, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: n }] } };
+    }) },
+    { cat: '03', pref: 'OFI-BIB', nombre: 'Biblioteca abierta', medidas: porMedidas([400, 600, 800, 900, 1000, 1200], [900, 1200, 1500, 1800, 2000, 2200], [250, 300, 350], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: Array.from({ length: A > 900 ? 2 : 1 }, () => ({ tipo: 'abierto', entrepanos: ent(H - 90) })) })) },
+    { cat: '03', pref: 'OFI-BIP', nombre: 'Biblioteca con puertas abajo', tipo: 'bibliotecaPuertas', medidas: porMedidas([600, 700, 800, 900], [1800, 2000, 2200], [300, 350, 400], (A, H, P) => ({ A, H, P, zocalo: 60 })) },
+    { cat: '03', pref: 'TV-PIS', nombre: 'Mueble de TV de piso (puertas + nicho)', medidas: porMedidas([1000, 1200, 1400, 1500, 1600, 1800, 2000, 2200, 2400], [450, 500, 600], [350, 400, 450], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 'auto', entrepanos: 0 }, { tipo: 'abierto', entrepanos: 1 }, { tipo: 'puertas', puertas: 'auto', entrepanos: 0 }] })) },
+    { cat: '03', pref: 'TV-FLO', nombre: 'Mueble de TV flotante (cajones + nicho)', nota: 'Se cuelga con 3 escuadras o un riel francés atornillado al muro con chazos de 3/8".', medidas: porMedidas([1000, 1200, 1400, 1500, 1600, 1800, 2000], [300, 350, 400], [300, 350], (A, H, P) => ({ A, H, P, colgado: true, compartimentos: [{ tipo: 'cajones', cajones: 1 }, { tipo: 'abierto', entrepanos: 0 }, { tipo: 'cajones', cajones: 1 }] })) },
+    { cat: '03', pref: 'TV-CEN', nombre: 'Centro de entretenimiento (mueble bajo + 2 torres + repisa)', tipo: 'centroTV', medidas: X([2000, 2200, 2400, 2600, 2800, 3000], [1800, 2000, 2200], [400, 450]).map(([A, Ht, wt]) => ({ partes: [`${A}x${Ht}`, `T${wt}`], cfg: `torres de ${wt} mm`, spec: { A, Ht, wt } })) },
+    { cat: '03', pref: 'REP-FLO', nombre: 'Repisa flotante (listón oculto)', tipo: 'repisa', nota: 'Para carga liviana: libros y decoración. En drywall, atornilla el listón a los parales.', medidas: X([400, 500, 600, 700, 800, 900, 1000, 1200, 1500, 1800], [150, 200, 250, 300], [60, 80, 100]).map(([A, P, h]) => ({ partes: [dims(A, h, P)], spec: { A, P, h } })) },
+
+    // ============================ 04 · Dormitorio
+    { cat: '04', pref: 'CAM', nombre: 'Cama con cabecero', tipo: 'cama', e: 18, nota: 'Estructura en melamina de 18 mm. Mide tu colchón antes de pedir el corte: el plano deja 10 mm de holgura por lado.', medidas: X([[900, 1900, 'sencilla de 90'], [1000, 1900, 'sencilla'], [1200, 1900, 'semidoble'], [1400, 1900, 'doble'], [1600, 1900, 'queen'], [2000, 2000, 'king']], [250, 300, 350], [900, 1000, 1200]).map(([[W, L, t], hb, hc]) => ({
+      partes: [`${W / 10}x${L / 10}`, `B${hb}`, `C${hc}`], cfg: `${t}, colchón de ${W / 10} × ${L / 10} cm, base de ${hb} mm, cabecero de ${hc} mm`, spec: { colchonA: W, colchonL: L, hb, hc } })) },
+    { cat: '04', pref: 'DOR-MN2C', nombre: 'Mesa de noche de 2 cajones', medidas: porMedidas([350, 400, 450, 500, 550, 600], [450, 500, 550, 600], [350, 400, 450], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: 2 }] })) },
+    { cat: '04', pref: 'DOR-MN1P', nombre: 'Mesa de noche de 1 puerta y entrepaño', medidas: porMedidas([350, 400, 450, 500, 550, 600], [450, 500, 550, 600], [350, 400, 450], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 1 }] })) },
+    { cat: '04', pref: 'DOR-COM', nombre: 'Cómoda de cajones', medidas: X([600, 700, 800, 900, 1000], [800, 900, 1000, 1100], [400, 450, 500], [3, 4, 5]).map(([A, H, P, n]) => ({ partes: [dims(A, H, P), `${n}C`], cfg: `${n} cajones`, spec: { A, H, P, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: n }] } })) },
+    { cat: '04', pref: 'DOR-CO2', nombre: 'Cómoda de 2 columnas de cajones', medidas: X([1000, 1200, 1400, 1600], [800, 900, 1000], [400, 450, 500], [3, 4]).map(([A, H, P, n]) => ({ partes: [dims(A, H, P), `${2 * n}C`], cfg: `${2 * n} cajones`, spec: { A, H, P, zocalo: 60, compartimentos: [{ tipo: 'cajones', cajones: n }, { tipo: 'cajones', cajones: n }] } })) },
+    { cat: '04', pref: 'DOR-TOC', nombre: 'Tocador con cajones y panel para espejo', tipo: 'tocador', medidas: porMedidas([800, 900, 1000, 1100, 1200, 1400], [740, 760], [400, 450, 500], (A, H, P) => ({ A, H, P })) },
+
+    // ============================ 05 · Infantiles, ahorradores de espacio y organizadores
+    { cat: '05', pref: 'ORG-CUB', nombre: 'Organizador de cubos', tipo: 'cubos', medidas: X([1, 2, 3, 4, 5], [1, 2, 3, 4, 5], [300, 330, 350, 400], [300, 350, 400]).filter(([f, k]) => f * k > 1).map(([f, k, cu, P]) => ({
+      partes: [`${f}x${k}`, `${cu}`, `P${P}`], cfg: `${f} × ${k} cubos de ${cu} mm, fondo de ${P} mm`, spec: { filas: f, cols: k, cubo: cu, P } })) },
+    { cat: '05', pref: 'INF-BAU', nombre: 'Baúl juguetero con tapa', tipo: 'baul', nota: 'Usa soportes de tapa con freno para que la tapa no caiga sobre los dedos. Haz 2 perforaciones de 25 mm en la trasera para ventilación.', medidas: porMedidas([600, 700, 800, 900, 1000, 1200], [400, 450, 500], [400, 450, 500], (A, H, P) => ({ A, H, P })) },
+    { cat: '05', pref: 'INF-ESC', nombre: 'Escritorio infantil', tipo: 'escritorio', medidas: porMedidas([700, 800, 900, 1000, 1200], [520, 580, 640], [450, 500], (A, H, P) => ({ A, H, P })).map((m) => ({ ...m, nota: `Altura de ${m.spec.H / 10} cm: ${{ 520: 'niños de 4 a 6 años', 580: 'niños de 6 a 9 años', 640: 'niños de 9 a 12 años' }[m.spec.H]}, aproximadamente. Usa una silla acorde.` })) },
+    { cat: '05', pref: 'INF-CAM', nombre: 'Cama infantil con baranda', tipo: 'cama', e: 18, nota: 'Estructura en melamina de 18 mm. Instala la cama contra el muro y la baranda del lado libre.', medidas: X([[700, 1400], [800, 1600], [900, 1900], [1000, 1900]], [250, 300], [700, 800, 900]).map(([[W, L], hb, hc]) => ({
+      partes: [`${W / 10}x${L / 10}`, `B${hb}`, `C${hc}`], cfg: `colchón de ${W / 10} × ${L / 10} cm, base de ${hb} mm, cabecero de ${hc} mm`, spec: { colchonA: W, colchonL: L, hb, hc, baranda: true } })) },
+    { cat: '05', pref: 'AHO-MAB', nombre: 'Mesa abatible de pared', tipo: 'mesaAbatible', nota: 'Solo en muro de ladrillo o concreto; en drywall, ancla el listón a los parales.', medidas: X([600, 700, 800, 900, 1000, 1200, 1400], [400, 500, 600]).map(([A, P]) => ({ partes: [`${A}x${P}`], spec: { A, P } })) },
+    { cat: '05', pref: 'AHO-LAV', nombre: 'Organizador de lavandería (escobas + entrepaños)', medidas: porMedidas([600, 800, 1000, 1200], [1800, 2000, 2200], [350, 400, 450], (A, H, P) => ({ A, H, P, zocalo: 60, compartimentos: [{ tipo: 'puertas', puertas: 1, entrepanos: 0 }, { tipo: 'puertas', puertas: 1, entrepanos: ent(H - 90) }] })) },
   ];
+
+  const CATEGORIAS = [
+    { id: '01', nombre: 'Cocinas integrales, alacenas y baño', corto: 'Cocina y baño' },
+    { id: '02', nombre: 'Clósets, armarios, vestidores y zapateras', corto: 'Clósets y zapateras' },
+    { id: '03', nombre: 'Escritorios, oficina y centros de entretenimiento', corto: 'Escritorios y TV' },
+    { id: '04', nombre: 'Dormitorio: camas, cómodas, mesas de noche y tocadores', corto: 'Dormitorio' },
+    { id: '05', nombre: 'Infantiles, ahorradores de espacio y organizadores', corto: 'Infantil y organizadores' },
+  ];
+
+  // Planos: cada diseño en cada una de sus medidas
+  const familias = CATEGORIAS.map((c) => ({ ...c, disenos: [], items: [] }));
+  for (const d of DISENOS) {
+    const fam = familias.find((f) => f.id === d.cat);
+    const slug = d.pref.toLowerCase();
+    const items = d.medidas.map((m) => ({
+      cod: `${d.pref}-${m.partes.join('-')}`, pref: d.pref, slug, diseno: d.nombre,
+      nombre: m.cfg ? `${d.nombre} (${m.cfg})` : d.nombre, cfg: m.cfg || '',
+      tipo: d.tipo, e: d.e, nota: m.nota || d.nota, spec: m.spec,
+    }));
+    fam.disenos.push({ slug, pref: d.pref, nombre: d.nombre, cat: d.cat, items });
+    fam.items.push(...items);
+  }
 
   const CONSTRUCTORES = { escritorio, bibliotecaPuertas, corredizo, escritorioL, gamer, centroTV, repisa, cama, tocador, cubos, baul, mesaAbatible };
 
@@ -756,14 +808,20 @@
   }
 
   function catalogo() { return familias; }
-  function buscar(cod) { for (const f of familias) { const it = f.items.find((i) => i.cod === cod); if (it) return { item: it, fam: f }; } return null; }
-  // Diseño base de un plano: el mismo mueble en otra medida o tamaño cuenta como el mismo diseño
-  function diseno(it) {
-    return it.nombre.replace(/ \(.*\)$/, '').replace(/ (sencilla|semidoble|doble|queen|king)\b/, '').replace(/ \d+ × \d+$/, '').trim();
+  let INDICE = null;
+  function buscar(cod) {
+    if (!INDICE) { INDICE = new Map(); for (const f of familias) for (const it of f.items) INDICE.set(it.cod.toUpperCase(), { item: it, fam: f }); }
+    return INDICE.get(String(cod || '').toUpperCase()) || null;
   }
-  function disenos() { return [...new Set(familias.flatMap((f) => f.items.map(diseno)))]; }
+  function buscarDiseno(slug) {
+    for (const f of familias) { const d = f.disenos.find((x) => x.slug === slug); if (d) return { diseno: d, fam: f }; }
+    return null;
+  }
+  // Diseño base de un plano: el mismo mueble en otra medida o configuración cuenta como el mismo diseño
+  function diseno(it) { return it.diseno || it.nombre.replace(/ \(.*\)$/, ''); }
+  function disenos() { return familias.flatMap((f) => f.disenos.map((d) => d.nombre)); }
   function contar() { return familias.reduce((n, f) => n + f.items.length, 0); }
 
-  const api = { CONFIG, modulo, escritorio, construir, optimizar, resumen, notacion, herrajesLista, catalogo, contar, buscar, disenos, diseno, pasos, corredera, bisagrasPara, CONSTRUCTORES };
+  const api = { CONFIG, modulo, escritorio, construir, optimizar, resumen, notacion, herrajesLista, catalogo, contar, buscar, buscarDiseno, disenos, diseno, pasos, corredera, bisagrasPara, CONSTRUCTORES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Melamina = api;
 })(typeof window !== 'undefined' ? window : globalThis);

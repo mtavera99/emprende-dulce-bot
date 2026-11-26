@@ -366,14 +366,16 @@ async function img(phone) {
   check(store.getLead(MU).producto === 'muebles' && store.getLead(MU).ctwaClid === 'CLID-MUEBLES-1' && store.getLead(MU).adId === REFM.source_id, 'anuncio nuevo de muebles: detecta el producto por el titular y guarda ctwa_clid y el ID del anuncio');
   const manM = ventas.infoPack('muebles');
   check(o[0].tipo === 'imagen' && /muebles_1_catalogo/.test(o[0].t), 'muebles: primer mensaje con la imagen del catálogo');
-  check(o[1].tipo === 'botones' && new RegExp(`${manM.totales.planos} planos`).test(o[1].t) && new RegExp(`${manM.totales.disenos} diseños`).test(o[1].t) && !/moldes|postre/i.test(o[1].t), 'muebles: pitch con las cifras reales del pack y botones');
+  const nPlanosM = manM.totales.planos.toLocaleString('es-CO');
+  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales con medidas exactas en mm*: ${manM.totales.disenos} diseños base en todas sus medidas estándar`) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos, ${manM.totales.disenos} diseños base) y botones`);
+  check(manM.totales.planos >= 2500 && manM.totales.planos <= 3000 && manM.totales.planos === require(R + 'muebles/motor').contar(), 'muebles: la cifra del pitch es la del motor y está entre 2.500 y 3.000');
   check(/Todo por \*\$15\.000\*/.test(o[1].t) && o[1].botones[0].title === '💳 Comprar $15.000' && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
   o = await boton(MU, 'muestra', '🎁 Muestra gratis');
   const docsM = o.filter((e) => e.tipo === 'doc');
   check(docsM.length === 1 && /Muestra_Muebles_Plano/.test(docsM[0].t) && o.some((e) => /muebles_2_plano/.test(e.t)), 'muebles: la muestra es 1 plano completo en PDF + imagen del plano');
   check(/planos\* del pack/.test(o[o.length - 1].t) && /datos de pago/.test(o[o.length - 1].t), 'muebles: después de la muestra pregunta por la compra');
   o = await txt(MU, 'Si');
-  check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t) && !/\$10\.000/.test(o[0].t) && new RegExp(`los ${manM.totales.planos} planos`).test(o[0].t), 'muebles: "sí" manda los datos de pago por $15.000');
+  check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t) && !/\$10\.000/.test(o[0].t) && o[0].t.includes(`los ${nPlanosM} planos`), 'muebles: "sí" manda los datos de pago por $15.000');
   ocrRespuesta = { isValid: true, esComprobante: true, amount: 15000, reference: 'MU1', bank: 'nequi', titularValido: true };
   process.env.UPSELL_MINUTOS = '0.002';
   o = await img(MU);
@@ -390,7 +392,7 @@ async function img(phone) {
   check(/catálogo interactivo/.test(o[0].t) && /acceso\//.test(o[0].t) && !/Files de Google|patrón/.test(o[0].t), 'comprador de muebles con problema: guía del pack de muebles');
   const MV = '573000000031';
   o = await txt(MV, 'Quiero los planos de closet en melamina');
-  check(store.getLead(MV).producto === 'muebles' && /139 planos|planos con medidas/.test(o[1].t), 'muebles: palabras clave en el mensaje');
+  check(store.getLead(MV).producto === 'muebles' && o[1].t.includes(`${nPlanosM} planos reales`), 'muebles: palabras clave en el mensaje');
   if (!ventas.enHorarioSilencio()) {
     store.obtenerConversacion(MV).ultimoDelCliente = Date.now() - 2.1 * 3600e3;
     const nM = enviados.length; await seg.ejecutarSeguimientos();

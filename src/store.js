@@ -38,6 +38,7 @@ function origenDeLead(lead) {
       canal: 'Anuncio de Meta',
       detalle: [ref.headline, ref.source_id ? `ID ${ref.source_id}` : (lead.adId ? `ID ${lead.adId}` : '')].filter(Boolean).join(' · '),
       adId: ref.source_id || lead.adId || null,
+      ctwaClid: ref.ctwa_clid || lead.ctwaClid || null,
       metodo
     };
   }
@@ -84,6 +85,7 @@ let settings = loadJSON(SETTINGS_FILE, {
   llaveNumero: process.env.LLAVE_NUMERO || '3058742138',
   driveLink: process.env.GOOGLE_DRIVE_LINK || 'https://drive.google.com/drive/folders/1k5L4D-td0Qsyurc8bWxBkKLTBGIrv3fX?usp=sharing',
   driveLinkMoldes: process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing',
+  driveLinkMuebles: process.env.GOOGLE_DRIVE_LINK_MUEBLES || '',
   botWhatsApp: process.env.BOT_WHATSAPP || '+573105652478',
   modoAutoEntregaLeona: true
 });
@@ -92,11 +94,20 @@ let settings = loadJSON(SETTINGS_FILE, {
 if (!settings.precioDescuento) settings.precioDescuento = Number(process.env.PRECIO_DESCUENTO) || 8000;
 if (!settings.productoPorDefecto) settings.productoPorDefecto = process.env.PRODUCTO_POR_DEFECTO || 'moldes';
 
+if (settings.driveLinkMuebles === undefined) settings.driveLinkMuebles = process.env.GOOGLE_DRIVE_LINK_MUEBLES || '';
+
 if (!settings.driveLinkMoldes) {
   settings.driveLinkMoldes = process.env.GOOGLE_DRIVE_LINK_MOLDES || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing';
 }
 
 const store = {
+  // Carpeta de Google Drive de respaldo de cada producto ('' si no hay)
+  driveDe(producto) {
+    const s = settings;
+    const link = producto === 'moldes' ? s.driveLinkMoldes : producto === 'muebles' ? s.driveLinkMuebles : s.driveLink;
+    return String(link || '').trim();
+  },
+
   getDir() {
     return DIR;
   },
@@ -295,12 +306,9 @@ const store = {
     }
 
     const id = `DULCE-${Date.now().toString().slice(-6)}`;
-    const nombreProd = prodId === 'moldes'
-      ? 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF'
-      : 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)';
-    const driveLink = prodId === 'moldes'
-      ? (settings.driveLinkMoldes || 'https://drive.google.com/drive/folders/15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5?usp=sharing')
-      : settings.driveLink;
+    const nombreProd = { moldes: 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF', muebles: 'Mega Pack de Carpintería y Muebles en Melamina 2026', upsell_helados: 'Pack Emprende Dulce 2026 (upsell)' }[prodId]
+      || 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)';
+    const driveLink = store.driveDe(prodId);
 
     const order = {
       id,
@@ -308,7 +316,7 @@ const store = {
       origen: origenDeLead(lead),
       producto: prodId,
       product: nombreProd,
-      amount: settings.precioOferta || 10000,
+      amount: require('./ventas').precioDe({ ...(lead || {}), producto: prodId }),
       status: 'PENDIENTE', // PENDIENTE, VERIFICADO, RECHAZADO, ENTREGADO
       createdAt: Date.now(),
       paymentMethod: 'NEQUI',
@@ -461,6 +469,7 @@ const store = {
     const lead = store.getLead(phone);
     if (!lead) return;
     lead.precioOfrecido = Number(precio) || 10000;
+    lead.precioProducto = lead.producto || null;
     saveJSON(LEADS_FILE, leads);
   },
 

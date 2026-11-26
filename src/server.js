@@ -11,6 +11,7 @@ const paymentVerifier = require('./paymentVerifier');
 const fs = require('fs');
 const accesos = require('./accesos');
 const paginaAcceso = require('./paginaAcceso');
+const portalMuebles = require('./muebles/portal');
 const productCatalog = require('./productCatalog');
 const exportarChats = require('./exportarChats');
 const zipLector = require('./zipLector');
@@ -114,7 +115,8 @@ app.get(['/portal', '/catalogo', '/tienda'], (req, res) => {
 // Páginas del comprador. Los archivos del pack ya no son públicos: se descargan con un
 // enlace personal (/acceso/<token>) o de prueba (HONESTIDAD), que se revisa en cada descarga.
 app.get(['/descargar', '/acceso'], (req, res) => {
-  const prod = (req.query.p === 'moldes' || req.query.producto === 'moldes') ? 'moldes' : 'helados';
+  const pedido = req.query.p || req.query.producto;
+  const prod = ['moldes', 'muebles'].includes(pedido) ? pedido : 'helados';
   res.send(paginaAcceso.paginaPublica(prod));
 });
 app.get(['/descargar-moldes', '/acceso-moldes'], (req, res) => res.send(paginaAcceso.paginaPublica('moldes')));
@@ -127,6 +129,51 @@ app.get(['/acceso/:token', '/prueba/:token'], (req, res) => {
   res.send(st.acceso.tipo === 'prueba' ? paginaAcceso.paginaPrueba(st.acceso) : paginaAcceso.paginaCompleta(st.acceso));
 });
 
+// Catálogo interactivo de planos (pack de muebles): con acceso completo se abren todos; con prueba, solo la muestra
+app.get('/planos/:token', (req, res) => {
+  const st = accesos.estado(req.params.token);
+  res.set('Cache-Control', 'no-store');
+  if (!st.ok) return res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
+  if (st.acceso.producto !== 'muebles') return res.redirect(`/acceso/${encodeURIComponent(st.acceso.token)}`);
+  accesos.registrarUso(st.acceso.token, 'vistas');
+  res.send(portalMuebles.catalogo(st.acceso, paginaAcceso.waLink));
+});
+// Acceso válido de muebles para las páginas del portal de planos (o null si ya respondió con error)
+function accesoMuebles(req, res) {
+  const st = accesos.estado(req.params.token);
+  res.set('Cache-Control', 'no-store');
+  if (!st.ok) { res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso)); return null; }
+  if (st.acceso.producto !== 'muebles') { res.redirect(`/acceso/${encodeURIComponent(st.acceso.token)}`); return null; }
+  return st.acceso;
+}
+app.get('/planos/:token/buscar', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  res.send(portalMuebles.buscarMedida(a, req.query));
+});
+app.get('/planos/:token/d/:slug', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  const html = portalMuebles.diseno(a, String(req.params.slug || '').toLowerCase(), paginaAcceso.waLink);
+  if (!html) return res.status(404).send('Diseño no encontrado');
+  res.send(html);
+});
+app.get('/planos/:token/:cod/despiece.csv', (req, res) => {
+  const a = accesoMuebles(req, res); if (!a) return;
+  const cod = String(req.params.cod || '');
+  const csv = portalMuebles.despieceCSV(a, cod, req.query);
+  if (!csv) return res.status(404).send('Plano no encontrado');
+  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="Despiece_${cod.replace(/[^A-Z0-9x-]/gi, '')}.csv"` });
+  res.send(csv);
+});
+app.get('/planos/:token/:cod', (req, res) => {
+  const st = accesos.estado(req.params.token);
+  res.set('Cache-Control', 'no-store');
+  if (!st.ok) return res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
+  if (st.acceso.producto !== 'muebles') return res.redirect(`/acceso/${encodeURIComponent(st.acceso.token)}`);
+  const html = portalMuebles.plano(st.acceso, String(req.params.cod || ''), req.query, paginaAcceso.waLink);
+  if (!html) return res.status(404).send('Plano no encontrado');
+  res.send(html);
+});
+
 app.get('/d/:token/:id', (req, res) => {
   const st = accesos.estado(req.params.token);
   if (!st.ok) return res.status(410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
@@ -136,6 +183,15 @@ app.get('/d/:token/:id', (req, res) => {
   if (!f.startsWith(accesos.PUBLIC) || !fs.existsSync(f)) return res.status(404).send('Archivo no encontrado');
   accesos.registrarUso(st.acceso.token, 'descargas');
   res.set('Cache-Control', 'private, no-store');
+  if (it.entradaZip) {
+    // PDF guardado dentro del ZIP del pack: se envía por partes, sin cargarlo entero en memoria
+    const en = accesos.entradaZip(it);
+    if (!en) return res.status(404).send('Archivo no encontrado');
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Length': en.tamano, 'Content-Disposition': `attachment; filename="${path.basename(en.nombre).replace(/"/g, '')}"` });
+    const flujo = zipLector.abrirEntrada(f, en);
+    flujo.on('error', (e) => { console.error('[ZIP]', e.message); res.destroy(e); });
+    return flujo.pipe(res);
+  }
   if (it.abrir) return res.sendFile(f);
   res.download(f, path.basename(f));
 });
@@ -164,7 +220,9 @@ app.get('/d/:token/:id/:n', (req, res) => {
 app.get('/regalo/calculadora', (req, res) => {
   const archivo = req.query.p === 'moldes'
     ? 'moldes/11_Bonos/Bono_04_Calculadora_Costos_Precios_Confeccion.html'
-    : 'Bono_01_Calculadora_Costos_y_Precios.html';
+    : req.query.p === 'muebles'
+      ? 'muebles/Bonos/Calculadora_Costos_Laminas_y_Cotizacion.html'
+      : 'Bono_01_Calculadora_Costos_y_Precios.html';
   const f = path.join(accesos.PUBLIC, archivo);
   if (!fs.existsSync(f)) return res.status(404).send('No encontrado');
   res.sendFile(f);
@@ -361,7 +419,7 @@ app.post('/api/pedidos/:id/rechazar', authPanel, async (req, res) => {
   if (pedido) {
     store.rechazarPedido(id, motivo);
     const mensajeRechazo =
-      `Hola 🙌 Revisamos tu comprobante pero no pudimos validar la transferencia de los $10.000 COP en la cuenta bancaria (${motivo}).\n\n` +
+      `Hola 🙌 Revisamos tu comprobante pero no pudimos validar la transferencia de los ${'$' + Number(pedido.amount || require('./ventas').precioNormal(pedido.producto)).toLocaleString('es-CO')} COP en la cuenta bancaria (${motivo}).\n\n` +
       `Si ya realizaste el pago, por favor envíanos de nuevo una captura donde se vea clara la fecha, hora y número de referencia para verificarlo de inmediato.`;
     try {
       await waService.sendTextMessage(pedido.phone, mensajeRechazo);
@@ -429,7 +487,7 @@ app.post('/api/chats/:id/dar-acceso', authPanel, async (req, res) => {
     store.saveLead(phone, { producto, productoFijado: true });
     const pend = store.pedidosDeTelefono(phone).filter((p) => p.status === 'PENDIENTE').pop();
     if (req.body?.venta === '1') {
-      const ped = pend || store.crearPedido(phone, { producto, amount: lead.precioOfrecido || store.getSettings().precioOferta || 10000, notas: 'Venta registrada a mano desde el chat' });
+      const ped = pend || store.crearPedido(phone, { producto, amount: require('./ventas').precioDe({ ...lead, producto }), notas: 'Venta registrada a mano desde el chat' });
       store.actualizarPedido(ped.id, { producto });
       store.aprobarPedido(ped.id, { aprobadoPor: 'operador' });
       await conversationFlow.enviarEntregaProducto(phone, store.getSettings(), { pedidoId: ped.id, producto });
@@ -468,7 +526,7 @@ app.post('/api/chats/:id/extender-prueba', authPanel, async (req, res) => {
 
 // Actualizar configuración
 app.post('/api/settings', authPanel, (req, res) => {
-  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, precioDescuento, productoPorDefecto, driveLink, driveLinkMoldes, botWhatsApp, modoAutoEntregaLeona } = req.body;
+  const { nequiNumero, nequiTitular, daviplataNumero, llaveNumero, precioOferta, precioDescuento, productoPorDefecto, driveLink, driveLinkMoldes, driveLinkMuebles, botWhatsApp, modoAutoEntregaLeona } = req.body;
   store.updateSettings({
     nequiNumero: nequiNumero || undefined,
     nequiTitular: nequiTitular || undefined,
@@ -479,6 +537,7 @@ app.post('/api/settings', authPanel, (req, res) => {
     productoPorDefecto: productCatalog.PRODUCTOS[productoPorDefecto] ? productoPorDefecto : undefined,
     driveLink: driveLink || undefined,
     driveLinkMoldes: driveLinkMoldes || undefined,
+    driveLinkMuebles: driveLinkMuebles || undefined,
     botWhatsApp: botWhatsApp || undefined,
     modoAutoEntregaLeona: modoAutoEntregaLeona === '1' || modoAutoEntregaLeona === 'true' || modoAutoEntregaLeona === true || modoAutoEntregaLeona === 'on'
   });

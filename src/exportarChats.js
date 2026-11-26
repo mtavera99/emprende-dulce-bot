@@ -69,7 +69,7 @@ function embudo(conv, lead, ventas) {
     prueba: !!(lead && lead.prueba && lead.prueba.token),
     comprobante: delCliente.some(m => m.type === 'image') || pedidos.some(o => o.comprobanteUrl || o.ocrData),
     compro: ventas.length > 0,
-    descuento: ventas.some(v => Number(v.amount) > 0 && Number(v.amount) < 10000) || delBot.some(m => /\b[78]\.000\b/.test(m.text || '')),
+    descuento: ventas.some(v => Number(v.amount) > 0 && Number(v.amount) < require('./ventas').precioNormal(v.producto)) || delBot.some(m => /\b([78]|12)\.000\b/.test(m.text || '')),
     muestra: delBot.some(m => m.type === 'document' || /\[Documento\] Muestra/.test(m.text || '')),
     audios: delCliente.filter(m => m.type === 'audio').length
   };

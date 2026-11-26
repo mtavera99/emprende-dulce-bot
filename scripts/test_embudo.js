@@ -21,7 +21,8 @@ wa.downloadMedia = async () => ({ buffer: Buffer.from('x'), mimeType: 'image/jpe
 wa.markAsRead = async () => {};
 const ocr = require(R + 'ocrValidator');
 let ocrRespuesta = null;
-ocr.validateReceipt = async () => ocrRespuesta;
+let ocrMinimo = null; // monto mínimo que el bot le pide al validador de comprobantes
+ocr.validateReceipt = async (_buf, esperado) => { ocrMinimo = esperado && esperado.minAmount; return ocrRespuesta; };
 const store = require(R + 'store');
 const flow = require(R + 'conversationFlow');
 const seg = require(R + 'seguimiento');
@@ -357,6 +358,67 @@ async function img(phone) {
   store.saveLead(T3, { precioOfrecido: 8000 });
   o = await txt(T3, 'mañana le consigno');
   check(/\$8\.000/.test(o[0].t), 'pago pospuesto conserva el precio que tenía ($8.000)');
+
+  // 15. Pack de muebles: anuncio nuevo (sin ID registrado), muestra, compra y soporte
+  const REFM = { source_id: '120299999999990001', headline: '+139 Planos de Muebles en Melamina', ctwa_clid: 'CLID-MUEBLES-1' };
+  const MU = '573000000030';
+  o = await txt(MU, 'Hola, quiero más información', REFM);
+  check(store.getLead(MU).producto === 'muebles' && store.getLead(MU).ctwaClid === 'CLID-MUEBLES-1' && store.getLead(MU).adId === REFM.source_id, 'anuncio nuevo de muebles: detecta el producto por el titular y guarda ctwa_clid y el ID del anuncio');
+  const manM = ventas.infoPack('muebles');
+  check(o[0].tipo === 'imagen' && /muebles_1_catalogo/.test(o[0].t), 'muebles: primer mensaje con la imagen del catálogo');
+  const nPlanosM = manM.totales.planos.toLocaleString('es-CO');
+  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales con medidas exactas en mm*: ${manM.totales.disenos} diseños base en todas sus medidas estándar`) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos, ${manM.totales.disenos} diseños base) y botones`);
+  check(manM.totales.planos >= 2500 && manM.totales.planos <= 3000 && manM.totales.planos === require(R + 'muebles/motor').contar(), 'muebles: la cifra del pitch es la del motor y está entre 2.500 y 3.000');
+  check(/Todo por \*\$15\.000\*/.test(o[1].t) && o[1].botones[0].title === '💳 Comprar $15.000' && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
+  o = await boton(MU, 'muestra', '🎁 Muestra gratis');
+  const docsM = o.filter((e) => e.tipo === 'doc');
+  check(docsM.length === 1 && /Muestra_Muebles_Plano/.test(docsM[0].t) && o.some((e) => /muebles_2_plano/.test(e.t)), 'muebles: la muestra es 1 plano completo en PDF + imagen del plano');
+  check(/planos\* del pack/.test(o[o.length - 1].t) && /datos de pago/.test(o[o.length - 1].t), 'muebles: después de la muestra pregunta por la compra');
+  o = await txt(MU, 'Si');
+  check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t) && !/\$10\.000/.test(o[0].t) && o[0].t.includes(`los ${nPlanosM} planos`), 'muebles: "sí" manda los datos de pago por $15.000');
+  ocrRespuesta = { isValid: true, esComprobante: true, amount: 15000, reference: 'MU1', bank: 'nequi', titularValido: true };
+  process.env.UPSELL_MINUTOS = '0.002';
+  o = await img(MU);
+  await new Promise((r) => setTimeout(r, 300));
+  check(ocrMinimo === 15000, 'muebles: el validador exige un comprobante de al menos $15.000');
+  const entrega = o.find((e) => /acceso\//.test(e.t));
+  check(entrega && /Carpintería y Muebles/.test(entrega.t) && /catálogo interactivo/.test(entrega.t), 'muebles: comprobante válido entrega el acceso al pack de muebles');
+  const tokM = (entrega.t.match(/acceso\/([A-Za-z0-9_-]+)/) || [])[1];
+  check(tokM && require(R + 'accesos').estado(tokM).acceso.producto === 'muebles', 'muebles: el enlace es del producto muebles');
+  check(store.pedidosDeTelefono(MU).some((p) => p.status === 'VERIFICADO' && p.producto === 'muebles' && Number(p.amount) === 15000 && p.origen && p.origen.ctwaClid === 'CLID-MUEBLES-1'), 'muebles: la venta queda por $15.000 con producto y ctwa_clid del anuncio');
+  check(!desde(0).some((e) => e.to === MU && e.tipo === 'botones' && /upsell/.test(e.t)), 'muebles: no se ofrece el upsell de Emprende Dulce');
+  process.env.UPSELL_MINUTOS = '600';
+  o = await txt(MU, 'No me abre el archivo');
+  check(/catálogo interactivo/.test(o[0].t) && /acceso\//.test(o[0].t) && !/Files de Google|patrón/.test(o[0].t), 'comprador de muebles con problema: guía del pack de muebles');
+  const MV = '573000000031';
+  o = await txt(MV, 'Quiero los planos de closet en melamina');
+  check(store.getLead(MV).producto === 'muebles' && o[1].t.includes(`${nPlanosM} planos reales`), 'muebles: palabras clave en el mensaje');
+  if (!ventas.enHorarioSilencio()) {
+    store.obtenerConversacion(MV).ultimoDelCliente = Date.now() - 2.1 * 3600e3;
+    const nM = enviados.length; await seg.ejecutarSeguimientos();
+    const s1M = desde(nM).filter((e) => e.to === MV);
+    check(s1M.length === 1 && /regalo\/calculadora\?p=muebles/.test(s1M[0].t) && /\*\$12\.000\* en lugar de \$15\.000/.test(s1M[0].t) && !/prenda|postre|8\.000/.test(s1M[0].t), 'muebles: seguimiento 1 con la calculadora y el descuento de $15.000 a $12.000');
+    check(store.getLead(MV).precioOfrecido === 12000, 'muebles: precio ofrecido queda en $12.000');
+    o = await txt(MV, 'Si');
+    check(/Nequi/.test(o[0].t) && /\$12\.000/.test(o[0].t), 'muebles: "sí" al descuento manda los datos por $12.000');
+    ocrRespuesta = { isValid: false, esComprobante: false, amount: 0 };
+    await img(MV);
+    check(ocrMinimo === 12000, 'muebles: con descuento el validador exige $12.000');
+  }
+  o = await txt(MV, 'HONESTIDAD');
+  check(/prueba\//.test(o[0].t) && /catálogo de los/.test(o[0].t) && /\$12\.000/.test(o[0].t), 'muebles: HONESTIDAD con el detalle del pack y el precio de $12.000');
+  // Quien tenía la oferta de $8.000 de moldes y llega por un anuncio de muebles paga el precio de muebles
+  const MX = '573000000033';
+  await txt(MX, SALUDO, REF);
+  store.setLeadPrecio(MX, 8000);
+  await txt(MX, 'Hola', REFM);
+  o = await txt(MX, 'como pago');
+  check(store.getLead(MX).producto === 'muebles' && /\$15\.000/.test(o[0].t) && !/\$8\.000/.test(o[0].t), 'cambio de moldes a muebles: no arrastra el descuento de $8.000');
+  check(ventas.precioNormal('moldes') === 10000 && ventas.precioDescuento('moldes') === 8000 && ventas.precioNormal('helados') === 10000, 'moldes y postres siguen en $10.000 / $8.000');
+  check(ventas.esPedidoDescuento('12000') && ventas.esPedidoDescuento('8000'), '"12000" y "8000" se entienden como pedir el descuento');
+  let crash = null;
+  try { await txt('573000000032', 'Hola', { source_id: '1', headline: 'Oferta' }); } catch (e) { crash = e; }
+  check(!crash, 'anuncio desconocido sin palabras clave: no rompe la detección');
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);

@@ -1156,11 +1156,11 @@ function render(aviso = '') {
               <input type="text" name="botWhatsApp" value="${esc(settings.botWhatsApp)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
             </div>
             <div>
-              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO OFERTA (COP)</label>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO OFERTA (COP) · MOLDES Y POSTRES (MUEBLES: $15.000 FIJO)</label>
               <input type="number" name="precioOferta" value="${esc(settings.precioOferta)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
             </div>
             <div>
-              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO CON DESCUENTO EN SEGUIMIENTOS (COP)</label>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">PRECIO CON DESCUENTO EN SEGUIMIENTOS (COP) · MOLDES Y POSTRES (MUEBLES: $12.000 FIJO)</label>
               <input type="number" name="precioDescuento" value="${esc(settings.precioDescuento || 8000)}" style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
             </div>
             <div>
@@ -1179,6 +1179,11 @@ function render(aviso = '') {
           <div style="margin-top: 16px;">
             <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE (MOLDES DE COSTURA)</label>
             <input type="text" name="driveLinkMoldes" value="${esc(settings.driveLinkMoldes || '')}" placeholder="https://drive.google.com/drive/folders/..." style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px;">ENLACE DE DESCARGA GOOGLE DRIVE (MUEBLES EN MELAMINA) · RESPALDO CUANDO EL ENLACE NO ABRE</label>
+            <input type="text" name="driveLinkMuebles" value="${esc(settings.driveLinkMuebles || '')}" placeholder="https://drive.google.com/drive/folders/..." style="width: 100%; background: #0b0f17; border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px;">
           </div>
 
           <div style="margin-top: 20px;">

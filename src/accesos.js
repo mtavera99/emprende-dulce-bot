@@ -34,6 +34,12 @@ function mb(rel) {
   try { return Math.round(fs.statSync(path.join(PUBLIC, rel)).size / 1e5) / 10; } catch (_) { return null; }
 }
 
+// Tamaño de un archivo guardado dentro de un ZIP (o null si no está)
+function entradaZip(it) {
+  try { return zipLector.leerDirectorio(path.join(PUBLIC, it.archivo)).find((e) => e.nombre === it.entradaZip) || null; } catch (_) { return null; }
+}
+function mbEntrada(it) { const e = entradaZip(it); return e ? Math.round(e.tamano / 1e5) / 10 : null; }
+
 function contenidoMoldes() {
   let man = { colecciones: [], bonos: [], totales: {} };
   try { man = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'moldes/manifest.json'), 'utf8')); } catch (_) {}
@@ -88,12 +94,36 @@ function contenidoHelados() {
   };
 }
 
-const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados };
+function contenidoMuebles() {
+  const man = { categorias: [], guias: [], bonos: [], totales: {}, muestra: {}, ...require('./muebles/portal').manifest() };
+  const T = man.totales || {};
+  const items = [];
+  if (man.muestra && man.muestra.archivo) {
+    items.push({ id: 'muestra', grupo: 'Muestra gratis', titulo: `🎁 Plano completo: ${man.muestra.nombre} (${man.muestra.cod})`, sub: 'Vista acotada, despiece en mm, herrajes, láminas, cortes y armado', archivo: man.muestra.archivo, gratis: true, soloPrueba: true });
+  }
+  // Los PDF de planos viven dentro del ZIP del pack (sin duplicarlos en disco); se sirven desde ahí
+  for (const c of man.categorias) {
+    items.push({ id: `p${c.id}`, grupo: 'Planos por categoría (PDF)', titulo: `${c.id} · ${c.nombre}`, sub: `${c.planos.toLocaleString('es-CO')} planos · ${c.disenos.map((d) => d.nombre).join(' · ')}`,
+      archivo: `muebles/${man.zip}`, entradaZip: `${man.zipRaiz}${c.archivo}` });
+  }
+  man.guias.forEach((g, i) => items.push({ id: `g${i + 1}`, grupo: 'Guías prácticas (PDF)', titulo: g.titulo, sub: g.sub, archivo: `muebles/${g.archivo}` }));
+  man.bonos.forEach((b, i) => items.push({ id: `b${i + 1}`, grupo: 'Bonos de negocio', titulo: b.titulo, sub: b.sub, archivo: `muebles/${b.archivo}`, abrir: !!b.abrir, gratis: !!b.abrir }));
+  items.push({ id: 'zip', grupo: 'Todo en un archivo', titulo: '📦 Pack completo en ZIP', sub: 'Los 5 PDF de planos, las guías y los bonos', archivo: `muebles/${man.zip || 'Mega_Pack_Muebles_Melamina_2026.zip'}` });
+  return {
+    titulo: 'Mega Pack de Carpintería y Muebles en Melamina 2026', emoji: '🪚',
+    intro: `${(T.planos || 0).toLocaleString('es-CO')} planos con medidas exactas en mm (${T.disenos || 0} diseños base en sus medidas estándar) en ${T.categorias || 0} categorías, con despiece, herrajes, láminas, plano de cortes y paso a paso; ${T.guias || 0} guías prácticas y ${T.bonos || 0} bonos de negocio.`,
+    nota: 'Abre el catálogo interactivo para buscar cada plano, ver su despiece en el celular y ajustar las medidas a tu espacio.',
+    catalogo: true,
+    items,
+  };
+}
+
+const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados, muebles: contenidoMuebles };
 
 function contenido(producto) {
   const fn = CONTENIDOS[producto] || CONTENIDOS.helados;
   const c = fn();
-  c.items = c.items.map((it) => ({ ...it, mb: mb(it.archivo) })).filter((it) => it.mb !== null);
+  c.items = c.items.map((it) => ({ ...it, mb: it.entradaZip ? mbEntrada(it) : mb(it.archivo) })).filter((it) => it.mb !== null);
   return c;
 }
 
@@ -215,4 +245,4 @@ function migrarVentas() {
   if (n) console.log(`[ACCESOS] Enlaces personales creados para ${n} ventas anteriores.`);
 }
 
-module.exports = { pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };
+module.exports = { entradaZip, pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };

@@ -68,15 +68,20 @@ function lista(c, token, modo) {
   }).join('')}</div>`).join('');
 }
 
+// Botón al catálogo interactivo de planos (pack de muebles)
+function botonCatalogo(c, a) {
+  return c.catalogo ? `<a class="cta" style="background:#b45309" href="/planos/${encodeURIComponent(a.token)}">📐 Abrir el catálogo interactivo de planos</a>` : '';
+}
+
 function paginaCompleta(a) {
   const c = accesos.contenido(a.producto);
-  const s = store.getSettings();
-  const drive = a.producto === 'moldes' ? (s.driveLinkMoldes || '').trim() : (s.driveLink || '').trim();
+  const drive = store.driveDe(a.producto);
   return base(`${c.emoji} ${c.titulo} · Tu acceso`, `
     <div class="header"><span class="badge b-ok">✅ PAGO CONFIRMADO · ACCESO PERSONAL</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="box"><b>Este enlace es solo tuyo.</b> Guárdalo para volver a descargar cuando quieras. ${esc(c.nota)}
       ${a.producto === 'moldes' ? '<br><br><b>📱 En el celular:</b> abre los PDF sueltos de cada patrón (botón «Abrir los PDF sueltos»). Los ZIP traen la colección completa: en Android ábrelos con la app <b>Files de Google</b> y en iPhone con <b>Archivos</b>.' : ''}
       ${drive ? `<a class="drive" href="${esc(drive)}" target="_blank" rel="noopener">📁 Abrir también en Google Drive</a>` : ''}</div>
+    ${botonCatalogo(c, a)}
     ${lista(c, a.token, 'completo')}
     <div class="foot">¿Dudas con la impresión o la descarga? <a style="color:#c4b5fd" href="${waLink('Hola, necesito ayuda con mi acceso')}">Escríbenos por WhatsApp</a><br>Acceso de por vida para el comprador.</div>`);
 }
@@ -88,6 +93,7 @@ function paginaPrueba(a) {
     <div class="header"><span class="badge b-prueba">🤝 ACCESO DE PRUEBA · HONESTIDAD</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
     <div class="timer">Tu acceso de prueba vence en<b id="t">--:--</b><span style="font-size:.8rem;color:#fcd34d">Descarga la muestra gratis y mira por dentro todo lo que trae el pack.</span></div>
     <a class="cta" href="${waLink(`Ya revisé la prueba y quiero el pack completo de ${c.titulo} por $${precio.toLocaleString('es-CO')}`)}">✅ Quiero el pack completo por $${precio.toLocaleString('es-CO')}</a>
+    ${botonCatalogo(c, a)}
     ${lista(c, a.token, 'prueba')}
     <div class="box">Para desbloquear todo, transfiere y <b>envía la foto del comprobante por WhatsApp</b>. El sistema te entrega tu enlace personal con todo desbloqueado en segundos.</div>
     <script>const fin=${a.expiresAt};function tick(){const r=Math.max(0,fin-Date.now());const m=Math.floor(r/60000),s=Math.floor(r%60000/1000);document.getElementById('t').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');if(r<=0)location.reload();}tick();setInterval(tick,1000);</script>`);
@@ -112,4 +118,4 @@ function paginaNoValida(motivo, a) {
     <a class="cta" href="${waLink(motivo === 'vencido' ? `Quiero el pack completo${c ? ' de ' + c.titulo : ''}` : 'Hola, necesito mi enlace de descarga')}">💬 Escribir por WhatsApp</a>`);
 }
 
-module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida };
+module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida, waLink };

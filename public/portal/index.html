@@ -613,6 +613,7 @@
       <button class="cat-pill active" onclick="setCategory('todos', this)">🌟 Todos</button>
       <button class="cat-pill" onclick="setCategory('costura', this)">👗 Costura & Moldes</button>
       <button class="cat-pill" onclick="setCategory('reposteria', this)">🍰 Helados & Postres</button>
+      <button class="cat-pill" onclick="setCategory('carpinteria', this)">🪚 Carpintería & Muebles</button>
       <button class="cat-pill" onclick="setCategory('manualidades', this)">🎨 Resina & Manualidades</button>
       <button class="cat-pill" onclick="setCategory('belleza', this)">💅 Belleza & Uñas</button>
       <button class="cat-pill" onclick="setCategory('oficios', this)">⚡ Oficios Prácticos</button>
@@ -677,6 +678,34 @@
           <button class="btn-preview" onclick="openModal('helados')">👀 Ver Contenido</button>
           <a href="https://wa.me/573105652478?text=Hola,%20quiero%20el%20Pack%20de%20Helados%20y%20Postres%20en%20Vaso%20por%20$10.000%20COP" target="_blank" class="btn-buy-wa">
             📲 Pedir ($10k)
+          </a>
+        </div>
+      </div>
+    </article>
+
+    <!-- PRODUCTO: MUEBLES EN MELAMINA (cifras del manifest del pack) -->
+    <article class="product-card" data-category="carpinteria" data-keywords="carpinteria muebles melamina planos despiece closet cocina integral escritorio cama comoda repisa madecentro sketchup">
+      <div class="card-media">
+        <img src="/portal/images/cover_muebles.jpg" alt="Mega Pack de Carpintería y Muebles en Melamina 2026">
+        <span class="badge-top-left">🆕 NUEVO</span>
+        <span class="badge-price">$15.000 COP</span>
+      </div>
+      <div class="card-content">
+        <span class="card-cat">Carpintería & Muebles</span>
+        <h2 class="card-title">Mega Pack de Carpintería y Muebles en Melamina 2026</h2>
+        <p class="card-desc"><!--MUEBLES_DESC-->+2.775 planos reales con medidas exactas en mm (40 diseños base en todas sus medidas estándar), con despiece pieza por pieza, herrajes, láminas y plano de cortes.<!--/MUEBLES_DESC--></p>
+        <ul class="features-list">
+          <li><span class="check">✓</span> Cocinas, clósets, escritorios, muebles de TV, camas y organizadores</li>
+          <li><span class="check">✓</span> Sirve sin taller: el depósito corta y enchapa, tú armas con taladro</li>
+          <li><span class="check">✓</span> 4 guías + calculadora de cotización en pesos + guía para cobrar</li>
+        </ul>
+        <div class="price-row">
+          <span class="price-current">$15.000 COP</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn-preview" onclick="openModal('muebles')">👀 Ver Contenido</button>
+          <a href="https://wa.me/573105652478?text=Hola,%20quiero%20el%20Mega%20Pack%20de%20Planos%20de%20Muebles%20en%20Melamina%20por%20$15.000%20COP" target="_blank" class="btn-buy-wa">
+            📲 Pedir ($15k)
           </a>
         </div>
       </div>
@@ -916,6 +945,21 @@
           "Acceso permanente en Google Drive + Enlace directo multidispositivo."
         ],
         waText: "Hola,%20quiero%20el%20Pack%20de%20Helados%20y%20Postres%20en%20Vaso%20por%20$10.000%20COP"
+      },
+      muebles: {
+        title: "🪚 Mega Pack de Carpintería y Muebles en Melamina 2026",
+        price: "$15.000 COP",
+        items: [
+          /*MUEBLES_ITEMS*/"2.775 planos reales con medidas exactas en milímetros: 40 diseños base en todas sus medidas estándar (anchos, altos y fondos comerciales).",
+          "Categorías: Cocinas integrales, alacenas y baño (775) · Clósets, armarios, vestidores y zapateras (456) · Escritorios, oficina y centros de entretenimiento (605) · Dormitorio: camas, cómodas, mesas de noche y tocadores (486) · Infantiles, ahorradores de espacio y organizadores (453).",
+          /*FIN_MUEBLES_ITEMS*/
+          "Cada plano: vista con medidas, despiece pieza por pieza con tapacanto, herrajes, cuántas láminas comprar, plano de cortes y paso a paso de armado.",
+          "Catálogo web para el comprador: buscador, filtros y ajuste de medidas que recalcula el despiece.",
+          "Guías: Materiales y herrajes · Cortar, cantear, perforar y unir (también sin taller) · Optimización de cortes · Diseño 3D con SketchUp.",
+          "Bonos: Calculadora de costos, láminas y cotización en COP · Cómo cobrar un trabajo de carpintería en Colombia.",
+          "No incluye archivos de SketchUp, renders ni videos."
+        ],
+        waText: "Hola,%20quiero%20el%20Mega%20Pack%20de%20Planos%20de%20Muebles%20en%20Melamina%20por%20$15.000%20COP"
       },
       resina: {
         title: "💎 Superpack Resina Epóxica & Joyería Artesanal",

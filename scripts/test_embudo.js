@@ -441,6 +441,8 @@ async function img(phone) {
   check(store.compradorDe(CB, 'muebles') && o.some((e) => /Carpintería y Muebles/.test(e.t) && /acceso\//.test(e.t)), 'comprobante de $15.000: entrega muebles');
   o = await txt(CB, 'No me abre el archivo');
   check(/catálogo interactivo/.test(o[0].t) && /Tu Mega Pack de Moldes/.test(o[0].t), 'comprador de los dos: soporte de muebles con el enlace de moldes también');
+  o = await txt(CB, 'Hola no abre nada');
+  check(/^Probemos por Google Drive/.test(o[0].t) && /16kOME2qExkNVuo_t2HOx90mZDYYVg1xs/.test(o[0].t), 'comprador de muebles que sigue sin poder abrir: Google Drive de muebles');
   o = await txt(CB, 'y los moldes de costura no me abren');
   check(store.getLead(CB).producto === 'moldes' && /15Mnij3UurwpXKG4Da_sdt77mfUGQPGx5/.test(o[0].t) && !/Nequi/.test(o[0].t), 'si pregunta por moldes vuelve al soporte de moldes (Drive de moldes), sin cobrar');
   const CC = '573000000042';
@@ -448,6 +450,48 @@ async function img(phone) {
   o = await txt(CC, 'no me interesan los muebles, solo los moldes');
   check(store.getLead(CC).producto === 'moldes', '"no me interesan los muebles": no cambia de producto');
   check(!store.obtenerCandidatosSeguimiento().some((c) => c.phone === CB), 'comprador de los dos packs: sin seguimientos');
+
+  // 17. Todos los seguimientos del pack de muebles (mismas estrategias que moldes, con sus textos y precios)
+  if (!ventas.enHorarioSilencio()) {
+    const ajenos = /molde|prenda|costura|postre|helado|receta|\$8\.000|\$10\.000/i;
+    const SG = '573000000050';
+    await txt(SG, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    await boton(SG, 'comprar', '💳 Comprar $15.000');
+    store.saveLead(SG, { rescate: { ...store.getLead(SG).rescate, at: Date.now() - 16 * 60e3 } });
+    store.obtenerConversacion(SG).ultimoDelCliente = Date.now() - 17 * 60e3;
+    let n = enviados.length; await seg.ejecutarRescate15();
+    const r15 = desde(n).filter((e) => e.to === SG);
+    check(r15.length === 1 && /Nequi o con abrir el archivo/.test(r15[0].t), 'muebles: rescate a los 15 minutos');
+    const pasos = {};
+    for (const [paso, horas] of [[1, 2.1], [2, 4.1], [3, 6.1], [4, 19]]) {
+      store.obtenerConversacion(SG).ultimoDelCliente = Date.now() - horas * 3600e3;
+      store.saveLead(SG, { ultimoSeguimiento: 0, seguimientosEnviados: paso - 1 });
+      n = enviados.length; await seg.ejecutarSeguimientos();
+      pasos[paso] = desde(n).filter((e) => e.to === SG);
+    }
+    const txtDe = (p) => pasos[p].map((e) => e.t).join(' | ');
+    check(pasos[1].length === 1 && /regalo\/calculadora\?p=muebles/.test(txtDe(1)) && /\*\$12\.000\* en lugar de \$15\.000/.test(txtDe(1)) && !/prenda|postre/.test(txtDe(1)), 'muebles: seguimiento 1 (2 h) con calculadora de regalo y $12.000');
+    check(pasos[2].some((e) => /muebles_2_plano/.test(e.t)) && pasos[2].some((e) => /muebles_3_cortes/.test(e.t)) && /plano completo/.test(txtDe(2)) && !ajenos.test(txtDe(2).replace(/muebles_\d_\w+\.jpg/g, '')), 'muebles: seguimiento 2 (4 h) con imágenes del plano y de los cortes y oferta de muestra');
+    check(pasos[3].length === 1 && /HONESTIDAD/.test(txtDe(3)) && /\$12\.000/.test(txtDe(3)), 'muebles: seguimiento 3 (6 h) con la prueba HONESTIDAD por $12.000');
+    check(pasos[4].length === 1 && /Último mensaje/.test(txtDe(4)) && /\$12\.000/.test(txtDe(4)) && /planos/.test(txtDe(4)) && !ajenos.test(txtDe(4).replace(/\$12\.000/g, '')), 'muebles: seguimiento 4 (último) con el pack de muebles por $12.000');
+    // Prueba HONESTIDAD: sus 3 avisos
+    const PR = '573000000051';
+    await txt(PR, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    await txt(PR, 'HONESTIDAD');
+    const pr = store.getLead(PR).prueba;
+    store.saveLead(PR, { prueba: { ...pr, inicio: Date.now() - 11 * 60e3 } });
+    n = enviados.length; await seg.ejecutarSeguimientoPruebas();
+    const p1 = desde(n).filter((e) => e.to === PR);
+    check(p1.length === 1 && /calidad de los planos/.test(p1[0].t) && /\$12\.000/.test(p1[0].t) && /planos, las guías y los bonos/.test(p1[0].t), 'muebles: aviso de la prueba a los 10 min, con el precio de $12.000');
+    store.saveLead(PR, { prueba: { ...store.getLead(PR).prueba, vence: Date.now() + 5 * 60e3 } });
+    n = enviados.length; await seg.ejecutarSeguimientoPruebas();
+    check(desde(n).some((e) => e.to === PR && /se cierra en 10 minutos/.test(e.t)), 'muebles: aviso de cierre de la prueba');
+    store.saveLead(PR, { prueba: { ...store.getLead(PR).prueba, vence: Date.now() - 60e3 } });
+    n = enviados.length; await seg.ejecutarSeguimientoPruebas();
+    check(desde(n).some((e) => e.to === PR && /Se cerró tu acceso de prueba/.test(e.t) && /\$12\.000/.test(e.t)), 'muebles: aviso al cerrar la prueba');
+  } else {
+    console.log('  (horario de silencio: se omiten los seguimientos de muebles)');
+  }
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);

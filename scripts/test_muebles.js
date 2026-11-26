@@ -131,6 +131,28 @@ check(portal.plano(completo, 'NO-EXISTE', {}, wa) === null, 'código inexistente
 const csv = portal.despieceCSV(completo, 'COC-B2P-800x720x560', {});
 check(/"Costado";"2";"720";"560";"Melamina 15 mm";"1L"/.test(csv) && portal.despieceCSV(prueba, 'COC-B2P-800x720x560', {}) === null, 'lista de corte en CSV (bloqueada en la prueba)');
 
+console.log('Página del comprador y prueba');
+const accesos = require('../src/accesos');
+const store = require('../src/store');
+const pagina = require('../src/paginaAcceso');
+const aC = accesos.crear('573000000901', 'muebles', 'completo');
+const pc = pagina.paginaCompleta(aC);
+check(/PAGO CONFIRMADO/.test(pc) && pc.includes(`/planos/${aC.token}"`) && /Abrir el catálogo interactivo/.test(pc), 'compra: página personal con el catálogo interactivo');
+check(man.categorias.every((c) => pc.includes(`/d/${aC.token}/p${c.id}"`)) && man.guias.every((g, i) => pc.includes(`/d/${aC.token}/g${i + 1}"`)) && pc.includes(`/d/${aC.token}/zip"`), 'compra: los 5 PDF de planos, las 4 guías y el ZIP');
+check(pc.includes(`/d/${aC.token}/b1"`) && pc.includes(`/d/${aC.token}/b2"`) && /Calculadora de Costos/.test(pc) && /Cómo Cobrar/.test(pc), 'compra: los 2 bonos');
+check((pc.match(/<summary>📱 Ver los planos en el celular sin descargar/g) || []).length === 5 && (pc.match(new RegExp(`/planos/${aC.token}/d/`, 'g')) || []).length === 40, 'compra: cada categoría abre sus diseños en el celular sin descomprimir (40 diseños)');
+check(!/drive\.google/.test(pc), 'compra: sin carpeta de Drive configurada no muestra el botón');
+store.updateSettings({ driveLinkMuebles: 'https://drive.google.com/drive/folders/PRUEBA_MUEBLES' });
+const pcD = pagina.paginaCompleta(aC);
+check(/drive\.google\.com\/drive\/folders\/PRUEBA_MUEBLES/.test(pcD) && /Abrir también en Google Drive/.test(pcD), 'compra: con la carpeta de Drive configurada en el panel, muestra el botón de Drive');
+store.updateSettings({ driveLinkMuebles: '' });
+const aP = accesos.crear('573000000902', 'muebles', 'prueba');
+const pp = pagina.paginaPrueba(aP);
+check(/ACCESO DE PRUEBA/.test(pp) && /vence en/.test(pp) && /por \$15\.000/.test(pp) && !/\$10\.000/.test(pp), 'prueba: temporizador y precio de $15.000');
+check(pp.includes(`/d/${aP.token}/muestra"`) && pp.includes(`/d/${aP.token}/b1"`) && !pp.includes(`/d/${aP.token}/p01"`) && !pp.includes(`/d/${aP.token}/zip"`), 'prueba: abre la muestra y la calculadora; los planos y el ZIP quedan con candado');
+check(accesos.archivoPermitido(aP, 'muestra') && accesos.archivoPermitido(aP, 'b1') && !accesos.archivoPermitido(aP, 'p01') && !accesos.archivoPermitido(aP, 'g1') && !accesos.archivoPermitido(aP, 'zip'), 'prueba: el servidor solo deja descargar la muestra y la calculadora');
+check(!accesos.contenido('muebles').items.find((i) => i.id === 'muestra') || !/muestra"/.test(pc.split('Planos por categoría')[0].replace(/Muestra gratis[\s\S]*/, '')), 'compra: la muestra no aparece en la página del comprador');
+
 (async () => {
   for (const c of man.categorias) {
     const n = pags(await leerPdf(c));

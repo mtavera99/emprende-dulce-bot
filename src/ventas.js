@@ -194,13 +194,10 @@ function descripcionMuestra(producto) {
 function textoPitch(producto) {
   if (producto === 'muebles') {
     const p = infoPack('muebles');
-    return `¡Hola! 🪚 Te cuento qué trae el *Mega Pack de Carpintería y Muebles en Melamina 2026*:\n\n` +
-      `✅ *${p.totales.planos.toLocaleString('es-CO')} planos reales con medidas exactas en mm*: ${p.totales.disenos} diseños base en todas sus medidas estándar (anchos, altos y fondos comerciales). Cocinas, alacenas y baño; clósets, vestidores y zapateras; escritorios, oficina y muebles de TV; camas, cómodas, mesas de noche y tocadores; infantiles y organizadores\n` +
-      `✅ Cada plano trae el *despiece pieza por pieza* con medidas y tapacanto, los herrajes, cuántas láminas comprar, el plano de cortes y el paso a paso de armado\n` +
-      `✅ Sirve aunque no tengas taller: llevas el despiece al depósito, allá te cortan y enchapan, y lo armas en casa con taladro\n` +
-      `✅ 4 guías (materiales y herrajes, cortar y armar, optimizar cortes, diseño 3D en SketchUp) + calculadora de costos y cotización en pesos + guía para cobrar tus trabajos\n\n` +
-      `Todo por *${cop(precioNormal(producto))}* pago único. Te llega por este chat.\n\n` +
-      `Toca un botón 👇 o responde *1* para comprar ahora o *2* para recibir *gratis* un plano completo de muestra 🎁`;
+    // Primer mensaje corto (3 líneas): con el bloque largo respondía el 31 % de los clientes frente al 67 % de moldes
+    return `🪚 *${p.totales.planos.toLocaleString('es-CO')} planos reales* de cocinas, clósets, escritorios, camas y más, con medidas en mm y despiece listo para llevar al depósito\n` +
+      `📘 4 guías + calculadora de láminas y costos + guía de diseño 3D\n` +
+      `💳 *${cop(precioNormal(producto))}* pago único, te llega por este chat. Toca *Comprar* o pide la *muestra gratis* 👇`;
   }
   if (producto === 'moldes') {
     return `¡Hola! 🧵 Te cuento qué trae el *Mega Pack de Moldes de Costura 2026*:\n\n` +

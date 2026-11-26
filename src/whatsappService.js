@@ -163,6 +163,9 @@ class WhatsAppService {
   }
 
   async sendButtons(to, bodyText, buttons = []) {
+    // Si Meta no acepta los botones se manda el texto; se agregan las opciones para responder con el número
+    const conOpciones = /responde \*?1\*?/i.test(bodyText) || !buttons.length ? bodyText
+      : `${bodyText}\n\n${buttons.slice(0, 3).map((b, i) => `*${i + 1}* ${b.title}`).join('   ')}\n_Responde con el número de la opción._`;
     if (!this.getConfigured()) {
       console.warn(`[WA DEV] Simulación botones a ${to}: ${buttons.map(b => b.title).join(', ')}`);
       return { messages: [{ id: `wamid.sim_${Date.now()}` }] };
@@ -199,11 +202,11 @@ class WhatsAppService {
       });
 
       if (!res.ok) {
-        return await this.sendTextMessage(to, bodyText);
+        return await this.sendTextMessage(to, conOpciones);
       }
       return await res.json();
     } catch (error) {
-      return await this.sendTextMessage(to, bodyText);
+      return await this.sendTextMessage(to, conOpciones);
     }
   }
 

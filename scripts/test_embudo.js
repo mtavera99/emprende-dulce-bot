@@ -367,9 +367,13 @@ async function img(phone) {
   const manM = ventas.infoPack('muebles');
   check(o[0].tipo === 'imagen' && /muebles_1_catalogo/.test(o[0].t), 'muebles: primer mensaje con la imagen del catálogo');
   const nPlanosM = manM.totales.planos.toLocaleString('es-CO');
-  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales con medidas exactas en mm*: ${manM.totales.disenos} diseños base en todas sus medidas estándar`) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos, ${manM.totales.disenos} diseños base) y botones`);
+  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales*`) && /cocinas, clósets, escritorios, camas/.test(o[1].t) && /medidas en mm y despiece/.test(o[1].t) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos) y botones`);
+  const pitchM = ventas.textoPitch('muebles'), lineasM = pitchM.split('\n');
+  check(o[1].t.startsWith(pitchM) && lineasM.length === 3 && pitchM.length <= 320, `muebles: primer mensaje corto de 3 líneas (${pitchM.length} caracteres)`);
+  check(/4 guías/.test(lineasM[1]) && /calculadora de láminas y costos/.test(lineasM[1]) && /diseño 3D/.test(lineasM[1]) && /\$15\.000\* pago único/.test(lineasM[2]) && /muestra gratis/.test(lineasM[2]) && /Comprar/.test(lineasM[2]), 'muebles: línea 2 con guías y calculadora, línea 3 con $15.000 y la invitación');
+  check(o[1].botones.map((b) => b.title).join('|') === '💳 Comprar $15.000|🎁 Muestra gratis', 'muebles: botones Comprar $15.000 y Muestra gratis');
   check(manM.totales.planos >= 2500 && manM.totales.planos <= 3000 && manM.totales.planos === require(R + 'muebles/motor').contar(), 'muebles: la cifra del pitch es la del motor y está entre 2.500 y 3.000');
-  check(/Todo por \*\$15\.000\*/.test(o[1].t) && o[1].botones[0].title === '💳 Comprar $15.000' && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
+  check(/\*\$15\.000\*/.test(o[1].t) && !/10\.000|12\.000/.test(o[1].t) && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
   o = await boton(MU, 'muestra', '🎁 Muestra gratis');
   const docsM = o.filter((e) => e.tipo === 'doc');
   check(docsM.length === 1 && /Muestra_Muebles_Plano/.test(docsM[0].t) && o.some((e) => /muebles_2_plano/.test(e.t)), 'muebles: la muestra es 1 plano completo en PDF + imagen del plano');
@@ -424,14 +428,14 @@ async function img(phone) {
   const CA = '573000000040';
   await txt(CA, SALUDO, REF);
   o = await txt(CA, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
-  check(store.getLead(CA).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t) && /\$15\.000/.test(e.t)), 'prospecto de moldes que pide muebles: recibe el primer mensaje de muebles por $15.000');
+  check(store.getLead(CA).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /planos reales/.test(e.t) && /\$15\.000/.test(e.t)), 'prospecto de moldes que pide muebles: recibe el primer mensaje de muebles por $15.000');
   const CB = '573000000041';
   await txt(CB, SALUDO, REF); await txt(CB, 'como pago');
   ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'CB-MOLDES', bank: 'nequi', titularValido: true };
   await img(CB);
   check(store.compradorDe(CB, 'moldes'), 'CB compró moldes');
   o = await txt(CB, 'Quiero ver los planos de muebles en melamina');
-  check(store.getLead(CB).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t)) && !o.some((e) => /Ya tienes tu compra activa/.test(e.t)), 'comprador de moldes que pide muebles: se le vende muebles (no soporte de moldes)');
+  check(store.getLead(CB).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /planos reales/.test(e.t)) && !o.some((e) => /Ya tienes tu compra activa/.test(e.t)), 'comprador de moldes que pide muebles: se le vende muebles (no soporte de moldes)');
   o = await txt(CB, 'como pago');
   check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t), 'comprador de moldes: datos de pago de muebles por $15.000');
   o = await img(CB); // reenvía el comprobante de moldes
@@ -545,6 +549,25 @@ async function img(phone) {
     global.fetch = fetchReal3;
     delete process.env.GEMINI_API_KEY;
     wa.downloadMedia = async () => ({ buffer: Buffer.from('x'), mimeType: 'image/jpeg' });
+  }
+
+  // 20. Si Meta no acepta los botones, el texto lleva las opciones para responder 1 o 2
+  {
+    const waReal = require(R + 'whatsappService');
+    const envioBotones = Object.getPrototypeOf(waReal).sendButtons;
+    const enviadoTxt = [];
+    const falso = { getConfigured: () => true, getApiUrl: () => 'x', getAccessToken: () => 'x', sendTextMessage: async (_to, t) => { enviadoTxt.push(t); return {}; } };
+    const fetchReal4 = global.fetch;
+    global.fetch = async () => ({ ok: false, status: 400, json: async () => ({}) });
+    await envioBotones.call(falso, '1', ventas.textoPitch('muebles'), ventas.botonesPitch('muebles'));
+    await envioBotones.call(falso, '1', ventas.textoPitch('moldes'), ventas.botonesPitch('moldes'));
+    global.fetch = fetchReal4;
+    check(/\*1\* 💳 Comprar \$15\.000/.test(enviadoTxt[0]) && /\*2\* 🎁 Muestra gratis/.test(enviadoTxt[0]), 'sin botones, el primer mensaje de muebles trae las opciones 1 y 2');
+    check(!/Responde con el número de la opción/.test(enviadoTxt[1]), 'moldes ya dice "responde 1 o 2": no se repite');
+    const B2 = '573160579820';
+    await txt(B2, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    o = await txt(B2, '2');
+    check(o.some((e) => e.tipo === 'doc' && /Muestra_Muebles/.test(e.t)), 'muebles: responder "2" manda la muestra gratis');
   }
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);

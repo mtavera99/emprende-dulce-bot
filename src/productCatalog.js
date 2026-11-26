@@ -86,6 +86,21 @@ const PRODUCTOS = {
   }
 };
 
+// Palabras que nombran el producto sin ambigüedad. Con ellas el cliente puede pasar de un producto a otro
+// aunque ya tuviera uno (por ejemplo, quien preguntó por moldes y ahora pide muebles).
+const PIDE = {
+  muebles: /\b(muebles?|melamina|carpinter\w*|ebanister\w*)\b/,
+  moldes: /\b(moldes?|costura|patron(es)? de costura|modister\w*)\b/,
+  helados: /\b(helad\w*|postres?|reposter\w*)\b/,
+};
+const sinTildes = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// Producto que el mensaje nombra de forma explícita, o null si no nombra ninguno o nombra varios
+function productoPedido(texto) {
+  const t = sinTildes(texto);
+  const hits = Object.keys(PIDE).filter((k) => PIDE[k].test(t));
+  return hits.length === 1 ? hits[0] : null;
+}
+
 // Orden para las palabras clave: muebles antes que moldes ("pantalla" contiene "pantal"); los
 // productos sin palabras clave (upsell) no se detectan por texto.
 const ORDEN_PALABRAS = ['muebles', 'moldes', 'helados'];
@@ -162,6 +177,7 @@ function infoProducto(id) {
 
 module.exports = {
   PRODUCTOS,
+  productoPedido,
   identificarProducto,
   infoProducto
 };

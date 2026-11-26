@@ -33,9 +33,24 @@ class ConversationFlow {
     return store.getSettings();
   }
 
-  // Comprador: venta aprobada, o acceso completo desbloqueado a mano desde el panel (sin registrar venta)
-  esComprador(phone) {
-    return store.yaCompro(phone) || !!accesos.completoDe(phone);
+  // Comprador del producto que está mirando ahora (o del indicado): venta aprobada o acceso completo desbloqueado
+  // a mano desde el panel. Quien compró moldes y ahora pregunta por muebles NO es comprador de muebles: se le vende.
+  esComprador(phone, producto = null) {
+    const prod = producto || (store.getLead(phone) || {}).producto || null;
+    return store.compradorDe(phone, prod) || !!accesos.completoDe(phone, prod === 'upsell_helados' ? 'helados' : prod || undefined);
+  }
+
+  // El cliente pide otro producto: se cambia y se le presenta el nuevo (con su precio, muestra y seguimientos)
+  cambiarProducto(phone, lead, nuevo, extra = {}) {
+    const yaLoTiene = this.esComprador(phone, nuevo);
+    console.log(`[FLOW] +${phone} pasa de ${lead.producto} a ${nuevo}${yaLoTiene ? ' (ya lo tiene)' : ''}`);
+    store.saveLead(phone, {
+      ...extra, producto: nuevo, productoAnterior: lead.producto, cambioProductoAt: Date.now(), productoFijado: false,
+      status: yaLoTiene ? 'PAGADO' : 'INTERESADO', step: yaLoTiene ? 'ENTREGADO' : 'INICIO', pitchPendiente: !yaLoTiene,
+      seguimientosEnviados: 0, ultimoSeguimiento: 0, muestraEnviada: false, muestraReenviada: false, muestraOfrecidaAt: null,
+      rescate: null, pagoPospuesto: null, precioOfrecido: null, precioProducto: null, esperaUpsell: false, esperaRespuestaUpsell: false,
+    });
+    return nuevo;
   }
 
   async handleIncomingMessage(phone, message) {
@@ -89,9 +104,21 @@ class ConversationFlow {
 
   detectarProducto(phone, text, message = null) {
     const lead = store.getLead(phone);
+    const detection = productCatalog.identificarProducto(phone, text, message, lead);
+    if (lead && lead.producto) {
+      // Pide otro producto por su nombre ("muebles", "melamina", "moldes", "postres") o llega por un anuncio de otro producto
+      // No cambia si está respondiendo la oferta del upsell ni si dice que no quiere algo
+      const negando = ventas.esRechazo(text) || /\bno\b.{0,20}\b(quiero|interesa|necesito|busco)\b/.test(ventas.normalizar(text));
+      const pide = lead.esperaRespuestaUpsell || lead.esperaUpsell || negando ? null : productCatalog.productoPedido(text);
+      const porAnuncio = detection.metodo && detection.metodo.startsWith('META') && detection.producto !== lead.producto && productCatalog.PRODUCTOS[detection.producto] && productCatalog.PRODUCTOS[detection.producto].keywords;
+      const nuevo = pide && pide !== lead.producto ? pide : porAnuncio ? detection.producto : null;
+      if (nuevo) {
+        const ref = (message && message.referral) || null;
+        return this.cambiarProducto(phone, lead, nuevo, ref ? { referral: ref, adId: ref.source_id ? String(ref.source_id) : lead.adId, ctwaClid: ref.ctwa_clid || lead.ctwaClid, metodoDeteccion: detection.metodo } : {});
+      }
+    }
     // Si el cliente ya compró o el producto se corrigió a mano en el panel, el producto queda fijo.
     if (lead && lead.producto && (lead.productoFijado || lead.status === 'PAGADO')) return lead.producto;
-    const detection = productCatalog.identificarProducto(phone, text, message, lead);
     // Las palabras clave solo eligen producto si el cliente todavía no tenía uno.
     // Un anuncio nuevo (referral) sí puede cambiarlo.
     if (lead && lead.producto && detection.metodo && detection.metodo.startsWith('TEXT_KEYWORD') && detection.producto !== lead.producto) {
@@ -154,7 +181,7 @@ class ConversationFlow {
     const lead = store.getLead(phone) || {};
     const conv = store.obtenerConversacion(phone);
     const botMessages = (conv?.messages || []).filter(m => m.from === 'bot');
-    const pitchYaEnviado = (lead.step && lead.step !== 'INICIO') || botMessages.length > 0;
+    const pitchYaEnviado = !lead.pitchPendiente && ((lead.step && lead.step !== 'INICIO') || botMessages.length > 0);
 
     // A. Quien ya compró recibe soporte, nunca datos de pago ni ofertas (salvo que responda al Upsell)
     if (this.esComprador(phone)) {
@@ -462,7 +489,7 @@ Sofía:`;
     // Botones: comprar ya o ver la muestra. Si Meta no los acepta, sendButtons manda el mismo texto (pide responder 1 o 2)
     await waService.sendButtons(phone, texto, ventas.botonesPitch(producto));
     store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${ventas.botonesPitch(producto).map((b) => b.title).join(' | ')}]`, type: 'interactive' });
-    store.saveLead(phone, { status: 'INTERESADO', step: 'BOTONES_ENVIADOS', producto });
+    store.saveLead(phone, { status: 'INTERESADO', step: 'BOTONES_ENVIADOS', producto, pitchPendiente: false });
   }
 
   async sendPaymentDetails(phone, settings, precio) {
@@ -527,9 +554,13 @@ Sofía:`;
       const cleanAmount = ocrResult.amount || ventas.precioDe(lead);
       const bankName = ocrResult.bank || 'NEQUI';
 
-      // Pagando el upsell con el comprobante de su primera compra: no se entrega
-      if (lead.esperaUpsell && cleanRef && store.pedidosDeTelefono(phone).some((p) => (p.status === 'VERIFICADO' || p.status === 'ENTREGADO') && p.reference && String(p.reference).toUpperCase() === String(cleanRef).toUpperCase())) {
+      // Reenvía el comprobante de una compra que ya tiene (por ejemplo, la de moldes para pagar muebles): no se entrega
+      const compraVieja = cleanRef && store.pedidosDeTelefono(phone).find((p) => (p.status === 'VERIFICADO' || p.status === 'ENTREGADO') && p.reference && String(p.reference).toUpperCase() === String(cleanRef).toUpperCase());
+      if (compraVieja && lead.esperaUpsell) {
         return await this.decir(phone, `Ese comprobante es el de tu compra del Mega Pack de Moldes ✅ Para el pack Emprende Dulce envíame la captura de la nueva transferencia de *$5.000*.`);
+      }
+      if (compraVieja) {
+        return await this.decir(phone, `Ese comprobante es el de una compra que ya tienes ✅ Para el ${ventas.infoPack(lead.producto).nombre} envíame la captura de la nueva transferencia de *${ventas.cop(ventas.precioDe(lead))}*.`);
       }
 
       console.log(`[FLOW VERIFY] Evaluando comprobante de +${phone}: Ref=${cleanRef}, Monto=${cleanAmount}, Banco=${bankName}`);

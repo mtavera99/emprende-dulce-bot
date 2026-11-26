@@ -427,7 +427,7 @@ const store = {
     const candidatos = [];
 
     for (const [phone, lead] of Object.entries(leads)) {
-      if (lead.status === 'PAGADO' || store.yaCompro(phone)) continue;
+      if (lead.status === 'PAGADO' || store.compradorDe(phone, lead.producto)) continue;
       if (lead.paused || lead.optOut) continue;
       if (store.comprobantePendiente(phone)) continue;
       const conv = conversations[phone];
@@ -454,6 +454,13 @@ const store = {
   // Tiene una venta aprobada (de cualquier producto, o del indicado)
   yaCompro(phone, producto = null) {
     return Object.values(orders).some(o => o.phone === phone && (o.status === 'VERIFICADO' || o.status === 'ENTREGADO') && (!producto || (o.producto || 'helados') === producto));
+  },
+
+  // Compró este producto (el upsell de Emprende Dulce cuenta como el pack de postres). Sin producto: cualquier compra.
+  compradorDe(phone, producto = null) {
+    if (!producto) return store.yaCompro(phone);
+    if (producto === 'helados' || producto === 'upsell_helados') return store.yaCompro(phone, 'helados') || store.yaCompro(phone, 'upsell_helados');
+    return store.yaCompro(phone, producto);
   },
 
   // Mandó un comprobante que sigue en revisión del operador

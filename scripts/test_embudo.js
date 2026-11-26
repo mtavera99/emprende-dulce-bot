@@ -367,9 +367,13 @@ async function img(phone) {
   const manM = ventas.infoPack('muebles');
   check(o[0].tipo === 'imagen' && /muebles_1_catalogo/.test(o[0].t), 'muebles: primer mensaje con la imagen del catálogo');
   const nPlanosM = manM.totales.planos.toLocaleString('es-CO');
-  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales con medidas exactas en mm*: ${manM.totales.disenos} diseños base en todas sus medidas estándar`) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos, ${manM.totales.disenos} diseños base) y botones`);
+  check(o[1].tipo === 'botones' && o[1].t.includes(`*${nPlanosM} planos reales*`) && /cocinas, clósets, escritorios, camas/.test(o[1].t) && /medidas en mm y despiece/.test(o[1].t) && !/moldes|postre/i.test(o[1].t), `muebles: pitch con la cifra real (${nPlanosM} planos) y botones`);
+  const pitchM = ventas.textoPitch('muebles'), lineasM = pitchM.split('\n');
+  check(o[1].t.startsWith(pitchM) && lineasM.length === 3 && pitchM.length <= 320, `muebles: primer mensaje corto de 3 líneas (${pitchM.length} caracteres)`);
+  check(/4 guías/.test(lineasM[1]) && /calculadora de láminas y costos/.test(lineasM[1]) && /diseño 3D/.test(lineasM[1]) && /\$15\.000\* pago único/.test(lineasM[2]) && /muestra gratis/.test(lineasM[2]) && /Comprar/.test(lineasM[2]), 'muebles: línea 2 con guías y calculadora, línea 3 con $15.000 y la invitación');
+  check(o[1].botones.map((b) => b.title).join('|') === '💳 Comprar $15.000|🎁 Muestra gratis', 'muebles: botones Comprar $15.000 y Muestra gratis');
   check(manM.totales.planos >= 2500 && manM.totales.planos <= 3000 && manM.totales.planos === require(R + 'muebles/motor').contar(), 'muebles: la cifra del pitch es la del motor y está entre 2.500 y 3.000');
-  check(/Todo por \*\$15\.000\*/.test(o[1].t) && o[1].botones[0].title === '💳 Comprar $15.000' && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
+  check(/\*\$15\.000\*/.test(o[1].t) && !/10\.000|12\.000/.test(o[1].t) && o[1].botones[0].title.length <= 20, 'muebles: precio de $15.000 en el pitch y en el botón Comprar');
   o = await boton(MU, 'muestra', '🎁 Muestra gratis');
   const docsM = o.filter((e) => e.tipo === 'doc');
   check(docsM.length === 1 && /Muestra_Muebles_Plano/.test(docsM[0].t) && o.some((e) => /muebles_2_plano/.test(e.t)), 'muebles: la muestra es 1 plano completo en PDF + imagen del plano');
@@ -424,14 +428,14 @@ async function img(phone) {
   const CA = '573000000040';
   await txt(CA, SALUDO, REF);
   o = await txt(CA, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
-  check(store.getLead(CA).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t) && /\$15\.000/.test(e.t)), 'prospecto de moldes que pide muebles: recibe el primer mensaje de muebles por $15.000');
+  check(store.getLead(CA).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /planos reales/.test(e.t) && /\$15\.000/.test(e.t)), 'prospecto de moldes que pide muebles: recibe el primer mensaje de muebles por $15.000');
   const CB = '573000000041';
   await txt(CB, SALUDO, REF); await txt(CB, 'como pago');
   ocrRespuesta = { isValid: true, esComprobante: true, amount: 10000, reference: 'CB-MOLDES', bank: 'nequi', titularValido: true };
   await img(CB);
   check(store.compradorDe(CB, 'moldes'), 'CB compró moldes');
   o = await txt(CB, 'Quiero ver los planos de muebles en melamina');
-  check(store.getLead(CB).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /Carpintería y Muebles/.test(e.t)) && !o.some((e) => /Ya tienes tu compra activa/.test(e.t)), 'comprador de moldes que pide muebles: se le vende muebles (no soporte de moldes)');
+  check(store.getLead(CB).producto === 'muebles' && o.some((e) => e.tipo === 'botones' && /planos reales/.test(e.t)) && !o.some((e) => /Ya tienes tu compra activa/.test(e.t)), 'comprador de moldes que pide muebles: se le vende muebles (no soporte de moldes)');
   o = await txt(CB, 'como pago');
   check(/Nequi/.test(o[0].t) && /\$15\.000/.test(o[0].t), 'comprador de moldes: datos de pago de muebles por $15.000');
   o = await img(CB); // reenvía el comprobante de moldes
@@ -448,6 +452,123 @@ async function img(phone) {
   o = await txt(CC, 'no me interesan los muebles, solo los moldes');
   check(store.getLead(CC).producto === 'moldes', '"no me interesan los muebles": no cambia de producto');
   check(!store.obtenerCandidatosSeguimiento().some((c) => c.phone === CB), 'comprador de los dos packs: sin seguimientos');
+
+  // 18. Intención de pago: nunca quedarse preguntando "¿te paso los datos?" (chat real del 26 nov, muebles)
+  {
+    const quiere = ['Saque número le envío', 'A ese número', 'a cuál número', 'a qué número le consigno', 'dónde pago', 'cómo transfiero', 'quiero el pack', 'sí pásamelos', 'páseme el número', 'cuál es el número', 'deme la cuenta', 'Los datos para pagar los 15', 'le transfiero ya', 'me lo llevo', 'al nequi'];
+    const noQuiere = ['Pero si envían los moldes', 'Quiero este molde', 'cuánto cuesta el envío', 'te envío el comprobante', 'ya le envié el comprobante', 'el número de piezas del closet', 'cuántos planos son', 'Catálogo por favor'];
+    const mal1 = quiere.filter((t) => !ventas.esPedidoPago(t)), mal2 = noQuiere.filter((t) => ventas.esPedidoPago(t));
+    check(!mal1.length, `frases de pago detectadas (${quiere.length}) ${mal1.join(' | ')}`);
+    check(!mal2.length, `preguntas que no son de pago siguen sin mandar cuentas (${noQuiere.length}) ${mal2.join(' | ')}`);
+    check(['¿Te los envío de una vez?', '¿Te los envío ya?', '¿Te paso los datos de pago?'].every(ventas.ofreceDatosPago) && !ventas.ofreceDatosPago('¿Te envío gratis un plano completo para que lo revises?') && !ventas.ofreceDatosPago('¿Te envío la muestra?'), 'reconoce cuándo Sofía ofreció los datos (y no confunde la oferta de la muestra)');
+    check(['Quiero el diseño', 'O como', 'dale', 'A ese número'].every(ventas.aceptaDatosPago) && !['no gracias', 'y es confiable?', 'después'].some(ventas.aceptaDatosPago), 'reconoce cuándo el cliente acepta los datos');
+
+    process.env.GEMINI_API_KEY = 'prueba';
+    let iaR = '';
+    const fetchReal2 = global.fetch;
+    global.fetch = async () => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: iaR }] }, finishReason: 'STOP' }] }) });
+    const cuentas = (out) => out.some((e) => /Nequi/.test(e.t) && /3058742138/.test(e.t));
+    // Chat real: "Quiero el diseño" → Sofía pregunta → "Saque número le envío"
+    const RP = '573160579899';
+    await txt(RP, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    iaR = '¡Claro! El pack trae todos los diseños por $15.000. ¿Te los envío de una vez?';
+    o = await txt(RP, 'Quiero el diseño');
+    check(!cuentas(o) && store.getLead(RP).step === 'DATOS_OFRECIDOS', 'chat real: Sofía ofrece los datos y queda registrado');
+    o = await txt(RP, 'Saque número le envío');
+    check(cuentas(o) && /\$15\.000/.test(o[0].t) && /Manuel Tavera/.test(o[0].t), 'chat real: "Saque número le envío" → cuentas reales por $15.000');
+    // "O como" justo después de "¿te los envío?"
+    const RP2 = '573160579800';
+    await txt(RP2, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    iaR = 'Sí, viene el clóset de 2 puertas corredizas en varias medidas. ¿Te los envío ya?';
+    await txt(RP2, 'Tiene closet corredizo');
+    o = await txt(RP2, 'O como');
+    check(cuentas(o), '"O como" después de "¿Te los envío ya?" → cuentas reales');
+    // "Quiero el diseño" justo después de "¿te paso los datos?"
+    const RP3 = '573160579801';
+    await txt(RP3, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    iaR = 'Trae 2.775 planos. ¿Te paso los datos de pago?';
+    await txt(RP3, 'cuántos son');
+    o = await txt(RP3, 'Quiero el diseño');
+    check(cuentas(o), '"Quiero el diseño" después de "¿Te paso los datos de pago?" → cuentas reales');
+    // Sofía nunca pregunta dos veces seguidas: la segunda vez se mandan las cuentas
+    const RP4 = '573160579802';
+    await txt(RP4, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    iaR = 'Claro. ¿Te paso los datos de pago?';
+    await txt(RP4, 'me interesa el de cocina');
+    iaR = 'Perfecto. ¿Te los envío de una vez?';
+    o = await txt(RP4, 'y sirve para cocina pequeña de 2 metros con nevera al lado?');
+    check(cuentas(o) && !o.some((e) => /Te los envío de una vez/.test(e.t)), 'Sofía no pregunta otra vez "¿te los envío?": manda las cuentas');
+    // La IA marca la intención de pago: el sistema manda las cuentas y nunca la marca
+    const RP5 = '573160579803';
+    await txt(RP5, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    iaR = '[ENVIAR_DATOS_PAGO]';
+    o = await txt(RP5, 'me convenciste vamos con eso');
+    check(cuentas(o) && !o.some((e) => /ENVIAR_DATOS_PAGO/.test(e.t)), 'la IA marca [ENVIAR_DATOS_PAGO]: se mandan las cuentas y la marca no llega al cliente');
+    // Moldes también (aplica a todos los productos)
+    const RP6 = '573160579804';
+    await txt(RP6, SALUDO, REF);
+    o = await txt(RP6, 'a qué número le consigno');
+    check(cuentas(o) && /\$10\.000/.test(o[0].t), 'moldes: "a qué número le consigno" → cuentas por $10.000');
+    delete process.env.GEMINI_API_KEY;
+    global.fetch = fetchReal2;
+  }
+
+  // 19. Notas de voz: el audio va en el formato oficial y nunca se guarda una respuesta del modelo
+  {
+    const audio = require(R + 'audioService');
+    const metas = ['Por favor, proporciona el audio o la nota de voz que deseas que transcriba.', 'No recibí ningún audio. ¿Puedes enviarlo de nuevo?', 'Lo siento, no puedo escuchar archivos de audio.', 'Please provide the audio file.'];
+    const reales = ['Saque número le envío', 'No me llegó el archivo de la muestra', 'no puedo abrir el archivo', 'Hola buenas, tiene el plano de la cocina en L?'];
+    check(metas.every(audio.esRespuestaSinAudio) && !reales.some(audio.esRespuestaSinAudio), 'distingue las respuestas del modelo sin audio de lo que dice un cliente');
+    process.env.GEMINI_API_KEY = 'prueba';
+    delete process.env.OPENAI_API_KEY;
+    let cuerpo = null, transcripcion = '';
+    const fetchReal3 = global.fetch;
+    global.fetch = async (_url, op) => { cuerpo = JSON.parse(op.body); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: transcripcion }] }, finishReason: 'STOP' }] }) }; };
+    wa.downloadMedia = async () => ({ buffer: Buffer.from('OggS-audio'), mimeType: 'audio/ogg; codecs=opus' });
+    const AU = '573160579810';
+    await txt(AU, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    transcripcion = 'Por favor, proporciona el audio o la nota de voz que deseas que transcriba.';
+    let n = enviados.length;
+    await flow.handleIncomingMessage(AU, { type: 'audio', audio: { id: 'a1' } });
+    o = desde(n);
+    const partes = cuerpo.contents[0].parts;
+    check(partes.some((p) => p.inlineData && p.inlineData.mimeType === 'audio/ogg' && p.inlineData.data) && !JSON.stringify(cuerpo).includes('inline_data'), 'el audio se envía como inlineData/mimeType (formato oficial), sin inline_data');
+    const hist = store.obtenerConversacion(AU).messages.map((m) => m.text).join(' | ');
+    check(!/proporciona el audio/.test(hist) && /Nota de voz sin transcribir/.test(hist), 'la respuesta del modelo no se guarda como si la hubiera dicho el cliente');
+    check(o.length === 1 && /escribes por aquí/.test(o[0].t) && !store.obtenerConversacion(AU).atendido, 'el bot pide que lo escriba y el chat queda para el asesor');
+    transcripcion = 'Saque número le envío';
+    n = enviados.length;
+    await flow.handleIncomingMessage(AU, { type: 'audio', audio: { id: 'a2' } });
+    o = desde(n);
+    check(/Saque número le envío/.test(store.obtenerConversacion(AU).messages.map((m) => m.text).join(' ')) && o.some((e) => /Nequi/.test(e.t) && /\$15\.000/.test(e.t)), 'nota de voz "Saque número le envío" → cuentas reales por $15.000');
+    const ocr = require(R + 'ocrValidator');
+    const ocrReal = ocr.__proto__._validateWithGemini;
+    global.fetch = async (_url, op) => { cuerpo = JSON.parse(op.body); return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '{"es_comprobante":false,"monto":0}' }] } }] }) }; };
+    await ocrReal.call(ocr, 'aW1hZ2Vu', { minAmount: 15000 }, 'prueba');
+    check(cuerpo.contents[0].parts.some((p) => p.inlineData && p.inlineData.mimeType === 'image/jpeg') && !JSON.stringify(cuerpo).includes('inline_data') && cuerpo.generationConfig.responseMimeType === 'application/json', 'los comprobantes también se envían en el formato oficial (inlineData)');
+    global.fetch = fetchReal3;
+    delete process.env.GEMINI_API_KEY;
+    wa.downloadMedia = async () => ({ buffer: Buffer.from('x'), mimeType: 'image/jpeg' });
+  }
+
+  // 20. Si Meta no acepta los botones, el texto lleva las opciones para responder 1 o 2
+  {
+    const waReal = require(R + 'whatsappService');
+    const envioBotones = Object.getPrototypeOf(waReal).sendButtons;
+    const enviadoTxt = [];
+    const falso = { getConfigured: () => true, getApiUrl: () => 'x', getAccessToken: () => 'x', sendTextMessage: async (_to, t) => { enviadoTxt.push(t); return {}; } };
+    const fetchReal4 = global.fetch;
+    global.fetch = async () => ({ ok: false, status: 400, json: async () => ({}) });
+    await envioBotones.call(falso, '1', ventas.textoPitch('muebles'), ventas.botonesPitch('muebles'));
+    await envioBotones.call(falso, '1', ventas.textoPitch('moldes'), ventas.botonesPitch('moldes'));
+    global.fetch = fetchReal4;
+    check(/\*1\* 💳 Comprar \$15\.000/.test(enviadoTxt[0]) && /\*2\* 🎁 Muestra gratis/.test(enviadoTxt[0]), 'sin botones, el primer mensaje de muebles trae las opciones 1 y 2');
+    check(!/Responde con el número de la opción/.test(enviadoTxt[1]), 'moldes ya dice "responde 1 o 2": no se repite');
+    const B2 = '573160579820';
+    await txt(B2, 'Hola, quiero el Mega Pack de Planos de Muebles en Melamina');
+    o = await txt(B2, '2');
+    check(o.some((e) => e.tipo === 'doc' && /Muestra_Muebles/.test(e.t)), 'muebles: responder "2" manda la muestra gratis');
+  }
 
   console.log(`\n${fallos ? '✘ ' + fallos + ' fallos' : '✔ todo correcto'}`);
   process.exit(fallos ? 1 : 0);

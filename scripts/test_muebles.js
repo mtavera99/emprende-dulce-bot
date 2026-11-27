@@ -4,6 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'muebles-'));
+// Sin contenido premium: se prueba el embudo base (los planes se prueban en test_planes.js)
+process.env.MOLDES_PREMIUM = path.join(process.env.DATA_DIR, 'sin_premium.json');
 const M = require('../src/muebles/motor');
 const D = require('../src/muebles/dibujo');
 const PUB = path.join(__dirname, '../public/descargas');

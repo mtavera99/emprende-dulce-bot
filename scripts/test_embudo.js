@@ -5,6 +5,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'embudo-'));
+// Sin contenido premium: se prueba el embudo base (los planes se prueban en test_planes.js)
+process.env.MOLDES_PREMIUM = path.join(process.env.DATA_DIR, 'sin_premium.json');
 delete process.env.GEMINI_API_KEY; delete process.env.OPENAI_API_KEY; delete process.env.META_ACCESS_TOKEN;
 process.env.PRUEBA_MINUTOS = process.env.PRUEBA_MINUTOS || '1440';
 process.env.UPSELL_MINUTOS = '600'; // la oferta post-compra se prueba aparte (sección 11)

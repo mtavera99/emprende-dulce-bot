@@ -208,20 +208,32 @@ function descripcionMuestra(producto) {
   return '1 PDF con 5 recetas de Postres en Vaso';
 }
 
-// Primer mensaje de moldes cuando hay planes: 3 opciones cortas (el de $15.000 como el más vendido)
+// Primer mensaje de moldes cuando hay planes: 3 opciones cortas (el de $15.000 «recomendado»: no se dice «el más vendido» sin tener ventas que lo respalden)
 function textoPlanes(lead = {}) {
   const ps = preciosPlanes(!!lead.descuentoPlanes);
-  const linea = (p) => p.id === 'basico'
-    ? `${p.emoji} *${p.nombre}* · ${cop(p.valor)}: ${p.moldes.toLocaleString('es-CO')} moldes (34 prendas en todas sus tallas) + 4 bonos`
-    : `${p.emoji} *${p.nombre}* · ${cop(p.valor)}${p.id === 'emprendedor' ? ' (el más vendido)' : ' (el más completo)'}: +${p.extra.toLocaleString('es-CO')} moldes extra, ${p.moldes.toLocaleString('es-CO')} en total`;
+  const planes = require('./planes');
+  const n = (x) => x.toLocaleString('es-CO');
+  const linea = (p, i) => {
+    if (p.id === 'basico') return `${p.emoji} *${p.nombre}* · ${cop(p.valor)}: ${n(p.moldes)} moldes (34 prendas en todas sus tallas) + 4 bonos`;
+    const cab = `${p.emoji} *${p.nombre}* · ${cop(p.valor)}${p.id === 'emprendedor' ? ' (recomendado)' : ' (el más completo)'}`;
+    const col = planes.lista(planes.incluye(p.id, false, 'colecciones'));
+    const bon = planes.lista(planes.incluye(p.id, false, 'bonos'));
+    if (!col) return `${cab}: +${n(p.extra)} moldes extra, ${n(p.moldes)} en total${bon ? ` + ${bon}` : ''}`;
+    const ant = ps[i - 1];
+    const suma = ant && ant.id !== 'basico'
+      ? `todo lo anterior + ${n(p.moldes - ant.moldes)} moldes de ${col}`
+      : `suma ${n(p.extra)} moldes en ${col}`;
+    return `${cab}: ${n(p.moldes)} moldes, ${suma}${bon ? ` y ${bon}` : ''}`;
+  };
   return `¡Hola! 🧵 Tenemos ${ps.length} planes del *Mega Pack de Moldes de Costura 2026*, todos con pago único y entrega por este chat:\n\n` +
     ps.map(linea).join('\n') + `\n\nElige con un botón o responde *${ps.map((_, i) => i + 1).join('*, *')}*. Si quieres ver antes cómo vienen, escribe *MUESTRA* 🎁`;
 }
 
 // Primer mensaje cuando el anuncio menciona $20.000: el Plan Taller Master primero
 function textoPlanMaster() {
-  const m = require('./planes').info('master');
-  return `¡Hola! 👑 El *Plan Taller Master* del Mega Pack de Moldes de Costura 2026 trae *${m.moldes.toLocaleString('es-CO')} moldes a escala real*: las 10 colecciones del pack + todas las colecciones premium (+${m.extra.toLocaleString('es-CO')} moldes), con todos los bonos.\n\n` +
+  const pl = require('./planes');
+  const m = pl.info('master');
+  return `¡Hola! 👑 El *Plan Taller Master* del Mega Pack de Moldes de Costura 2026 trae *${m.moldes.toLocaleString('es-CO')} moldes a escala real* (${m.extra.toLocaleString('es-CO')} más que el Plan Básico): las 10 colecciones del pack + ${pl.lista(pl.incluye('master', true, 'colecciones')) || 'todas las colecciones premium'}, con los 4 bonos${pl.incluye('master', true, 'bonos').length ? ` + ${pl.lista(pl.incluye('master', true, 'bonos'))}` : ''}.\n\n` +
     `Todo por *${cop(precioNormal('moldes', 'master'))}* pago único. Te llega por este chat.\n\n` +
     `Toca un botón 👇 o responde *1* para comprar, *2* para recibir *gratis* un patrón de muestra o *3* para ver los planes desde ${cop(precioNormal('moldes', 'basico'))}.`;
 }

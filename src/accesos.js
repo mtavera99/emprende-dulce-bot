@@ -239,7 +239,7 @@ function pdfsDe(item) {
     else if (m) (m[2].toLowerCase() === 'carta' ? g.carta : g.a4).push({ ...ref, talla: m[1].replace(/-/g, '–') });
   }
   // Tallas en orden de menor a mayor (XS, S, M… / 0-3, 3-6… / 2, 4, 6…)
-  const ORDEN = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'MINI', 'MEDIANO', 'MEDIANA', 'GRANDE'];
+  const ORDEN = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '3XL', '4XL', '5XL', 'MINI', 'MEDIANO', 'MEDIANA', 'GRANDE'];
   const clave = (t) => {
     const u = String(t.talla).toUpperCase();
     const i = ORDEN.indexOf(u);

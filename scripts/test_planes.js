@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'planes-'));
 process.env.DATA_DIR = TMP;
+process.env.MOLDES_PREMIUM = path.join(TMP, 'sin_premium.json');   // primero, el bot sin contenido premium
 delete process.env.GEMINI_API_KEY; delete process.env.OPENAI_API_KEY; delete process.env.META_ACCESS_TOKEN;
 process.env.UPSELL_MINUTOS = '600';
 process.env.SILENCIO_DESDE = '23'; process.env.SILENCIO_HASTA = '23';
@@ -90,7 +91,7 @@ const cuentas = (o) => o.find((e) => /Nequi/.test(e.t) && /3058742138/.test(e.t)
     const A = '573100000010';
     o = await txt(A, SALUDO, REF);
     const p = o.find((e) => e.tipo === 'botones');
-    check(p && /Plan Básico\* · \$10\.000/.test(p.t) && /Plan Emprendedor\* · \$15\.000 \(el más vendido\)/.test(p.t) && /Plan Taller Master\* · \$20\.000 \(el más completo\)/.test(p.t), 'anuncio general: las 3 opciones, $15.000 el más vendido y $20.000 el más completo');
+    check(p && /Plan Básico\* · \$10\.000/.test(p.t) && /Plan Emprendedor\* · \$15\.000 \(recomendado\)/.test(p.t) && /Plan Taller Master\* · \$20\.000 \(el más completo\)/.test(p.t), 'anuncio general: las 3 opciones, $15.000 recomendado y $20.000 el más completo');
     check(p.botones.map((b) => b.id).join() === 'plan_basico,plan_emprendedor,plan_master' && /MUESTRA/.test(p.t) && store.getLead(A).step === 'PLANES_ENVIADOS', '3 botones de plan y la muestra por texto');
     o = await boton(A, 'plan_emprendedor', '⭐ Popular · $15.000');
     check(cuentas(o) && /\$15\.000\* \(Plan Emprendedor\)/.test(cuentas(o).t) && store.getLead(A).plan === 'emprendedor', 'botón Emprendedor: cuentas por $15.000');
@@ -111,7 +112,7 @@ const cuentas = (o) => o.find((e) => /Nequi/.test(e.t) && /3058742138/.test(e.t)
     const D2 = '573100000014';
     await txt(D2, 'Hola, vi el anuncio de moldes por 20 mil', REF);
     o = await boton(D2, 'ver_planes', 'Ver los planes');
-    check(o.some((e) => e.tipo === 'botones' && e.botones.length === 3 && /el más vendido/.test(e.t)), 'enfoque Master: "Ver los planes" muestra las 3 opciones');
+    check(o.some((e) => e.tipo === 'botones' && e.botones.length === 3 && /recomendado/.test(e.t)), 'enfoque Master: "Ver los planes" muestra las 3 opciones');
     const E = '573100000015';
     await txt(E, SALUDO, REF);
     o = await txt(E, 'como pago');
@@ -170,6 +171,49 @@ const cuentas = (o) => o.find((e) => /Nequi/.test(e.t) && /3058742138/.test(e.t)
     check(s4 && /\$17\.000/.test(s4.t), 'seguimiento 4/4 con el precio del plan ($17.000)');
     o = await txt(G, 'HONESTIDAD');
     check(/prueba\//.test(o[0].t) && /\$17\.000/.test(o[0].t), 'HONESTIDAD con el precio del plan');
+
+    // ------------------------------------------------------------ contenido premium real (public/descargas/moldes/premium.json)
+    console.log('Contenido premium real');
+    const REAL = path.join(__dirname, '../public/descargas/moldes/premium.json');
+    if (!fs.existsSync(REAL)) {
+      console.log('  (no hay premium.json en el repositorio: se omite)');
+    } else {
+      process.env.MOLDES_PREMIUM = REAL;
+      const datos = JSON.parse(fs.readFileSync(REAL, 'utf8'));
+      const suma = (plan) => datos.premium.filter((c) => planes.rango(c.plan) <= planes.rango(plan)).reduce((n, c) => n + c.moldes_imprimibles, 0);
+      check(planes.disponibles().join() === 'basico,emprendedor,master' && planes.premium().length === datos.premium.length && planes.bonosPremium().length === datos.bonosPremium.length,
+        'todos los ZIP y bonos de premium.json existen: 3 planes a la venta');
+      check(planes.moldesDe('emprendedor') === 2420 + suma('emprendedor') && planes.moldesDe('master') === 2420 + suma('master'),
+        `cifras reales: Básico 2.420 · Emprendedor ${planes.moldesDe('emprendedor').toLocaleString('es-CO')} · Taller Master ${planes.moldesDe('master').toLocaleString('es-CO')}`);
+      check(datos.premium.every((c) => c.moldes_imprimibles === 2 * c.moldes && c.moldes === c.prendas.reduce((n, p) => n + p.moldes, 0)),
+        'premium.json: moldes imprimibles = 2 × (piezas × tallas), sumados prenda por prenda');
+      const items = accesos.contenido('moldes').items;
+      let okZip = true, okOrden = true, detalle = '';
+      for (const c of datos.premium) {
+        const mb = fs.statSync(path.join(__dirname, '../public/descargas/moldes', c.zip)).size / 1e6;
+        const grupos = accesos.pdfsDe(items.find((it) => it.id === c.id));
+        const completo = mb < 95 && grupos.length === c.prendas.length && grupos.every((g) => {
+          const p = c.prendas.find((x) => x.carpeta === g.carpeta);
+          return p && g.ficha && g.carta.length === p.n_tallas && g.a4.length === p.n_tallas;
+        });
+        if (!completo) { okZip = false; detalle += ` ${c.id}`; }
+        const tallas = grupos[0] ? grupos[0].carta.map((x) => x.talla).join() : '';
+        if (!(tallas === '3XL,4XL,5XL' || tallas === 'XS,S,M,L,XL,XXL,3XL,4XL,5XL')) { okOrden = false; detalle += ` ${c.id}:${tallas}`; }
+      }
+      check(okZip, `cada ZIP (< 95 MB) trae la ficha y el PDF Carta y A4 de cada talla de cada prenda${detalle}`);
+      check(okOrden, 'en la página las tallas salen en orden (XS … XXL, 3XL, 4XL, 5XL)');
+      const t = ventas.textoPlanes({});
+      const fmt = (x) => x.toLocaleString('es-CO');
+      check(t.includes(`${fmt(planes.moldesDe('emprendedor'))} moldes`) && t.includes(`${fmt(planes.moldesDe('master'))} moldes`) && /tallas 3XL–5XL/.test(t) && /corsetería/.test(t) && /Pack Emprendedor/.test(t),
+        'primer mensaje con las cifras exactas y lo que trae cada plan');
+      const accR = accesos.crear('573100000201', 'moldes', 'completo', { plan: 'emprendedor' });
+      const emp = datos.premium.filter((c) => c.plan === 'emprendedor').map((c) => c.id);
+      const mas = datos.premium.filter((c) => c.plan === 'master').map((c) => c.id);
+      check(emp.every((id) => accesos.archivoPermitido(accR, id)) && mas.every((id) => !accesos.archivoPermitido(accR, id)) && !accesos.archivoPermitido(accR, 'bp1'),
+        'Emprendedor real: abre tallas grandes, licra y corsetería; la colección Pro y el bono Pack Emprendedor quedan para el Master');
+      const accM = accesos.crear('573100000202', 'moldes', 'completo', { plan: 'master' });
+      check([...emp, ...mas, 'bp1', 'b1', 'b4'].every((id) => accesos.archivoPermitido(accM, id)), 'Taller Master real: todo desbloqueado');
+    }
   } finally {
     for (const f of ARCHIVOS) fs.rmSync(path.join(DIR_PREMIUM, f), { force: true });
     try { fs.rmdirSync(DIR_PREMIUM); } catch (_) {}

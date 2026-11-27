@@ -8,7 +8,7 @@
 // Formato de premium.json → "premium":
 //   [{ "id": "p01", "plan": "emprendedor" | "master", "titulo": "Tallas grandes 3XL–5XL",
 //      "zip": "premium/P01_Tallas_Grandes.zip", "prendas": [{ "carpeta", "nombre" }],
-//      "moldes": 474, "moldes_imprimibles": 948 }]
+//      "corto": "tallas 3XL–5XL", "moldes": 474, "moldes_imprimibles": 948 }]
 //   "bonosPremium": [{ "plan": "master", "archivo": "11_Bonos/Bono_05_Pack_Emprendedor.pdf", "titulo": "…" }]
 //
 // Los 4 bonos actuales se mantienen en TODOS los planes: ya se prometen en el anuncio y en el pitch,
@@ -68,6 +68,16 @@ function moldesDe(plan) {
   const base = (manifest().totales || {}).moldes_imprimibles || 2420;
   return base + premium().filter((c) => rango(c.plan) <= rango(plan)).reduce((n, c) => n + (c.moldes_imprimibles || 0), 0);
 }
+// Nombres cortos de lo que agrega un plan ("tallas 3XL–5XL", "corsetería"…), tomados de premium.json.
+// acumulado = true: también lo de los planes premium de menor nivel.
+// que = 'todo' | 'colecciones' | 'bonos'
+function incluye(plan, acumulado = false, que = 'todo') {
+  const ok = (p) => (acumulado ? p !== 'basico' && rango(p) <= rango(plan) : p === plan);
+  const xs = [...(que === 'bonos' ? [] : premium().filter((c) => ok(c.plan)).map((c) => c.corto || String(c.titulo || '').replace(/ · Parte .*$/, ''))),
+    ...(que === 'colecciones' ? [] : bonosPremium().filter((b) => ok(b.plan)).map((b) => b.corto || b.titulo))].filter(Boolean);
+  return [...new Set(xs)];
+}
+function lista(xs) { return xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : (xs[0] || ''); }
 function extraDe(plan) { return moldesDe(plan) - moldesDe('basico'); }
 function info(plan) { const p = PLANES[plan] || PLANES.basico; return { ...p, moldes: moldesDe(p.id), extra: extraDe(p.id) }; }
 
@@ -92,4 +102,4 @@ function enfoqueMaster(texto) {
   return /\b20[.,]?000\b|\b20 ?mil\b/.test(String(texto || '').toLowerCase());
 }
 
-module.exports = { PLANES, ORDEN, disponibles, hayPlanes, activo, rango, info, moldesDe, extraDe, deMonto, elegido, enfoqueMaster, premium, bonosPremium };
+module.exports = { PLANES, ORDEN, disponibles, hayPlanes, activo, rango, info, moldesDe, extraDe, incluye, lista, deMonto, elegido, enfoqueMaster, premium, bonosPremium };

@@ -910,7 +910,8 @@ Sofía:`;
         (esUpgrade ? `Listo, tu acceso ya está en el *${info.nombre}* 🙌\n\n` : `Bienvenido(a) al *${info.nombre}* del Mega Pack de Moldes de Costura 2026.\n\n`) +
         `📥 *Tu enlace personal (guárdalo, es solo tuyo):*\n${enlace}\n\n` +
         `📁 *Tu plan incluye:*\n✓ ${info.moldes.toLocaleString('es-CO')} moldes listos para imprimir en hoja Carta y A4\n` +
-        `✓ Las 10 colecciones del pack${info.extra ? ` + colecciones premium (+${info.extra.toLocaleString('es-CO')} moldes)` : ''}\n✓ Los bonos de tu plan, con la Calculadora de Costos\n\n` +
+        `✓ Las 10 colecciones del pack${info.extra ? ` + ${info.extra.toLocaleString('es-CO')} moldes premium: ${planes.lista(planes.incluye(plan, true, 'colecciones')) || 'colecciones premium'}` : ''}\n` +
+        `✓ Los 4 bonos técnicos, con la Calculadora de Costos${planes.incluye(plan, true, 'bonos').length ? ` + ${planes.lista(planes.incluye(plan, true, 'bonos'))}` : ''}\n\n` +
         `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir los PDF sueltos» en cada colección.\n\n` +
         `Imprime al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm antes de unir las hojas 🙌✂` +
         (planes.rango(plan) < planes.disponibles().length ? `\n\n_Si más adelante quieres más moldes, escríbeme «mejorar mi plan» y solo pagas la diferencia._` : '');

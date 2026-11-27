@@ -1,0 +1,351 @@
+{
+ "premium": [
+  {
+   "id": "p01a",
+   "plan": "emprendedor",
+   "corto": "tallas 3XL–5XL",
+   "titulo": "Tallas grandes 3XL–5XL · Parte 1 de 3",
+   "zip": "premium/P01_Tallas_Grandes_3XL_5XL_Parte_1.zip",
+   "mb": 67.7,
+   "prendas": [
+    {
+     "carpeta": "P01_Vestido_Camisero_Cinturon_3XL_5XL",
+     "nombre": "Vestido Camisero Clásico con Cinturón",
+     "n_tallas": 3,
+     "moldes": 33
+    },
+    {
+     "carpeta": "P01_Vestido_Casual_Manga_Corta_3XL_5XL",
+     "nombre": "Vestido Casual Manga Corta",
+     "n_tallas": 3,
+     "moldes": 15
+    },
+    {
+     "carpeta": "P01_Vestido_Evase_Linea_A_3XL_5XL",
+     "nombre": "Vestido Evasé Casual en A",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Vestido_Fiesta_V_Cruzado_3XL_5XL",
+     "nombre": "Vestido de Fiesta Escote en V Cruzado",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Blusa_Basica_Pinzas_Busto_3XL_5XL",
+     "nombre": "Blusa Básica con Pinzas de Busto",
+     "n_tallas": 3,
+     "moldes": 15
+    },
+    {
+     "carpeta": "P01_Blusa_Olanes_Mangas_Campana_3XL_5XL",
+     "nombre": "Blusa con Olanes y Mangas Campana",
+     "n_tallas": 3,
+     "moldes": 21
+    },
+    {
+     "carpeta": "P01_Blusa_Wrap_Cruzada_3XL_5XL",
+     "nombre": "Blusa Wrap Cruzada",
+     "n_tallas": 3,
+     "moldes": 18
+    },
+    {
+     "carpeta": "P01_Camisa_Clasica_Manga_Larga_3XL_5XL",
+     "nombre": "Camisa Clásica Manga Larga",
+     "n_tallas": 3,
+     "moldes": 27
+    }
+   ],
+   "moldes": 153,
+   "moldes_imprimibles": 306,
+   "hojas_carta": 761
+  },
+  {
+   "id": "p01b",
+   "plan": "emprendedor",
+   "corto": "tallas 3XL–5XL",
+   "titulo": "Tallas grandes 3XL–5XL · Parte 2 de 3",
+   "zip": "premium/P01_Tallas_Grandes_3XL_5XL_Parte_2.zip",
+   "mb": 68.2,
+   "prendas": [
+    {
+     "carpeta": "P01_Bermuda_Clasica_Hombre_3XL_5XL",
+     "nombre": "Bermuda Clásica Formal (Hombre)",
+     "n_tallas": 3,
+     "moldes": 33
+    },
+    {
+     "carpeta": "P01_Pantalon_Palazzo_Tiro_Alto_3XL_5XL",
+     "nombre": "Pantalón Palazzo Tiro Alto",
+     "n_tallas": 3,
+     "moldes": 18
+    },
+    {
+     "carpeta": "P01_Pantalon_Recto_de_Vestir_3XL_5XL",
+     "nombre": "Pantalón Recto de Vestir",
+     "n_tallas": 3,
+     "moldes": 33
+    },
+    {
+     "carpeta": "P01_Short_Veraniego_3XL_5XL",
+     "nombre": "Short Veraniego con Bolsillos",
+     "n_tallas": 3,
+     "moldes": 24
+    },
+    {
+     "carpeta": "P01_Falda_Evase_Linea_A_3XL_5XL",
+     "nombre": "Falda Evasé Línea A con Vuelo",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Falda_Lapiz_Tubo_3XL_5XL",
+     "nombre": "Falda Lápiz de Tubo Formal",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Falda_Media_Campana_Vuelo_3XL_5XL",
+     "nombre": "Falda Media Campana con Vuelo",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Hoodie_Canguro_Capucha_3XL_5XL",
+     "nombre": "Hoodie Canguro con Capucha (Unisex)",
+     "n_tallas": 3,
+     "moldes": 24
+    },
+    {
+     "carpeta": "P01_Jogger_Deportivo_Casual_3XL_5XL",
+     "nombre": "Jogger Deportivo Casual",
+     "n_tallas": 3,
+     "moldes": 18
+    }
+   ],
+   "moldes": 186,
+   "moldes_imprimibles": 372,
+   "hojas_carta": 805
+  },
+  {
+   "id": "p01c",
+   "plan": "emprendedor",
+   "corto": "tallas 3XL–5XL",
+   "titulo": "Tallas grandes 3XL–5XL · Parte 3 de 3",
+   "zip": "premium/P01_Tallas_Grandes_3XL_5XL_Parte_3.zip",
+   "mb": 44.4,
+   "prendas": [
+    {
+     "carpeta": "P01_Legging_Deportiva_Tiro_Alto_3XL_5XL",
+     "nombre": "Legging Deportiva Tiro Alto",
+     "n_tallas": 3,
+     "moldes": 15
+    },
+    {
+     "carpeta": "P01_Top_Deportivo_Racerback_3XL_5XL",
+     "nombre": "Top Deportivo Racerback",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_BabyDoll_Tul_Copas_Suaves_3XL_5XL",
+     "nombre": "BabyDoll de Tul con Copas Suaves",
+     "n_tallas": 3,
+     "moldes": 21
+    },
+    {
+     "carpeta": "P01_Bralette_Encaje_Copas_Triangulares_3XL_5XL",
+     "nombre": "Bralette de Encaje con Copas Triangulares",
+     "n_tallas": 3,
+     "moldes": 12
+    },
+    {
+     "carpeta": "P01_Panty_Tiro_Alto_Refuerzo_Algodon_3XL_5XL",
+     "nombre": "Panty Tiro Alto con Refuerzo de Algodón",
+     "n_tallas": 3,
+     "moldes": 9
+    },
+    {
+     "carpeta": "P01_Pijama_Camisera_Saten_3XL_5XL",
+     "nombre": "Pijama Camisera de Satén",
+     "n_tallas": 3,
+     "moldes": 27
+    },
+    {
+     "carpeta": "P01_Scrub_Medico_Filipina_V_Jogger_3XL_5XL",
+     "nombre": "Scrub Médico: Filipina Cuello V + Jogger",
+     "n_tallas": 3,
+     "moldes": 39
+    }
+   ],
+   "moldes": 135,
+   "moldes_imprimibles": 270,
+   "hojas_carta": 475
+  },
+  {
+   "id": "p02a",
+   "plan": "emprendedor",
+   "corto": "deportiva en licra",
+   "titulo": "Deportiva en licra · Parte 1 de 2",
+   "zip": "premium/P02_Deportiva_en_Licra_Parte_1.zip",
+   "mb": 61.7,
+   "prendas": [
+    {
+     "carpeta": "P02_Short_Ciclista_Deportivo",
+     "nombre": "Short Ciclista Deportivo",
+     "n_tallas": 9,
+     "moldes": 45
+    },
+    {
+     "carpeta": "P02_Short_Ciclista_Bolsillo_Celular",
+     "nombre": "Short Ciclista con Bolsillo para Celular",
+     "n_tallas": 9,
+     "moldes": 54
+    },
+    {
+     "carpeta": "P02_Capri_Deportiva",
+     "nombre": "Capri Deportiva",
+     "n_tallas": 9,
+     "moldes": 45
+    },
+    {
+     "carpeta": "P02_Capri_Bolsillo_Celular",
+     "nombre": "Capri Deportiva con Bolsillo para Celular",
+     "n_tallas": 9,
+     "moldes": 54
+    }
+   ],
+   "moldes": 198,
+   "moldes_imprimibles": 396,
+   "hojas_carta": 476
+  },
+  {
+   "id": "p02b",
+   "plan": "emprendedor",
+   "corto": "deportiva en licra",
+   "titulo": "Deportiva en licra · Parte 2 de 2",
+   "zip": "premium/P02_Deportiva_en_Licra_Parte_2.zip",
+   "mb": 59.0,
+   "prendas": [
+    {
+     "carpeta": "P02_Legging_7_8_Deportiva",
+     "nombre": "Legging 7/8 Deportiva",
+     "n_tallas": 9,
+     "moldes": 45
+    },
+    {
+     "carpeta": "P02_Legging_7_8_Bolsillo_Celular",
+     "nombre": "Legging 7/8 con Bolsillo para Celular",
+     "n_tallas": 9,
+     "moldes": 54
+    },
+    {
+     "carpeta": "P02_Legging_Largo_Bolsillo_Celular",
+     "nombre": "Legging Largo con Bolsillo para Celular",
+     "n_tallas": 9,
+     "moldes": 54
+    }
+   ],
+   "moldes": 153,
+   "moldes_imprimibles": 306,
+   "hojas_carta": 501
+  },
+  {
+   "id": "p03",
+   "plan": "emprendedor",
+   "corto": "corsetería",
+   "titulo": "Corsetería y Bustiers",
+   "zip": "premium/P03_Corseteria_y_Bustiers.zip",
+   "mb": 35.5,
+   "prendas": [
+    {
+     "carpeta": "P03_Corse_Overbust_6_Paneles_Busk",
+     "nombre": "Corsé Overbust 6 Paneles con Busk",
+     "n_tallas": 9,
+     "moldes": 72
+    },
+    {
+     "carpeta": "P03_Corse_Underbust_6_Paneles_Busk",
+     "nombre": "Corsé Underbust 6 Paneles con Busk",
+     "n_tallas": 9,
+     "moldes": 72
+    },
+    {
+     "carpeta": "P03_Cincha_Fajon_4_Paneles",
+     "nombre": "Cincha o Fajón de Cintura 4 Paneles",
+     "n_tallas": 9,
+     "moldes": 45
+    },
+    {
+     "carpeta": "P03_Bustier_Strapless_5_Paneles",
+     "nombre": "Bustier Strapless a la Cintura 5 Paneles",
+     "n_tallas": 9,
+     "moldes": 54
+    }
+   ],
+   "moldes": 243,
+   "moldes_imprimibles": 486,
+   "hojas_carta": 264
+  },
+  {
+   "id": "p04",
+   "plan": "master",
+   "corto": "la colección Pro (licra y corsetería)",
+   "titulo": "Deportiva y Corsetería Pro",
+   "zip": "premium/P04_Deportiva_y_Corseteria_Pro.zip",
+   "mb": 69.1,
+   "prendas": [
+    {
+     "carpeta": "P04_Short_Ciclista_Pretina_Alta_Faja",
+     "nombre": "Short Ciclista Pretina Alta tipo Faja",
+     "n_tallas": 9,
+     "moldes": 45
+    },
+    {
+     "carpeta": "P04_Legging_Pretina_Alta_Faja_Bolsillo",
+     "nombre": "Legging Pretina Alta tipo Faja con Bolsillo",
+     "n_tallas": 9,
+     "moldes": 54
+    },
+    {
+     "carpeta": "P04_Corse_Overbust_Largo_8_Paneles",
+     "nombre": "Corsé Overbust Largo 8 Paneles",
+     "n_tallas": 9,
+     "moldes": 90
+    },
+    {
+     "carpeta": "P04_Corse_Underbust_8_Paneles_Costillar",
+     "nombre": "Corsé Underbust 8 Paneles Costillar Alto",
+     "n_tallas": 9,
+     "moldes": 90
+    },
+    {
+     "carpeta": "P04_Bustier_Escote_Corazon_6_Paneles",
+     "nombre": "Bustier Escote Corazón 6 Paneles con Cordones",
+     "n_tallas": 9,
+     "moldes": 72
+    }
+   ],
+   "moldes": 351,
+   "moldes_imprimibles": 702,
+   "hojas_carta": 546
+  }
+ ],
+ "bonosPremium": [
+  {
+   "plan": "master",
+   "titulo": "💼 Pack Emprendedor de Taller",
+   "sub": "Costeo y precio, producción por lotes, venta por WhatsApp y 5 plantillas imprimibles",
+   "archivo": "premium/Bono_05_Pack_Emprendedor_de_Taller.pdf",
+   "corto": "el bono Pack Emprendedor de Taller"
+  }
+ ],
+ "totales": {
+  "moldes_imprimibles_por_plan": {
+   "emprendedor": 2136,
+   "master": 702
+  },
+  "patrones": 40
+ }
+}

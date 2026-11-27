@@ -6,6 +6,7 @@ const audioService = require('./audioService');
 const accesos = require('./accesos');
 const productCatalog = require('./productCatalog');
 const ventas = require('./ventas');
+const planes = require('./planes');
 
 // Limpia la respuesta de la IA: sin enlaces inventados, sin [placeholders] y sin frases cortadas
 function limpiarRespuestaIA(texto, finishReason) {
@@ -199,6 +200,11 @@ class ConversationFlow {
           return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier cosa con la impresión o el armado, aquí estamos a la orden.');
         }
       }
+      // Comprador de moldes que quiere subir de plan ("quiero el master", "mejorar mi plan")
+      if (producto === 'moldes' && planes.hayPlanes()) {
+        const sube = await this.ofrecerUpgrade(phone, text);
+        if (sube) return sube;
+      }
       return await this.atenderComprador(phone, text);
     }
 
@@ -248,6 +254,22 @@ class ConversationFlow {
     // D. Desconfianza: se le muestra el material gratis en vez de pedirle que confíe
     if (ventas.esDesconfianza(text)) return await this.responderDesconfianza(phone, producto);
 
+    // E0. Moldes con planes: el anuncio o el primer mensaje menciona $20.000 → se presenta primero el Taller Master
+    const conPlanes = producto === 'moldes' && planes.hayPlanes();
+    if (conPlanes && !pitchYaEnviado && !lead.plan && planes.activo('master')) {
+      const ref = (message && message.referral) || lead.referral || {};
+      if (planes.enfoqueMaster(`${text} ${ref.headline || ''} ${ref.body || ''}`)) store.saveLead(phone, { plan: 'master', enfoqueMaster: true });
+    }
+    // E1. Elige un plan por su nombre o su valor ("el de 15", "quiero el master") o con 1/2/3 después de verlos
+    if (conPlanes && pitchYaEnviado) {
+      const lista = planes.disponibles();
+      const num = (ventas.normalizar(text).match(/^(?:el |plan |opcion )?([1-3])$/) || [])[1];
+      const verPlanes = lead.step === 'PLANES_ENVIADOS' || lead.descuentoPlanes;
+      const plan = (text.length <= 80 && !/[?¿]/.test(text) && planes.elegido(text)) || (num && verPlanes && lista[Number(num) - 1]) || null;
+      if (plan && planes.activo(plan)) return await this.elegirPlan(phone, plan);
+      if (num === '3' && lead.step === 'BOTONES_ENVIADOS' && lead.enfoqueMaster) return await this.mostrarPlanes(phone);
+    }
+
     // E. Pide cómo pagar ("saque número le envío", "a ese número", "dónde pago", "quiero el pack")
     if (ventas.esPedidoPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
 
@@ -258,9 +280,10 @@ class ConversationFlow {
     if (pitchYaEnviado && ofrecioDatos && ventas.aceptaDatosPago(text)) return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));
 
     // F. Pide el descuento que se le ofreció en el seguimiento
-    const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal(producto)) || (lead.seguimientosEnviados || 0) >= 1;
+    const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal(producto, lead.plan)) || (lead.seguimientosEnviados || 0) >= 1;
     if (ofrecioDescuento && ventas.esPedidoDescuento(text)) {
-      if (!lead.precioOfrecido || ventas.precioDe(lead) >= ventas.precioNormal(producto)) store.setLeadPrecio(phone, ventas.precioDescuento(producto));
+      if (producto === 'moldes' && planes.hayPlanes() && !lead.plan) store.saveLead(phone, { descuentoPlanes: true });
+      if (!lead.precioOfrecido || ventas.precioDe(lead) >= ventas.precioNormal(producto, lead.plan)) store.setLeadPrecio(phone, ventas.precioDescuento(producto, lead.plan));
       return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
     }
 
@@ -395,7 +418,7 @@ class ConversationFlow {
   async enviarHonestidad(phone, settings, producto) {
     const leadPrevio = store.getLead(phone) || {};
     const precioPrevio = ventas.precioDe(leadPrevio);
-    const precio = precioPrevio < ventas.precioNormal(producto) ? precioPrevio : ventas.precioDescuento(producto);
+    const precio = precioPrevio < ventas.precioNormal(producto, leadPrevio.plan) ? precioPrevio : ventas.precioDescuento(producto, leadPrevio.plan);
     store.setLeadPrecio(phone, precio);
     const prueba = accesos.crear(phone, producto, 'prueba');
     const portalUrl = `${ventas.host()}/prueba/${prueba.token}`;
@@ -508,18 +531,58 @@ Sofía:`;
   async sendMainPitch(phone, settings, _precio, producto = 'helados') {
     const img = ventas.imagenes(producto);
     await this.enviarImagen(phone, img.catalogo);
-    const texto = ventas.textoPitch(producto);
-    // Botones: comprar ya o ver la muestra. Si Meta no los acepta, sendButtons manda el mismo texto (pide responder 1 o 2)
-    await waService.sendButtons(phone, texto, ventas.botonesPitch(producto));
-    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${ventas.botonesPitch(producto).map((b) => b.title).join(' | ')}]`, type: 'interactive' });
-    store.saveLead(phone, { status: 'INTERESADO', step: 'BOTONES_ENVIADOS', producto, pitchPendiente: false });
+    const lead = store.getLead(phone) || {};
+    const texto = ventas.textoPitch(producto, lead);
+    const botones = ventas.botonesPitch(producto, lead);
+    // Botones: comprar ya o ver la muestra (o los planes de moldes). Si Meta no los acepta, sendButtons manda el texto con las opciones
+    await waService.sendButtons(phone, texto, botones);
+    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${botones.map((b) => b.title).join(' | ')}]`, type: 'interactive' });
+    const planesVisibles = producto === 'moldes' && planes.hayPlanes() && !lead.enfoqueMaster;
+    store.saveLead(phone, { status: 'INTERESADO', step: planesVisibles ? 'PLANES_ENVIADOS' : 'BOTONES_ENVIADOS', producto, pitchPendiente: false });
+  }
+
+  // Muestra los planes de moldes (por ejemplo, desde el enfoque Taller Master)
+  async mostrarPlanes(phone) {
+    store.saveLead(phone, { enfoqueMaster: false, plan: null });
+    const lead = store.getLead(phone) || {};
+    const texto = ventas.textoPlanes(lead), botones = ventas.botonesPitch('moldes', lead);
+    await waService.sendButtons(phone, texto, botones);
+    store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${botones.map((b) => b.title).join(' | ')}]`, type: 'interactive' });
+    store.saveLead(phone, { step: 'PLANES_ENVIADOS' });
+  }
+
+  // Eligió un plan de moldes: se le pasan las cuentas por el valor del plan (con descuento si ya se lo ofrecimos)
+  async elegirPlan(phone, plan) {
+    const lead = store.getLead(phone) || {};
+    const precio = lead.descuentoPlanes || (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal('moldes', lead.plan))
+      ? ventas.precioDescuento('moldes', plan) : ventas.precioNormal('moldes', plan);
+    store.saveLead(phone, { plan, precioOfrecido: precio, precioProducto: 'moldes' });
+    return await this.sendPaymentDetails(phone, this.getSettings(), precio);
+  }
+
+  // Comprador de moldes que pide un plan mayor: se le cobra la diferencia y se sube su acceso
+  async ofrecerUpgrade(phone, text) {
+    const actual = (accesos.completoDe(phone, 'moldes') || {}).plan || 'basico';
+    const n = ventas.normalizar(text);
+    const pideSubir = /\b(mejorar|mejora|subir|pasar|cambiar|upgrade|ampliar|actualizar)\b/.test(n) || /quiero mejorar mi plan/.test(n);
+    let destino = planes.elegido(text);
+    if (!destino && pideSubir) destino = [...planes.disponibles()].reverse()[0];
+    if (!destino || !planes.activo(destino) || planes.rango(destino) <= planes.rango(actual)) return null;
+    const dif = ventas.precioNormal('moldes', destino) - ventas.precioNormal('moldes', actual);
+    const info = planes.info(destino);
+    store.saveLead(phone, { esperaUpgrade: destino, montoUpgrade: dif });
+    await this.decir(phone, `¡Claro! 🙌 Para pasar al *${info.nombre}* (${info.moldes.toLocaleString('es-CO')} moldes en total) solo pagas la diferencia: *${ventas.cop(dif)}*.\n\n` +
+      `${ventas.cuentas(this.getSettings())}\n\n_Toca el número para copiarlo._\n\nEnvíame la captura del comprobante y se desbloquea en tu mismo enlace 🧵`);
+    return true;
   }
 
   async sendPaymentDetails(phone, settings, precio) {
     if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
     const lead = store.getLead(phone) || {};
     const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
-    await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto, { ofrecerMuestra: !lead.muestraEnviada }));
+    const sinPlan = lead.producto === 'moldes' && planes.hayPlanes() && !lead.plan;
+    await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto, { ofrecerMuestra: !lead.muestraEnviada, plan: lead.plan,
+      planes: sinPlan ? ventas.preciosPlanes(!!lead.descuentoPlanes) : null }));
     store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: ventas.precioDe(lead) === monto ? monto : (lead.precioOfrecido || monto), precioProducto: lead.producto || null,
       rescate: { tipo: 'datos', at: Date.now(), enviado: false } });
     // El pedido solo se crea cuando el cliente envía el comprobante (handleImageMessage).
@@ -544,7 +607,7 @@ Sofía:`;
 
     // Quien ya compró no genera una compra nueva por mandar otra imagen (salvo que esté pagando el Upsell): se le recuerda su enlace
     // y el operador la revisa en el panel (puede ser un problema de descarga o un pago de otra cosa).
-    if (this.esComprador(phone) && !leadImg.esperaUpsell) {
+    if (this.esComprador(phone) && !leadImg.esperaUpsell && !leadImg.esperaUpgrade) {
       store.marcarAtendido(phone, false);
       return await this.atenderComprador(phone, 'enlace');
     }
@@ -564,7 +627,7 @@ Sofía:`;
       let ocrResult = { isValid: false };
       const lead = store.getLead(phone) || {};
       // Mínimo aceptado: $5.000 si está pagando el Upsell, o el menor precio que se le ofreció
-      const minEsperado = lead.esperaUpsell ? 5000 : Math.min(ventas.precioDe(lead), ventas.precioNormal(lead.producto));
+      const minEsperado = lead.esperaUpsell ? 5000 : lead.esperaUpgrade ? (lead.montoUpgrade || 5000) : Math.min(ventas.precioDe(lead), ventas.precioNormal(lead.producto));
       if (buffer) {
         ocrResult = await ocrValidator.validateReceipt(buffer, {
           minAmount: minEsperado,
@@ -813,7 +876,15 @@ Sofía:`;
     // El upsell (venta 'upsell_helados', p. ej. aprobada a mano en el panel) se entrega como el pack Emprende Dulce
     if (producto === 'upsell_helados') { producto = 'helados'; store.saveLead(phone, { esperaUpsell: false, esperaRespuestaUpsell: false }); }
     const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
-    const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id });
+    // Moldes: el plan sale del valor pagado ($8k–$12.999 Básico, $13k–$16.999 Emprendedor, $17k+ Master) o del upgrade pagado
+    let plan = null, esUpgrade = false;
+    if (producto === 'moldes') {
+      esUpgrade = !!(lead && lead.esperaUpgrade);
+      plan = opciones.plan || (esUpgrade ? lead.esperaUpgrade : planes.deMonto(pedido && pedido.amount));
+      if (esUpgrade) { store.saveLead(phone, { esperaUpgrade: null, montoUpgrade: null, plan }); opciones.sinUpsell = true; }
+      if (pedido) store.actualizarPedido(pedido.id, { plan, ...(esUpgrade ? { upgrade: true } : {}) });
+    }
+    const acceso = accesos.crear(phone, producto, 'completo', { pedidoId: pedido && pedido.id, ...(plan ? { plan } : {}) });
     const enlace = `${host}/acceso/${acceso.token}`;
     if (pedido) store.actualizarPedido(pedido.id, { accesoToken: acceso.token });
     let confirmMsg = '';
@@ -832,6 +903,17 @@ Sofía:`;
         `✓ 2 bonos: calculadora de costos, láminas y cotización en pesos, y guía para cobrar trabajos de carpintería\n\n` +
         `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir el catálogo interactivo de planos».\n\n` +
         `Antes de pedir el corte, revisa las medidas de tu espacio. Si tienes cualquier duda con un plano, aquí estamos para ayudarte 🙌`;
+    } else if (producto === 'moldes' && plan && (plan !== 'basico' || planes.hayPlanes())) {
+      const info = planes.info(plan);
+      confirmMsg =
+        `¡Pago verificado con éxito en nuestro sistema! 🎉${info.emoji}\n\n` +
+        (esUpgrade ? `Listo, tu acceso ya está en el *${info.nombre}* 🙌\n\n` : `Bienvenido(a) al *${info.nombre}* del Mega Pack de Moldes de Costura 2026.\n\n`) +
+        `📥 *Tu enlace personal (guárdalo, es solo tuyo):*\n${enlace}\n\n` +
+        `📁 *Tu plan incluye:*\n✓ ${info.moldes.toLocaleString('es-CO')} moldes listos para imprimir en hoja Carta y A4\n` +
+        `✓ Las 10 colecciones del pack${info.extra ? ` + colecciones premium (+${info.extra.toLocaleString('es-CO')} moldes)` : ''}\n✓ Los bonos de tu plan, con la Calculadora de Costos\n\n` +
+        `📱 *En el celular:* abre el enlace en Chrome o Safari y toca «Abrir los PDF sueltos» en cada colección.\n\n` +
+        `Imprime al 100 % (tamaño real) y mide el cuadro de 5 × 5 cm antes de unir las hojas 🙌✂` +
+        (planes.rango(plan) < planes.disponibles().length ? `\n\n_Si más adelante quieres más moldes, escríbeme «mejorar mi plan» y solo pagas la diferencia._` : '');
     } else if (producto === 'moldes') {
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🧵\n\n` +
@@ -955,6 +1037,9 @@ Sofía:`;
 
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
+
+    if (btnId.startsWith('plan_') && planes.activo(btnId.slice(5))) return await this.elegirPlan(phone, btnId.slice(5));
+    if (btnId === 'ver_planes') return await this.mostrarPlanes(phone);
 
     if (btnId.includes('pago') || btnId.includes('comprar')) {
       return await this.sendPaymentDetails(phone, settings, ventas.precioDe(lead));

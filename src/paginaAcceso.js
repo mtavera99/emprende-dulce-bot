@@ -41,7 +41,14 @@ details.sueltos summary{cursor:pointer;font-size:.86rem;font-weight:700;color:#c
 </style></head><body><div class="wrap">${cuerpo}</div></body></html>`;
 }
 
-function lista(c, token, modo) {
+// Precio para subir del plan del acceso al plan del archivo (moldes)
+function textoMejora(acceso, plan) {
+  const planes = require('./planes'), ventas = require('./ventas');
+  const dif = ventas.precioNormal('moldes', plan) - ventas.precioNormal('moldes', (acceso && acceso.plan) || 'basico');
+  return { dif, nombre: planes.PLANES[plan].nombre, link: waLink(`Hola, quiero mejorar mi plan de moldes al ${planes.PLANES[plan].nombre}`) };
+}
+
+function lista(c, token, modo, acceso = null) {
   const grupos = [];
   for (const it of c.items) {
     if (it.soloPrueba && modo === 'completo') continue;
@@ -50,8 +57,13 @@ function lista(c, token, modo) {
     g.items.push(it);
   }
   return grupos.map((g) => `<div class="section-title">${esc(g.nombre)}</div><div class="list">${g.items.map((it) => {
-    const libre = modo === 'completo' || (modo === 'prueba' && it.gratis);
     const peso = it.mb ? ` · ${String(it.mb).replace('.', ',')} MB` : '';
+    // Comprador de un plan menor: el contenido premium se ve con candado y el botón de mejorar
+    if (modo === 'completo' && acceso && !accesos.incluyePlan(acceso, it)) {
+      const m = textoMejora(acceso, it.plan);
+      return `<a class="item lock" href="${m.link}"><div class="meta"><div class="t">🔒 ${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">Mejorar por ${esc(require('./ventas').cop(m.dif))}</span></a>`;
+    }
+    const libre = modo === 'completo' || (modo === 'prueba' && it.gratis);
     if (!libre) {
       return `<div class="item lock"><div class="meta"><div class="t">🔒 ${esc(it.titulo)}</div><div class="s">${esc(it.sub)}${peso}</div></div><span class="btn">Se desbloquea al pagar</span></div>`;
     }
@@ -73,6 +85,17 @@ function lista(c, token, modo) {
   }).join('')}</div>`).join('');
 }
 
+// Moldes con planes: qué plan tiene y el botón para subir al siguiente
+function bloquePlan(a) {
+  const planes = require('./planes');
+  if (a.producto !== 'moldes' || !planes.hayPlanes()) return '';
+  const actual = planes.info(a.plan || 'basico');
+  const siguiente = planes.disponibles().find((id) => planes.rango(id) > actual.rango);
+  const m = siguiente ? textoMejora(a, siguiente) : null;
+  return `<div class="box"><b>${actual.emoji} Tu plan: ${esc(actual.nombre)}</b> · ${actual.moldes.toLocaleString('es-CO')} moldes.` +
+    (m ? `<a class="cta" style="margin:12px 0 0" href="${m.link}">⬆ Pasar al ${esc(m.nombre)} por ${esc(require('./ventas').cop(m.dif))}</a>` : '') + `</div>`;
+}
+
 // Botón al catálogo interactivo de planos (pack de muebles)
 function botonCatalogo(c, a) {
   return c.catalogo ? `<a class="cta" style="background:#b45309" href="/planos/${encodeURIComponent(a.token)}">📐 Abrir el catálogo interactivo de planos</a>` : '';
@@ -87,8 +110,9 @@ function paginaCompleta(a) {
       ${a.producto === 'muebles' ? '<br><br><b>📱 En el celular:</b> abre el catálogo interactivo o toca «Ver los planos en el celular sin descargar» en cada categoría: cada plano se ve completo en el navegador, sin descomprimir nada. Los PDF de cada categoría también se descargan sueltos.' : ''}
       ${a.producto === 'moldes' ? '<br><br><b>📱 En el celular:</b> abre los PDF sueltos de cada patrón (botón «Abrir los PDF sueltos»). Los ZIP traen la colección completa: en Android ábrelos con la app <b>Files de Google</b> y en iPhone con <b>Archivos</b>.' : ''}
       ${drive ? `<a class="drive" href="${esc(drive)}" target="_blank" rel="noopener">📁 Abrir también en Google Drive</a>` : ''}</div>
+    ${bloquePlan(a)}
     ${botonCatalogo(c, a)}
-    ${lista(c, a.token, 'completo')}
+    ${lista(c, a.token, 'completo', a)}
     <div class="foot">¿Dudas con la impresión o la descarga? <a style="color:#c4b5fd" href="${waLink('Hola, necesito ayuda con mi acceso')}">Escríbenos por WhatsApp</a><br>Acceso de por vida para el comprador.</div>`);
 }
 

@@ -40,3 +40,6 @@ creatives/
 test_nequi_comprobante.jpg
 # Imágenes de muestra que el bot envía por WhatsApp
 !public/descargas/muestras/img/*.jpg
+
+# Archivos de prueba de los planes de moldes (scripts/test_planes.js)
+public/descargas/moldes/premium/_test_*

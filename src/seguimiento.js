@@ -32,7 +32,9 @@ async function ejecutarSeguimientos() {
 
       // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva
       if (paso === 1 || paso === 3) {
-        if (!actual.precioOfrecido || ventas.precioDe(actual) >= ventas.precioNormal(producto)) store.setLeadPrecio(phone, ventas.precioDescuento(producto));
+        // Moldes con planes y sin plan elegido: el descuento se muestra en los 3 planes; se acepta desde el del Básico
+        if (producto === 'moldes' && require('./planes').hayPlanes() && !actual.plan) store.saveLead(phone, { descuentoPlanes: true });
+        if (!actual.precioOfrecido || ventas.precioDe(actual) >= ventas.precioNormal(producto, actual.plan)) store.setLeadPrecio(phone, ventas.precioDescuento(producto, actual.plan));
       }
       const precio = ventas.precioDe(store.getLead(phone));
 
@@ -61,7 +63,7 @@ async function ejecutarSeguimientos() {
         store.saveLead(phone, { step: `SEGUIMIENTO_${paso}` });
       }
 
-      let texto = ventas.textoSeguimiento(paso, producto, precio);
+      let texto = ventas.textoSeguimiento(paso, producto, precio, store.getLead(phone) || {});
       if (paso === 2 && actual.muestraEnviada) {
         texto = texto.split('\n\n')[0] + `\n\nLa muestra gratis te la envié arriba. ¿Te paso los datos para el pack completo por *${ventas.cop(precio)}*?`;
       }

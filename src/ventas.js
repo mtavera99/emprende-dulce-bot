@@ -19,14 +19,31 @@ function preciosPropios(producto) {
   return p && p.precioPropio ? p : null;
 }
 
-function precioNormal(producto) {
+// Moldes con planes (src/planes.js): Emprendedor y Taller Master tienen precio propio; el Básico usa el del panel
+function planMoldes(producto, plan) {
+  if (producto !== 'moldes' || !plan || plan === 'basico') return null;
+  const planes = require('./planes');
+  return planes.activo(plan) ? planes.PLANES[plan] : null;
+}
+
+function precioNormal(producto, plan) {
+  const pl = planMoldes(producto, plan);
+  if (pl) return pl.precio;
   const p = preciosPropios(producto);
   return p ? p.precio : Number(store.getSettings().precioOferta) || 10000;
 }
 
-function precioDescuento(producto) {
+function precioDescuento(producto, plan) {
+  const pl = planMoldes(producto, plan);
+  if (pl) return pl.descuento;
   const p = preciosPropios(producto);
   return p ? p.precioDescuento : Number(store.getSettings().precioDescuento) || Number(process.env.PRECIO_DESCUENTO) || 8000;
+}
+
+// Precios de los planes de moldes que se pueden vender hoy (con o sin el descuento de seguimiento)
+function preciosPlanes(conDescuento = false) {
+  const planes = require('./planes');
+  return planes.disponibles().map((id) => ({ ...planes.info(id), valor: conDescuento ? precioDescuento('moldes', id) : precioNormal('moldes', id) }));
 }
 
 // Precio que se le ofreció a este cliente (quien ya recibió $7.000 lo conserva).
@@ -35,7 +52,7 @@ function precioDe(lead) {
   const prod = lead && lead.producto;
   const ofrecido = lead && Number(lead.precioOfrecido);
   if (ofrecido && (!lead.precioProducto || lead.precioProducto === prod)) return ofrecido;
-  return precioNormal(prod);
+  return precioNormal(prod, lead && lead.plan);
 }
 
 function cop(v) {
@@ -191,7 +208,26 @@ function descripcionMuestra(producto) {
   return '1 PDF con 5 recetas de Postres en Vaso';
 }
 
-function textoPitch(producto) {
+// Primer mensaje de moldes cuando hay planes: 3 opciones cortas (el de $15.000 como el más vendido)
+function textoPlanes(lead = {}) {
+  const ps = preciosPlanes(!!lead.descuentoPlanes);
+  const linea = (p) => p.id === 'basico'
+    ? `${p.emoji} *${p.nombre}* · ${cop(p.valor)}: ${p.moldes.toLocaleString('es-CO')} moldes (34 prendas en todas sus tallas) + 4 bonos`
+    : `${p.emoji} *${p.nombre}* · ${cop(p.valor)}${p.id === 'emprendedor' ? ' (el más vendido)' : ' (el más completo)'}: +${p.extra.toLocaleString('es-CO')} moldes extra, ${p.moldes.toLocaleString('es-CO')} en total`;
+  return `¡Hola! 🧵 Tenemos ${ps.length} planes del *Mega Pack de Moldes de Costura 2026*, todos con pago único y entrega por este chat:\n\n` +
+    ps.map(linea).join('\n') + `\n\nElige con un botón o responde *${ps.map((_, i) => i + 1).join('*, *')}*. Si quieres ver antes cómo vienen, escribe *MUESTRA* 🎁`;
+}
+
+// Primer mensaje cuando el anuncio menciona $20.000: el Plan Taller Master primero
+function textoPlanMaster() {
+  const m = require('./planes').info('master');
+  return `¡Hola! 👑 El *Plan Taller Master* del Mega Pack de Moldes de Costura 2026 trae *${m.moldes.toLocaleString('es-CO')} moldes a escala real*: las 10 colecciones del pack + todas las colecciones premium (+${m.extra.toLocaleString('es-CO')} moldes), con todos los bonos.\n\n` +
+    `Todo por *${cop(precioNormal('moldes', 'master'))}* pago único. Te llega por este chat.\n\n` +
+    `Toca un botón 👇 o responde *1* para comprar, *2* para recibir *gratis* un patrón de muestra o *3* para ver los planes desde ${cop(precioNormal('moldes', 'basico'))}.`;
+}
+
+function textoPitch(producto, lead = {}) {
+  if (producto === 'moldes' && require('./planes').hayPlanes()) return lead.plan === 'master' && lead.enfoqueMaster ? textoPlanMaster() : textoPlanes(lead);
   if (producto === 'muebles') {
     const p = infoPack('muebles');
     // Primer mensaje corto (3 líneas): con el bloque largo respondía el 31 % de los clientes frente al 67 % de moldes
@@ -218,7 +254,13 @@ function textoPitch(producto) {
 }
 
 // Botones del primer mensaje (título máximo 20 caracteres en WhatsApp)
-function botonesPitch(producto) {
+function botonesPitch(producto, lead = {}) {
+  if (producto === 'moldes' && require('./planes').hayPlanes()) {
+    if (lead.plan === 'master' && lead.enfoqueMaster) {
+      return [{ id: 'plan_master', title: `💳 Comprar ${cop(precioNormal('moldes', 'master'))}` }, { id: 'muestra', title: '🎁 Muestra gratis' }, { id: 'ver_planes', title: 'Ver los planes' }];
+    }
+    return preciosPlanes(!!lead.descuentoPlanes).map((p) => ({ id: `plan_${p.id}`, title: p.boton.replace(/\$[\d.]+/, cop(p.valor)) }));
+  }
   return [
     { id: 'comprar', title: `💳 Comprar ${cop(precioNormal(producto))}` },
     { id: 'muestra', title: '🎁 Muestra gratis' },
@@ -238,10 +280,18 @@ function enlaceCalculadora(producto) {
 
 function textoPago(producto, settings, precio, opciones = {}) {
   const p = infoPack(producto);
-  return `¡Listo! 🙌 Estas son las cuentas para tu transferencia de *${cop(precio)}*:\n\n` +
+  if (opciones.planes) {
+    // Todavía no eligió plan: se le dan las cuentas con los 3 valores; el plan se entrega según lo que transfiera
+    return `¡Listo! 🙌 Estas son las cuentas:\n\n${cuentas(settings)}\n\n_Toca el número para copiarlo._\n\n` +
+      `Transfiere el valor del plan que quieras:\n${opciones.planes.map((x) => `${x.emoji} ${x.nombre}: *${cop(x.valor)}*`).join('\n')}\n\n` +
+      `Envíame la captura del comprobante por este chat y te llega tu enlace personal con el plan que corresponde al valor 🧵` +
+      (opciones.ofrecerMuestra ? `\n\n_¿Prefieres ver antes una muestra gratis? Escribe *MUESTRA*._` : '');
+  }
+  const plan = opciones.plan && producto === 'moldes' ? require('./planes').info(opciones.plan) : null;
+  return `¡Listo! 🙌 Estas son las cuentas para tu transferencia de *${cop(precio)}*${plan && plan.id !== 'basico' ? ` (${plan.nombre})` : ''}:\n\n` +
     `${cuentas(settings)}\n\n` +
     `_Toca el número para copiarlo._\n\n` +
-    `Cuando hagas la transferencia, *envíame la captura del comprobante por este chat* y te llega tu enlace personal con ${p.queIncluye} ${p.emoji}` +
+    `Cuando hagas la transferencia, *envíame la captura del comprobante por este chat* y te llega tu enlace personal con ${plan && plan.id !== 'basico' ? `los ${plan.moldes.toLocaleString('es-CO')} moldes del ${plan.nombre} y los bonos` : p.queIncluye} ${p.emoji}` +
     (opciones.ofrecerMuestra ? `\n\n_¿Prefieres ver antes una muestra gratis? Escribe *MUESTRA*._` : '');
 }
 
@@ -270,12 +320,21 @@ function textoConfianza(producto) {
 }
 
 // Seguimientos: solo se envían dentro de las 24 h desde el último mensaje del cliente
-function textoSeguimiento(paso, producto, precio) {
+function textoSeguimiento(paso, producto, precio, lead = {}) {
   const p = infoPack(producto);
   const e = p.emoji;
+  const conPlanes = producto === 'moldes' && require('./planes').hayPlanes() && !lead.plan;
+  const ps = conPlanes ? preciosPlanes(true) : null;
+  if (conPlanes && (paso === 1 || paso === 4)) {
+    // Sin plan elegido: el descuento proporcional de cada plan ($10.000 → $8.000, $15.000 → $13.000, $20.000 → $17.000)
+    const lista = ps.map((x) => `${x.emoji} ${x.nombre}: *${cop(x.valor)}* en lugar de ${cop(precioNormal('moldes', x.id))}`).join('\n');
+    return paso === 1
+      ? `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar por cada prenda:\n${enlaceCalculadora(producto)}\n\nY si hoy te animas, te dejo los planes con descuento:\n${lista}\n\nResponde *${ps.map((_, i) => i + 1).join('*, *')}* y te paso los datos ${e}`
+      : `Último mensaje, para no molestarte 🙏 Los precios con descuento siguen hoy:\n${lista}\n\nResponde con el número del plan. Si no te interesa, no te vuelvo a escribir ${e}`;
+  }
   if (paso === 1) {
     return `Te dejo un regalo 🎁 la *Calculadora de Costos y Precios* que viene en el pack, para que veas cuánto puedes cobrar ${{ moldes: 'por cada prenda', muebles: 'por cada mueble (calcula láminas, herrajes y anticipo)' }[producto] || 'por cada postre'}:\n${enlaceCalculadora(producto)}\n\n` +
-      `Y si hoy te animas, te dejo el ${producto === 'helados' ? 'paquete completo' : 'pack completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal(producto))}. ` +
+      `Y si hoy te animas, te dejo el ${producto === 'helados' ? 'paquete completo' : 'pack completo'} en *${cop(precio)}* en lugar de ${cop(precioNormal(producto, lead.plan))}. ` +
       `Solo dime "sí" y te paso los datos ${e}`;
   }
   if (paso === 2 && producto === 'muebles') {
@@ -464,7 +523,7 @@ function esSoporteDescarga(texto) {
 }
 
 module.exports = {
-  precioNormal, precioDescuento, precioDe, cop, enHorarioSilencio, horaColombia,
+  precioNormal, precioDescuento, precioDe, preciosPlanes, textoPlanes, cop, enHorarioSilencio, horaColombia,
   infoPack, conocimiento, imagenes, documentosMuestra, descripcionMuestra, host,
   textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
   normalizar, esAfirmacion, esPedidoPago, ofreceDatosPago, aceptaDatosPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,

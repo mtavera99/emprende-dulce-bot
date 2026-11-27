@@ -66,6 +66,17 @@ function contenidoMoldes() {
     const [t, s] = NB[base] || [base, ''];
     items.push({ id: `b${i + 1}`, grupo: 'Bonos técnicos', titulo: t, sub: s, archivo: `moldes/${b.archivo}`, gratis: i >= 2, abrir: base.endsWith('.html') });
   });
+  // Planes Emprendedor y Taller Master: colecciones y bonos premium (solo los que existen en el disco)
+  const planes = require('./planes');
+  for (const c of planes.premium()) {
+    const pl = planes.PLANES[c.plan];
+    items.push({
+      id: `${c.id}`, grupo: `Colecciones premium · ${pl.nombre}`, titulo: `${pl.emoji} ${c.titulo}`, plan: c.plan,
+      sub: `${(c.prendas || []).map((p) => p.nombre).join(' · ')}${c.moldes_imprimibles ? ` — ${c.moldes_imprimibles.toLocaleString('es-CO')} moldes` : ''}`,
+      archivo: `moldes/${c.zip}`, prendas: (c.prendas || []).map((p) => ({ carpeta: p.carpeta, nombre: p.nombre })),
+    });
+  }
+  planes.bonosPremium().forEach((b, i) => items.push({ id: `bp${i + 1}`, grupo: `Bonos premium · ${planes.PLANES[b.plan].nombre}`, titulo: b.titulo || b.archivo.split('/').pop(), sub: b.sub || '', archivo: `moldes/${b.archivo}`, plan: b.plan, abrir: /\.html$/i.test(b.archivo) }));
   const T = man.totales || {};
   return {
     titulo: 'Mega Pack +2.000 Moldes de Costura', emoji: '🧵',
@@ -132,7 +143,13 @@ function contenido(producto) {
 function crear(phone, producto, tipo = 'completo', extra = {}) {
   if (tipo === 'completo') {
     const ya = Object.values(accesos).find((a) => a.phone === phone && a.producto === producto && a.tipo === 'completo' && a.activo);
-    if (ya) return ya;
+    if (ya) {
+      // Compra o upgrade a un plan mayor: el mismo enlace desbloquea el plan nuevo
+      if (extra.plan && require('./planes').rango(extra.plan) > require('./planes').rango(ya.plan || 'basico')) {
+        ya.plan = extra.plan; ya.planActualizadoAt = Date.now(); guardar();
+      }
+      return ya;
+    }
   }
   const token = nuevoToken();
   const a = {
@@ -190,11 +207,18 @@ function deTelefono(phone) {
 }
 
 // Puede este acceso descargar este archivo
+// Un archivo de un plan mayor al del acceso (moldes) queda bloqueado. Accesos sin plan = Plan Básico.
+function incluyePlan(acceso, it) {
+  if (!it.plan) return true;
+  const planes = require('./planes');
+  return planes.rango(it.plan) <= planes.rango(acceso.plan || 'basico');
+}
+
 function archivoPermitido(acceso, itemId) {
   const c = contenido(acceso.producto);
   const it = c.items.find((x) => x.id === itemId);
   if (!it) return null;
-  if (acceso.tipo === 'completo') return it;
+  if (acceso.tipo === 'completo') return incluyePlan(acceso, it) ? it : null;
   return it.gratis ? it : null;
 }
 
@@ -246,4 +270,4 @@ function migrarVentas() {
   if (n) console.log(`[ACCESOS] Enlaces personales creados para ${n} ventas anteriores.`);
 }
 
-module.exports = { entradaZip, pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };
+module.exports = { incluyePlan, entradaZip, pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };

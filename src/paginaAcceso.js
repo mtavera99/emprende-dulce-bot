@@ -101,11 +101,36 @@ function botonCatalogo(c, a) {
   return c.catalogo ? `<a class="cta" style="background:#b45309" href="/planos/${encodeURIComponent(a.token)}">📐 Abrir el catálogo interactivo de planos</a>` : '';
 }
 
+function headerPlan(a, c) {
+  const planes = require('./planes');
+  if (a.producto !== 'moldes' || !planes.hayPlanes()) {
+    return {
+      titleTag: `${c.emoji} ${c.titulo} · Tu acceso`,
+      badge: '✅ PAGO CONFIRMADO · ACCESO PERSONAL',
+      h1: `${esc(c.titulo)} ${c.emoji}`,
+      sub: esc(c.intro)
+    };
+  }
+  const info = planes.info(a.plan || 'basico');
+  const total = info.moldes.toLocaleString('es-CO');
+  const extras = planes.incluye(info.id, true);
+  const sub = info.id === 'basico'
+    ? `Tienes acceso a ${total} moldes a escala real en PDF (34 prendas, XS–XXL) y tus 4 bonos de regalo.`
+    : `Tienes acceso a ${total} moldes a escala real: las 10 colecciones base + ${extras} y todos los bonos incluidos.`;
+  return {
+    titleTag: `${info.emoji} ${info.nombre} · ${total} Moldes`,
+    badge: `${info.emoji} PAGO CONFIRMADO · ${info.nombre.toUpperCase()}`,
+    h1: `Este es tu ${esc(info.nombre)} · ${total} Moldes ${info.emoji}`,
+    sub: esc(sub)
+  };
+}
+
 function paginaCompleta(a) {
   const c = accesos.contenido(a.producto);
+  const h = headerPlan(a, c);
   const drive = store.driveDe(a.producto);
-  return base(`${c.emoji} ${c.titulo} · Tu acceso`, `
-    <div class="header"><span class="badge b-ok">✅ PAGO CONFIRMADO · ACCESO PERSONAL</span><h1>${esc(c.titulo)} ${c.emoji}</h1><p class="sub">${esc(c.intro)}</p></div>
+  return base(h.titleTag, `
+    <div class="header"><span class="badge b-ok">${h.badge}</span><h1>${h.h1}</h1><p class="sub">${h.sub}</p></div>
     <div class="box"><b>Este enlace es solo tuyo.</b> Guárdalo para volver a descargar cuando quieras. ${esc(c.nota)}
       ${a.producto === 'muebles' ? '<br><br><b>📱 En el celular:</b> abre el catálogo interactivo o toca «Ver los planos en el celular sin descargar» en cada categoría: cada plano se ve completo en el navegador, sin descomprimir nada. Los PDF de cada categoría también se descargan sueltos.' : ''}
       ${a.producto === 'moldes' ? '<br><br><b>📱 En el celular:</b> abre los PDF sueltos de cada patrón (botón «Abrir los PDF sueltos»). Los ZIP traen la colección completa: en Android ábrelos con la app <b>Files de Google</b> y en iPhone con <b>Archivos</b>.' : ''}

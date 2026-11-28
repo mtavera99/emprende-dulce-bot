@@ -295,7 +295,7 @@ function textoPitchSanidad(lead = {}) {
   const [a, b] = preciosPlanes(!!lead.descuentoPlanes, 'sanidad');
   return `📋 *Plan de Saneamiento Básico 2026-2027* para tu negocio de alimentos (Res. 2674 de 2013), con el nombre, NIT y dirección de tu local: los 4 programas, POES, cronogramas, carteles y las 10 planillas que revisa la Secretaría de Salud\n` +
     `${a.emoji} *${a.nombre}* · *${cop(a.valor)}*: todo personalizado; tu equipo llena las planillas día a día\n` +
-    `${b.emoji} *${b.nombre}* · *${cop(b.valor)}*: además, las planillas de *4 meses* ya armadas con tus fechas, neveras y personal, listas para imprimir\n` +
+    `${b.emoji} *${b.nombre}* · *${cop(b.valor)}*: *¿Tienes poco tiempo?* Adquiere nuestro *Servicio Plus*: ¡llenamos las planillas de *4 meses* por ti con tus fechas, neveras y personal, listas solo para imprimir!\n` +
     `🎁 Antes de pagar, genera *gratis* una planilla con el nombre de tu negocio. Responde *1*, *2* o *PRUEBA* 👇`;
 }
 

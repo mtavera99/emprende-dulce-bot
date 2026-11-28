@@ -112,7 +112,7 @@ function paginaCompleta(a, o = {}) {
   const planBox = `<div class="box"><b>${pl.emoji} Tu plan: ${esc(pl.nombre)}</b> · ${pl.id === 'llave'
     ? 'incluye las planillas de 4 meses ya armadas con tus fechas, equipos y personal.'
     : 'tus planillas vienen con los datos de tu negocio para fotocopiar cada mes.'}` +
-    (pl.id === 'personalizado' ? `<a class="cta" style="margin:12px 0 0" href="${waLink('Hola, quiero pasar al Plan Llave en Mano de sanidad')}">⬆ Pasar al Plan Llave en Mano por ${cop(dif)} (planillas de 4 meses listas)</a>` : '') + '</div>';
+    (pl.id === 'personalizado' ? `<a class="cta" style="margin:12px 0 0" href="${waLink('Hola, quiero pasar al Plan Llave en Mano de sanidad')}">⬆ ¿Tienes poco tiempo? Servicio Plus: ¡llenamos las planillas por ti! (+${cop(dif)})</a>` : '') + '</div>';
   const docs = d
     ? `<div class="section-title" id="documentos">Tus documentos · ${esc(d.nombre)}</div>
        <a class="cta" href="/s/${encodeURIComponent(a.token)}/todo.zip">📦 Descargar todo en un ZIP</a>
@@ -160,9 +160,9 @@ function paginaVistaPrevia() {
     </form>
     <div class="box"><b>Cuando compras, todo el paquete sale con tus datos:</b><br>
       ${P.personalizado.emoji} <b>${esc(P.personalizado.nombre)} · ${cop(P.personalizado.precio)}</b>: Plan de Saneamiento, 4 programas, POES, cronogramas, carteles y las 10 planillas con tus datos.<br>
-      ${P.llave.emoji} <b>${esc(P.llave.nombre)} · ${cop(P.llave.precio)}</b>: todo lo anterior + las planillas de 4 meses ya armadas con tus fechas, neveras y personal, listas para imprimir.</div>
+      ${P.llave.emoji} <b>${esc(P.llave.nombre)} · ${cop(P.llave.precio)}</b>: <b>¿Tienes poco tiempo? Adquiere nuestro Servicio Plus:</b> ¡llenamos las planillas de 4 meses por ti con tus fechas, neveras y personal, listas solo para imprimir!</div>
     <a class="cta" href="${waLink(`Ya probé la planilla gratis y quiero el ${P.personalizado.nombre} de sanidad`)}">${P.personalizado.emoji} Quiero el ${esc(P.personalizado.nombre)} · ${cop(P.personalizado.precio)}</a>
-    <a class="cta" style="background:#0f766e" href="${waLink(`Ya probé la planilla gratis y quiero el ${P.llave.nombre} de sanidad`)}">${P.llave.emoji} Quiero el ${esc(P.llave.nombre)} · ${cop(P.llave.precio)}</a>
+    <a class="cta" style="background:#0f766e" href="${waLink(`Ya probé la planilla gratis y quiero el ${P.llave.nombre} de sanidad`)}">${P.llave.emoji} Servicio Plus: ¡llenamos tus planillas! · ${cop(P.llave.precio)}</a>
     ${grupos}
     <div class="box"><b>Qué incluye y qué no:</b> ${esc(ACLARACION)}</div>
     <script>

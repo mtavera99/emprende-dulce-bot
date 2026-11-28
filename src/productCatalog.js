@@ -72,8 +72,22 @@ const PRODUCTOS = {
     precioPropio: true,
     precio: Number(process.env.PRECIO_SANIDAD) || 49900,
     precioDescuento: Number(process.env.PRECIO_DESCUENTO_SANIDAD) || 39900,
-    // Agregar aquí los IDs de la campaña, los conjuntos y los anuncios de sanidad cuando se creen en Meta.
-    metaIds: [],
+    // IDs de la campaña, conjuntos y anuncios de Sanidad en Meta Ads Manager.
+    metaIds: [
+      '120250671073870743',
+      '120250671574380743',
+      '120250672533610743',
+      '120250672612970743',
+      '120250671659870743',
+      '120250671821320743',
+      '120250672052240743',
+      '120250672533620743',
+      '120250672533630743',
+      '120250672533640743',
+      '120250672612980743',
+      '120250672612990743',
+      '120250672613000743'
+    ],
     keywords: /(saneamiento|sanidad|secretar[ií]a de salud|planillas?|\bbpm\b|buenas pr[aá]cticas de manufactura|manipulaci[oó]n de alimentos|manipuladore?s? de alimentos|inspecci[oó]n sanitaria|inspector de salud|concepto sanitario|acta de (visita|inspecci)|\b2674\b|limpieza y desinfecci[oó]n|control de plagas|fumigaci[oó]n)/i
   },
 

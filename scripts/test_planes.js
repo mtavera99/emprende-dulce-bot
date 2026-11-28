@@ -214,6 +214,10 @@ const cuentas = (o) => o.find((e) => /Nequi/.test(e.t) && /3058742138/.test(e.t)
       const accM = accesos.crear('573100000202', 'moldes', 'completo', { plan: 'master' });
       check([...emp, ...mas, 'bp1', 'b1', 'b4'].every((id) => accesos.archivoPermitido(accM, id)), 'Taller Master real: todo desbloqueado');
     }
+    check(planes.enfoqueMaster('Hola, quiero los moldes por $10.000', '120250669096430743') === true
+      && planes.enfoqueMaster('Hola, quiero los moldes por $10.000', '120250669096410743') === true
+      && planes.enfoqueMaster('Hola, quiero los moldes por $10.000', '999999') === false,
+      'ad_id de anuncios $20.000 fuerza enfoqueMaster aunque la plantilla diga $10.000');
   } finally {
     for (const f of ARCHIVOS) fs.rmSync(path.join(DIR_PREMIUM, f), { force: true });
     try { fs.rmdirSync(DIR_PREMIUM); } catch (_) {}

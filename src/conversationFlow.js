@@ -258,7 +258,7 @@ class ConversationFlow {
     const conPlanes = producto === 'moldes' && planes.hayPlanes();
     if (conPlanes && !pitchYaEnviado && !lead.plan && planes.activo('master')) {
       const ref = (message && message.referral) || lead.referral || {};
-      if (planes.enfoqueMaster(`${text} ${ref.headline || ''} ${ref.body || ''}`)) store.saveLead(phone, { plan: 'master', enfoqueMaster: true });
+      if (planes.enfoqueMaster(`${text} ${ref.headline || ''} ${ref.body || ''}`, ref.source_id)) store.saveLead(phone, { plan: 'master', enfoqueMaster: true });
     }
     // E1. Elige un plan por su nombre o su valor ("el de 15", "quiero el master") o con 1/2/3 después de verlos
     if (conPlanes && pitchYaEnviado) {

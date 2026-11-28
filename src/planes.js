@@ -97,9 +97,21 @@ function elegido(texto) {
   return null;
 }
 
-// El anuncio o el mensaje inicial menciona $20.000: se presenta primero el Plan Taller Master
-function enfoqueMaster(texto) {
+// Anuncios de Meta que apuntan directo al Plan Taller Master ($20.000) aunque la plantilla diga otro precio
+const MASTER_AD_IDS = new Set([
+  '120250669096430743',
+  '120250669096410743'
+]);
+
+// El anuncio (por ID o texto) o el mensaje inicial menciona $20.000: se presenta primero el Plan Taller Master
+function enfoqueMaster(texto, sourceId) {
+  const sid = String(sourceId || '').trim();
+  if (sid) {
+    if (MASTER_AD_IDS.has(sid)) return true;
+    const extra = String(process.env.MOLDES_MASTER_AD_IDS || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (extra.includes(sid)) return true;
+  }
   return /\b20[.,]?000\b|\b20 ?mil\b/.test(String(texto || '').toLowerCase());
 }
 
-module.exports = { PLANES, ORDEN, disponibles, hayPlanes, activo, rango, info, moldesDe, extraDe, incluye, lista, deMonto, elegido, enfoqueMaster, premium, bonosPremium };
+module.exports = { PLANES, ORDEN, MASTER_AD_IDS, disponibles, hayPlanes, activo, rango, info, moldesDe, extraDe, incluye, lista, deMonto, elegido, enfoqueMaster, premium, bonosPremium };

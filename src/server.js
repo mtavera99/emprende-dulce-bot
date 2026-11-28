@@ -126,7 +126,9 @@ app.get(['/acceso/:token', '/prueba/:token'], (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!st.ok) return res.status(st.motivo === 'no_existe' ? 404 : 410).send(paginaAcceso.paginaNoValida(st.motivo, st.acceso));
   accesos.registrarUso(st.acceso.token, 'vistas');
-  res.send(st.acceso.tipo === 'prueba' ? paginaAcceso.paginaPrueba(st.acceso) : paginaAcceso.paginaCompleta(st.acceso));
+  // Sanidad no tiene prueba con candados: su muestra es la vista previa pública /prueba-sanidad
+  if (st.acceso.tipo === 'prueba' && st.acceso.producto === 'sanidad') return res.redirect('/prueba-sanidad');
+  res.send(st.acceso.tipo === 'prueba' ? paginaAcceso.paginaPrueba(st.acceso) : paginaAcceso.paginaCompleta(st.acceso, { guardado: req.query.ok === '1' }));
 });
 
 // Catálogo interactivo de planos (pack de muebles): con acceso completo se abren todos; con prueba, solo la muestra
@@ -237,6 +239,9 @@ app.get('/muestra/:file', (req, res) => {
   res.set('Content-Disposition', `inline; filename="${nombre}"`);
   res.sendFile(f);
 });
+
+// Plan de Saneamiento (sanidad): vista previa gratis, formulario de datos del negocio y documentos generados
+require('./sanidad/rutas').montar(app, { alGuardar: (a, primera) => conversationFlow.avisarDocumentosSanidad(a, primera) });
 
 // ----------------------------------------------------------------------------
 // 2. Webhook de Meta: Handshake inicial (GET)

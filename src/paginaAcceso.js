@@ -101,7 +101,8 @@ function botonCatalogo(c, a) {
   return c.catalogo ? `<a class="cta" style="background:#b45309" href="/planos/${encodeURIComponent(a.token)}">📐 Abrir el catálogo interactivo de planos</a>` : '';
 }
 
-function paginaCompleta(a) {
+function paginaCompleta(a, opciones = {}) {
+  if (a.producto === 'sanidad') return require('./sanidad/pagina').paginaCompleta(a, opciones);
   const c = accesos.contenido(a.producto);
   const drive = store.driveDe(a.producto);
   return base(`${c.emoji} ${c.titulo} · Tu acceso`, `
@@ -149,4 +150,4 @@ function paginaNoValida(motivo, a) {
     <a class="cta" href="${waLink(motivo === 'vencido' ? `Quiero el pack completo${c ? ' de ' + c.titulo : ''}` : 'Hola, necesito mi enlace de descarga')}">💬 Escribir por WhatsApp</a>`);
 }
 
-module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida, waLink };
+module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida, waLink, base, esc };

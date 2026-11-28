@@ -52,7 +52,7 @@ class ConversationFlow {
       ...extra, producto: nuevo, productoAnterior: lead.producto, cambioProductoAt: Date.now(), productoFijado: false,
       status: yaLoTiene ? 'PAGADO' : 'INTERESADO', step: yaLoTiene ? 'ENTREGADO' : 'INICIO', pitchPendiente: !yaLoTiene,
       seguimientosEnviados: 0, ultimoSeguimiento: 0, muestraEnviada: false, muestraReenviada: false, muestraOfrecidaAt: null,
-      rescate: null, pagoPospuesto: null, precioOfrecido: null, precioProducto: null, esperaUpsell: false, esperaRespuestaUpsell: false,
+      rescate: null, pagoPospuesto: null, precioOfrecido: null, plan: null, descuentoPlanes: false, enfoqueMaster: false, capturaSanidad: null, precioProducto: null, esperaUpsell: false, esperaRespuestaUpsell: false,
     });
     return nuevo;
   }
@@ -200,6 +200,11 @@ class ConversationFlow {
           return await this.decir(phone, '¡Entendido! 🙌 Disfruta mucho tu Mega Pack de Moldes 🧵 Si necesitas cualquier cosa con la impresión o el armado, aquí estamos a la orden.');
         }
       }
+      // Comprador de sanidad: datos del negocio por WhatsApp y paso al Llave en Mano
+      if (producto === 'sanidad') {
+        const r = await this.atenderCompradorSanidad(phone, text);
+        if (r) return r;
+      }
       // Comprador de moldes que quiere subir de plan ("quiero el master", "mejorar mi plan")
       if (producto === 'moldes' && planes.hayPlanes()) {
         const sube = await this.ofrecerUpgrade(phone, text);
@@ -217,6 +222,11 @@ class ConversationFlow {
 
     // C. HONESTIDAD: acceso de prueba primero
     if (/\b(honestidad|honesto|acceso\s+primero|env[ií]alo\s+primero|verificar\s+primero|p[aá]salo\s+primero|mu[eé]stramelo\s+primero)\b/i.test(text)) {
+      // Sanidad: la prueba primero es la vista previa interactiva (con el precio de descuento guardado)
+      if (producto === 'sanidad') {
+        if (ventas.precioDe(lead) >= ventas.precioNormal('sanidad', lead.plan)) store.setLeadPrecio(phone, ventas.precioDescuento('sanidad', lead.plan));
+        return await this.enviarMuestra(phone, producto, { reenvio: !!lead.muestraEnviada });
+      }
       return await this.enviarHonestidad(phone, settings, producto);
     }
 
@@ -255,19 +265,33 @@ class ConversationFlow {
     if (ventas.esDesconfianza(text)) return await this.responderDesconfianza(phone, producto);
 
     // E0. Moldes con planes: el anuncio o el primer mensaje menciona $20.000 → se presenta primero el Taller Master
-    const conPlanes = producto === 'moldes' && planes.hayPlanes();
-    if (conPlanes && !pitchYaEnviado && !lead.plan && planes.activo('master')) {
+    const conPlanes = ventas.conPlanes(producto);
+    const pl = ventas.planesDe(producto);
+    if (producto === 'moldes' && conPlanes && !pitchYaEnviado && !lead.plan && planes.activo('master')) {
       const ref = (message && message.referral) || lead.referral || {};
       if (planes.enfoqueMaster(`${text} ${ref.headline || ''} ${ref.body || ''}`)) store.saveLead(phone, { plan: 'master', enfoqueMaster: true });
     }
     // E1. Elige un plan por su nombre o su valor ("el de 15", "quiero el master") o con 1/2/3 después de verlos
+    // Sanidad: el primer mensaje que ya nombra un plan ("quiero el llave en mano") lo deja elegido
+    if (producto === 'sanidad' && !pitchYaEnviado && text.length <= 160 && !/[?¿]/.test(text)) {
+      const ya = pl.elegido(text);
+      if (ya) {
+        store.saveLead(phone, { plan: ya });
+        // "Ya probé la planilla gratis y quiero el Plan Llave en Mano" (botón de la vista previa): directo a las cuentas
+        if (/\b(quiero|comprar|compro|pagar)\b/.test(ventas.normalizar(text))) return await this.elegirPlan(phone, ya, producto);
+      }
+    }
     if (conPlanes && pitchYaEnviado) {
-      const lista = planes.disponibles();
+      const lista = pl.disponibles();
       const num = (ventas.normalizar(text).match(/^(?:el |plan |opcion )?([1-3])$/) || [])[1];
-      const verPlanes = lead.step === 'PLANES_ENVIADOS' || lead.descuentoPlanes;
-      const plan = (text.length <= 80 && !/[?¿]/.test(text) && planes.elegido(text)) || (num && verPlanes && lista[Number(num) - 1]) || null;
-      if (plan && planes.activo(plan)) return await this.elegirPlan(phone, plan);
-      if (num === '3' && lead.step === 'BOTONES_ENVIADOS' && lead.enfoqueMaster) return await this.mostrarPlanes(phone);
+      const verPlanes = lead.step === 'PLANES_ENVIADOS' || lead.descuentoPlanes || (producto === 'sanidad' && lead.step !== 'MUESTRA_OFRECIDA');
+      const plan = (text.length <= 160 && !/[?¿]/.test(text) && pl.elegido(text)) || (num && verPlanes && lista[Number(num) - 1]) || null;
+      if (plan && pl.activo(plan)) return await this.elegirPlan(phone, plan, producto);
+      if (producto === 'moldes' && num === '3' && lead.step === 'BOTONES_ENVIADOS' && lead.enfoqueMaster) return await this.mostrarPlanes(phone);
+    }
+    // Sanidad: "PRUEBA", "probar", "demo" → vista previa gratis
+    if (producto === 'sanidad' && pitchYaEnviado && /^(la |una |quiero (la |una )?|ver (la )?)?(prueba|probar|demo|vista previa)( gratis)?$/.test(ventas.normalizar(text))) {
+      return await this.enviarMuestra(phone, producto);
     }
 
     // E. Pide cómo pagar ("saque número le envío", "a ese número", "dónde pago", "quiero el pack")
@@ -282,7 +306,7 @@ class ConversationFlow {
     // F. Pide el descuento que se le ofreció en el seguimiento
     const ofrecioDescuento = (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal(producto, lead.plan)) || (lead.seguimientosEnviados || 0) >= 1;
     if (ofrecioDescuento && ventas.esPedidoDescuento(text)) {
-      if (producto === 'moldes' && planes.hayPlanes() && !lead.plan) store.saveLead(phone, { descuentoPlanes: true });
+      if (conPlanes && !lead.plan) store.saveLead(phone, { descuentoPlanes: true });
       if (!lead.precioOfrecido || ventas.precioDe(lead) >= ventas.precioNormal(producto, lead.plan)) store.setLeadPrecio(phone, ventas.precioDescuento(producto, lead.plan));
       return await this.sendPaymentDetails(phone, settings, ventas.precioDe(store.getLead(phone)));
     }
@@ -326,7 +350,7 @@ class ConversationFlow {
     const manual = accesos.completoDe(phone);
     // Productos que tiene (el upsell de Emprende Dulce se entrega como 'helados')
     const comprados = new Set(ventasCliente.map((p) => (p.producto === 'upsell_helados' ? 'helados' : p.producto || 'helados')));
-    for (const a of ['moldes', 'helados', 'muebles']) if (accesos.completoDe(phone, a)) comprados.add(a);
+    for (const a of ['moldes', 'helados', 'muebles', 'sanidad']) if (accesos.completoDe(phone, a)) comprados.add(a);
     let producto = (ventasCliente[ventasCliente.length - 1] || {}).producto || (manual && manual.producto) || (store.getLead(phone) || {}).producto || 'helados';
     if (producto === 'upsell_helados') producto = 'helados';
     // Quien tiene varios packs recibe soporte del que menciona; si no menciona ninguno, del principal (muebles o moldes)
@@ -334,12 +358,13 @@ class ConversationFlow {
       if (/receta|helado|postre|dulce/i.test(text) && comprados.has('helados')) producto = 'helados';
       else if (/mueble|melamina|plano|cl[oó]set|cocina|escritorio/i.test(text) && comprados.has('muebles')) producto = 'muebles';
       else if (/molde|patr[oó]n|costura|ropa/i.test(text) && comprados.has('moldes')) producto = 'moldes';
+      else if (/saneamiento|sanidad|planilla|restaurante|negocio/i.test(text) && comprados.has('sanidad')) producto = 'sanidad';
       else if (!comprados.has(producto) || producto === 'helados') producto = comprados.has('muebles') ? 'muebles' : comprados.has('moldes') ? 'moldes' : producto;
     }
     const acceso = accesos.crear(phone, producto, 'completo');
     let enlace = `${ventas.host()}/acceso/${acceso.token}`;
-    const NOMBRE_PACK = { helados: '🍰 Tu pack Emprende Dulce (recetas)', moldes: '🧵 Tu Mega Pack de Moldes', muebles: '🪚 Tu Mega Pack de Muebles en Melamina' };
-    for (const otro of ['moldes', 'muebles', 'helados']) {
+    const NOMBRE_PACK = { helados: '🍰 Tu pack Emprende Dulce (recetas)', moldes: '🧵 Tu Mega Pack de Moldes', muebles: '🪚 Tu Mega Pack de Muebles en Melamina', sanidad: '📋 Tu Plan de Saneamiento' };
+    for (const otro of ['sanidad', 'moldes', 'muebles', 'helados']) {
       if (otro === producto || !comprados.has(otro)) continue;
       const a2 = accesos.crear(phone, otro, 'completo');
       enlace += `\n\n${NOMBRE_PACK[otro]}:\n${ventas.host()}/acceso/${a2.token}`;
@@ -355,7 +380,14 @@ class ConversationFlow {
         `Si tampoco te abre, mándame un pantallazo de lo que te sale y un asesor te ayuda ya mismo.`);
     }
     const respaldoDrive = drive ? `\n\n📁 *Si el enlace no te abre*, aquí está todo en Google Drive (ábrelo con la app de Google Drive o en Chrome):\n${drive}` : '';
-    if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack|planos)\b/i.test(text)) {
+    if (ventas.esSoporteDescarga(text) || ventas.esAvisoPago(text) || /\b(moldes|recetas|libros|pack|planos|planillas|plan)\b/i.test(text)) {
+      if (producto === 'sanidad') {
+        return await this.decir(phone, `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
+          (acceso.negocio
+            ? `📱 Ábrelo en Chrome o Safari. Ahí están tus documentos con los datos de *${acceso.negocio.nombre}*: cada uno abre en PDF y el plan también viene en Word. Con «Descargar todo» bajas todo en un ZIP.`
+            : `📋 Todavía me faltan los datos de tu negocio para generar los documentos. Llénalos en el formulario del enlace o escribe *DATOS* y te los pregunto por aquí.`) +
+          `\n\nSi algo no te abre, cuéntame qué te sale y te ayudo 🙌`);
+      }
       if (producto === 'muebles') {
         return await this.decir(phone, `Ya tienes tu compra activa ✅ Este es tu enlace personal:\n${enlace}\n\n` +
           `📱 *En el celular:* toca el enlace y ábrelo en Chrome o Safari. Toca «Abrir el catálogo interactivo de planos»: ahí buscas cada mueble y ves su despiece, herrajes y cortes sin descargar nada.\n` +
@@ -388,6 +420,21 @@ class ConversationFlow {
   async enviarMuestra(phone, producto, opciones = {}) {
     const lead = store.getLead(phone) || {};
     const precio = ventas.precioDe(lead);
+    if (producto === 'sanidad') {
+      // Vista previa interactiva: el cliente escribe nombre y NIT y genera gratis una planilla real
+      const url = ventas.enlaceVistaPrevia();
+      if (lead.muestraEnviada || opciones.reenvio) {
+        store.saveLead(phone, { muestraEnviada: true, step: 'MUESTRA_ENVIADA' });
+        return await this.decir(phone, `Aquí tienes otra vez la vista previa gratis 🙌\n${url}\n\nÁbrela en Chrome o Safari, escribe el nombre y el NIT de tu negocio y descarga tu planilla. Si te gusta, responde *1* (${ventas.cop(ventas.precioDe({ ...lead, plan: 'personalizado' }))}) o *2* (${ventas.cop(ventas.precioDe({ ...lead, plan: 'llave' }))}).`);
+      }
+      if (!opciones.sinIntro) {
+        await this.decir(phone, `¡Claro! 🎁 Pruébalo gratis antes de pagar 👇`);
+        await this.enviarImagen(phone, ventas.imagenes('sanidad').planilla, 'Así quedan las planillas con los datos de tu negocio');
+      }
+      await this.decir(phone, `👉 ${url}\n\nEscribe el nombre y el NIT de tu negocio y se genera al instante tu *Planilla de Recepción de Materias Primas*, lista para imprimir. Ahí mismo ves la lista de todo lo que trae el paquete.`);
+      store.saveLead(phone, { muestraEnviada: true, step: 'MUESTRA_ENVIADA', status: lead.status === 'ESPERA_PAGO' ? lead.status : 'INTERESADO', rescate: { tipo: 'muestra', at: Date.now(), enviado: false } });
+      return await this.decir(phone, ventas.textoDespuesMuestra(producto, precio));
+    }
     if (lead.muestraEnviada) {
       const img = ventas.imagenes(producto);
       await this.enviarImagen(phone, img.catalogo);
@@ -463,7 +510,7 @@ class ConversationFlow {
 - NO escribas números de cuenta. Si el cliente quiere comprar o pagar, pide el número, la cuenta o cómo pagar, o ya aceptó que le pases los datos, responde SOLO con la palabra ${MARCA_PAGO} y nada más: el sistema le envía las cuentas reales. No le preguntes otra vez si se los envías.
 ${lead.muestraEnviada
     ? `- La muestra gratis (${ventas.descripcionMuestra(producto)}) ya se le envió más arriba en el chat. No la vuelvas a ofrecer; si no la ve, dile que escriba "no me llegó".`
-    : `- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis ${producto === 'muebles' ? 'un plano completo' : producto === 'moldes' ? 'un patrón completo' : '5 recetas de muestra'} para que lo revises?").`}
+    : `- Si pide fotos, ejemplos o desconfía, ofrécele la muestra gratis ("¿Te envío gratis ${producto === 'sanidad' ? 'el enlace para generar una planilla con el nombre de tu negocio' : producto === 'muebles' ? 'un plano completo' : producto === 'moldes' ? 'un patrón completo' : '5 recetas de muestra'} para que lo revises?").`}
 - Tú NO puedes enviar archivos, PDF ni imágenes. Nunca digas que enviaste, adjuntaste o reenviaste algo: el sistema los envía cuando el cliente acepta.`;
       const prompt = `Eres Sofía, asesora por WhatsApp de una tienda de productos digitales en Colombia. Tono cálido, colombiano, sencillo y honesto.
 ${ventas.conocimiento(producto)}
@@ -530,14 +577,14 @@ Sofía:`;
 
   async sendMainPitch(phone, settings, _precio, producto = 'helados') {
     const img = ventas.imagenes(producto);
-    await this.enviarImagen(phone, img.catalogo);
+    if (img.catalogo) await this.enviarImagen(phone, img.catalogo);
     const lead = store.getLead(phone) || {};
     const texto = ventas.textoPitch(producto, lead);
     const botones = ventas.botonesPitch(producto, lead);
     // Botones: comprar ya o ver la muestra (o los planes de moldes). Si Meta no los acepta, sendButtons manda el texto con las opciones
     await waService.sendButtons(phone, texto, botones);
     store.agregarMensaje(phone, { from: 'bot', text: `${texto}\n[Botones: ${botones.map((b) => b.title).join(' | ')}]`, type: 'interactive' });
-    const planesVisibles = producto === 'moldes' && planes.hayPlanes() && !lead.enfoqueMaster;
+    const planesVisibles = (producto === 'moldes' && planes.hayPlanes() && !lead.enfoqueMaster) || producto === 'sanidad';
     store.saveLead(phone, { status: 'INTERESADO', step: planesVisibles ? 'PLANES_ENVIADOS' : 'BOTONES_ENVIADOS', producto, pitchPendiente: false });
   }
 
@@ -552,11 +599,11 @@ Sofía:`;
   }
 
   // Eligió un plan de moldes: se le pasan las cuentas por el valor del plan (con descuento si ya se lo ofrecimos)
-  async elegirPlan(phone, plan) {
+  async elegirPlan(phone, plan, producto = 'moldes') {
     const lead = store.getLead(phone) || {};
-    const precio = lead.descuentoPlanes || (lead.precioOfrecido && lead.precioOfrecido < ventas.precioNormal('moldes', lead.plan))
-      ? ventas.precioDescuento('moldes', plan) : ventas.precioNormal('moldes', plan);
-    store.saveLead(phone, { plan, precioOfrecido: precio, precioProducto: 'moldes' });
+    const ofrecioMenos = lead.precioOfrecido && (!lead.precioProducto || lead.precioProducto === producto) && lead.precioOfrecido < ventas.precioNormal(producto, lead.plan);
+    const precio = lead.descuentoPlanes || ofrecioMenos ? ventas.precioDescuento(producto, plan) : ventas.precioNormal(producto, plan);
+    store.saveLead(phone, { plan, precioOfrecido: precio, precioProducto: producto });
     return await this.sendPaymentDetails(phone, this.getSettings(), precio);
   }
 
@@ -580,9 +627,9 @@ Sofía:`;
     if (this.esComprador(phone)) return await this.atenderComprador(phone, 'enlace');
     const lead = store.getLead(phone) || {};
     const monto = Number(String(precio).replace(/\D/g, '')) || ventas.precioDe(lead);
-    const sinPlan = lead.producto === 'moldes' && planes.hayPlanes() && !lead.plan;
+    const sinPlan = ventas.conPlanes(lead.producto) && !lead.plan;
     await this.decir(phone, ventas.textoPago(lead.producto || 'helados', settings, monto, { ofrecerMuestra: !lead.muestraEnviada, plan: lead.plan,
-      planes: sinPlan ? ventas.preciosPlanes(!!lead.descuentoPlanes) : null }));
+      planes: sinPlan ? ventas.preciosPlanes(!!lead.descuentoPlanes || monto < ventas.precioNormal(lead.producto, lead.plan), lead.producto) : null }));
     store.saveLead(phone, { status: 'ESPERA_PAGO', step: 'DATOS_PAGO_ENVIADOS', precioOfrecido: ventas.precioDe(lead) === monto ? monto : (lead.precioOfrecido || monto), precioProducto: lead.producto || null,
       rescate: { tipo: 'datos', at: Date.now(), enviado: false } });
     // El pedido solo se crea cuando el cliente envía el comprobante (handleImageMessage).
@@ -773,6 +820,8 @@ Sofía:`;
             ? `¡Recibí tu imagen! 😊 ¿Es un modelo que estás buscando? Cuéntame qué prenda es y te digo si está en el pack.`
             : leadImg.producto === 'muebles'
             ? `¡Recibí tu imagen! 😊 ¿Es un mueble que quieres hacer? Cuéntame cuál es y sus medidas, y te digo qué plano del pack se parece.`
+            : leadImg.producto === 'sanidad'
+            ? `¡Recibí tu imagen! 😊 ¿Es un acta o un requerimiento de la Secretaría de Salud? Cuéntame qué te pidieron y te digo qué documento del paquete lo cubre.`
             : `¡Recibí tu imagen! 😊 Cuéntame en qué te puedo ayudar.`);
         store.marcarAtendido(phone, false);
         return await this.decir(phone, msg);
@@ -878,9 +927,10 @@ Sofía:`;
     const host = process.env.RENDER_EXTERNAL_URL || 'https://emprende-dulce-bot.onrender.com';
     // Moldes: el plan sale del valor pagado ($8k–$12.999 Básico, $13k–$16.999 Emprendedor, $17k+ Master) o del upgrade pagado
     let plan = null, esUpgrade = false;
-    if (producto === 'moldes') {
+    if (producto === 'moldes' || producto === 'sanidad') {
+      const pl = ventas.planesDe(producto);
       esUpgrade = !!(lead && lead.esperaUpgrade);
-      plan = opciones.plan || (esUpgrade ? lead.esperaUpgrade : planes.deMonto(pedido && pedido.amount));
+      plan = opciones.plan || (esUpgrade ? lead.esperaUpgrade : pl.deMonto(pedido && pedido.amount));
       if (esUpgrade) { store.saveLead(phone, { esperaUpgrade: null, montoUpgrade: null, plan }); opciones.sinUpsell = true; }
       if (pedido) store.actualizarPedido(pedido.id, { plan, ...(esUpgrade ? { upgrade: true } : {}) });
     }
@@ -889,7 +939,17 @@ Sofía:`;
     if (pedido) store.actualizarPedido(pedido.id, { accesoToken: acceso.token });
     let confirmMsg = '';
 
-    if (producto === 'muebles') {
+    if (producto === 'sanidad') {
+      const S = require('./sanidad/planes');
+      const info = S.info(plan);
+      confirmMsg =
+        `¡Pago verificado con éxito en nuestro sistema! 🎉📋\n\n` +
+        (esUpgrade ? `Listo, tu acceso ya está en el *${info.nombre}* 🙌\n\n` : `Bienvenido(a) al *${info.nombre}* del Plan de Saneamiento Básico 2026-2027.\n\n`) +
+        `📥 *Tu enlace personal (guárdalo, es solo tuyo):*\n${enlace}\n\n` +
+        `📁 *Tu plan incluye:* ${ventas.infoPack('sanidad').incluye[info.id]}, más la guía de los certificados externos que debes anexar (fumigación, lavado de tanque, certificado médico y curso de manipulación).` +
+        (info.id === 'personalizado' ? `\n\n_Si más adelante quieres las planillas de 4 meses ya armadas, escríbeme «Llave en Mano» y solo pagas la diferencia (${ventas.cop(S.PLANES.llave.precio - S.PLANES.personalizado.precio)})._` : '');
+      if (esUpgrade && acceso.negocio) confirmMsg += `\n\n✅ Tus planillas de 4 meses ya están listas en tu enlace, con los datos de *${acceso.negocio.nombre}*.`;
+    } else if (producto === 'muebles') {
       const info = ventas.infoPack('muebles');
       confirmMsg =
         `¡Pago verificado con éxito en nuestro sistema! 🎉🪚\n\n` +
@@ -947,6 +1007,8 @@ Sofía:`;
     await waService.sendTextMessage(phone, confirmMsg);
     store.agregarMensaje(phone, { from: 'bot', text: confirmMsg, type: 'text' });
     store.saveLead(phone, { status: 'PAGADO', step: 'ENTREGADO', accesoToken: acceso.token });
+    // Sanidad: si faltan los datos del negocio, se empiezan a preguntar de una vez
+    if (producto === 'sanidad' && !acceso.negocio) await this.iniciarCapturaSanidad(phone);
 
     if (producto === 'moldes' && !opciones.sinUpsell) {
       const entregadoAt = Date.now();
@@ -1021,6 +1083,78 @@ Sofía:`;
     await this.decir(phone, texto);
   }
 
+  // ------------------------------------------------------------------ sanidad: comprador
+  // Datos del negocio por WhatsApp, paso al Llave en Mano y aviso de documentos listos.
+  // Devuelve true si respondió; null para que siga el soporte normal de comprador.
+  async atenderCompradorSanidad(phone, text) {
+    const lead = store.getLead(phone) || {};
+    const acceso = accesos.completoDe(phone, 'sanidad');
+    if (!acceso) return null;
+    const n = ventas.normalizar(text);
+    // Primero: respuestas a las preguntas de los datos (si no los llenó ya en la web)
+    if (lead.capturaSanidad && !acceso.negocio && !/\b(llave en mano|mejorar (mi )?plan)\b/.test(n)) {
+      if (ventas.esSoporteDescarga(text) && lead.capturaSanidad.paso === 0) return null;
+      const C = require('./sanidad/captura');
+      const r = C.responder(lead.capturaSanidad, text, phone);
+      if (!r.listo) {
+        store.saveLead(phone, { capturaSanidad: r.estado });
+        await this.decir(phone, r.mensaje);
+        return true;
+      }
+      accesos.actualizar(acceso.token, { negocio: r.datos, negocioAt: Date.now(), negocioPor: 'whatsapp', ediciones: 0, autorizaDatosAt: Date.now() });
+      store.saveLead(phone, { capturaSanidad: null });
+      await this.avisarDocumentosSanidad(accesos.completoDe(phone, 'sanidad'), true);
+      return true;
+    }
+    // Pasar al Llave en Mano: "llave en mano", "quiero el de 4 meses", "mejorar mi plan"
+    const S = require('./sanidad/planes');
+    const pideSubir = S.elegido(text) === 'llave' || /\b(mejorar|subir|pasar|upgrade|actualizar)\b.{0,30}\b(plan|llave)\b/.test(n);
+    if (pideSubir && (acceso.plan || 'personalizado') === 'personalizado') {
+      const dif = S.PLANES.llave.precio - S.PLANES.personalizado.precio;
+      store.saveLead(phone, { esperaUpgrade: 'llave', montoUpgrade: dif });
+      await this.decir(phone, `¡Claro! 🙌 Para pasar al *${S.PLANES.llave.nombre}* (planillas de los 4 meses ya armadas con tus fechas, neveras y personal) solo pagas la diferencia: *${ventas.cop(dif)}*.\n\n` +
+        `${ventas.cuentas(this.getSettings())}\n\n_Toca el número para copiarlo._\n\nEnvíame la captura del comprobante y se desbloquea en tu mismo enlace 📋`);
+      return true;
+    }
+    if (pideSubir) {
+      await this.decir(phone, `Ya tienes el *${S.PLANES.llave.nombre}* ✅ Tus planillas de 4 meses están en tu enlace:\n${ventas.host()}/acceso/${acceso.token}`);
+      return true;
+    }
+    // Pide hacer los datos por WhatsApp
+    if (/^(datos|llenar datos|mis datos|cambiar datos|corregir datos)$/.test(n)) {
+      if (acceso.negocio) {
+        await this.decir(phone, `Tus datos ya están guardados ✅ Para corregirlos, abre tu enlace y toca «Corregir los datos del negocio»:\n${ventas.host()}/acceso/${acceso.token}`);
+        return true;
+      }
+      return await this.iniciarCapturaSanidad(phone, { forzar: true });
+    }
+    if (lead.capturaSanidad && acceso.negocio) store.saveLead(phone, { capturaSanidad: null });
+    return null;
+  }
+
+  async iniciarCapturaSanidad(phone, opciones = {}) {
+    const lead = store.getLead(phone) || {};
+    if (lead.capturaSanidad && !opciones.forzar) return true;
+    const p = require('./sanidad/captura').primera();
+    store.saveLead(phone, { capturaSanidad: p.estado });
+    await this.decir(phone, p.mensaje);
+    return true;
+  }
+
+  // Los datos del negocio quedaron guardados (por WhatsApp o en la web): se avisa con el enlace
+  async avisarDocumentosSanidad(acceso, primeraVez = true) {
+    if (!acceso || !acceso.negocio) return;
+    const lead = store.getLead(acceso.phone) || {};
+    if (lead.capturaSanidad) store.saveLead(acceso.phone, { capturaSanidad: null });
+    const llave = acceso.plan === 'llave';
+    const texto = (primeraVez ? `¡Listo! ✅ Ya generé tus documentos con los datos de *${acceso.negocio.nombre}*.` : `Listo ✅ Actualicé tus documentos con los datos nuevos de *${acceso.negocio.nombre}*.`) +
+      `\n\n📥 Descárgalos aquí:\n${ventas.host()}/acceso/${acceso.token}\n\n` +
+      `🖨️ Imprime el plan, los cronogramas y los carteles, y ${llave ? 'las planillas de los 4 meses' : 'las planillas (fotocópialas cada mes)'}. Guárdalo todo en una carpeta para la visita.\n` +
+      `✍️ Las planillas se llenan a mano el día en que se hace cada actividad, con la lectura real y la firma.\n` +
+      `📎 Consigue y anexa los certificados externos de la guía: fumigación, lavado de tanque (si tienes), certificado médico y curso de manipulación de cada persona.`;
+    await this.decir(acceso.phone, texto);
+  }
+
   async handleButtonReply(phone, btnId, btnTitle) {
     const settings = this.getSettings();
     const lead = store.getLead(phone) || {};
@@ -1039,7 +1173,8 @@ Sofía:`;
     const precio = settings.precioOferta || this.defaultPrice;
     const precioCOP = '$' + Number(precio).toLocaleString('es-CO');
 
-    if (btnId.startsWith('plan_') && planes.activo(btnId.slice(5))) return await this.elegirPlan(phone, btnId.slice(5));
+    const plBtn = ventas.planesDe(lead.producto);
+    if (btnId.startsWith('plan_') && plBtn && plBtn.activo(btnId.slice(5))) return await this.elegirPlan(phone, btnId.slice(5), lead.producto);
     if (btnId === 'ver_planes') return await this.mostrarPlanes(phone);
 
     if (btnId.includes('pago') || btnId.includes('comprar')) {

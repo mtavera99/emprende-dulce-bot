@@ -130,7 +130,22 @@ function contenidoMuebles() {
   };
 }
 
-const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados, muebles: contenidoMuebles };
+// Sanidad: sus documentos no son archivos fijos, se generan con los datos del negocio (src/sanidad/pagina.js)
+function contenidoSanidad() {
+  return {
+    titulo: 'Plan de Saneamiento Básico 2026-2027', emoji: '📋',
+    intro: 'Plan de Saneamiento (Res. 2674 de 2013) con los 4 programas, POES, cronogramas, carteles y las planillas de vigilancia, con los datos de tu negocio.',
+    nota: 'Los documentos se generan con los datos de tu negocio.',
+    items: [],
+  };
+}
+
+const CONTENIDOS = { moldes: contenidoMoldes, helados: contenidoHelados, muebles: contenidoMuebles, sanidad: contenidoSanidad };
+
+// Planes del producto del acceso (moldes o sanidad)
+function modPlanes(producto) {
+  return producto === 'sanidad' ? require('./sanidad/planes') : require('./planes');
+}
 
 function contenido(producto) {
   const fn = CONTENIDOS[producto] || CONTENIDOS.helados;
@@ -145,7 +160,8 @@ function crear(phone, producto, tipo = 'completo', extra = {}) {
     const ya = Object.values(accesos).find((a) => a.phone === phone && a.producto === producto && a.tipo === 'completo' && a.activo);
     if (ya) {
       // Compra o upgrade a un plan mayor: el mismo enlace desbloquea el plan nuevo
-      if (extra.plan && require('./planes').rango(extra.plan) > require('./planes').rango(ya.plan || 'basico')) {
+      const pl = modPlanes(producto);
+      if (extra.plan && pl.rango(extra.plan) > pl.rango(ya.plan || pl.ORDEN[0])) {
         ya.plan = extra.plan; ya.planActualizadoAt = Date.now(); guardar();
       }
       return ya;
@@ -158,6 +174,15 @@ function crear(phone, producto, tipo = 'completo', extra = {}) {
     vistas: 0, descargas: 0, ...extra,
   };
   accesos[token] = a;
+  guardar();
+  return a;
+}
+
+// Guarda datos en un acceso (por ejemplo, los datos del negocio de sanidad)
+function actualizar(token, data) {
+  const a = accesos[String(token || '')];
+  if (!a) return null;
+  Object.assign(a, data, { actualizadoAt: Date.now() });
   guardar();
   return a;
 }
@@ -210,8 +235,8 @@ function deTelefono(phone) {
 // Un archivo de un plan mayor al del acceso (moldes) queda bloqueado. Accesos sin plan = Plan Básico.
 function incluyePlan(acceso, it) {
   if (!it.plan) return true;
-  const planes = require('./planes');
-  return planes.rango(it.plan) <= planes.rango(acceso.plan || 'basico');
+  const planes = modPlanes(acceso.producto);
+  return planes.rango(it.plan) <= planes.rango(acceso.plan || planes.ORDEN[0]);
 }
 
 function archivoPermitido(acceso, itemId) {
@@ -270,4 +295,4 @@ function migrarVentas() {
   if (n) console.log(`[ACCESOS] Enlaces personales creados para ${n} ventas anteriores.`);
 }
 
-module.exports = { incluyePlan, entradaZip, pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };
+module.exports = { actualizar, modPlanes, incluyePlan, entradaZip, pdfsDe, entradaPdf, extenderPrueba, crear, estado, registrarUso, desactivar, completoDe, deTelefono, archivoPermitido, contenido, migrarVentas, MINUTOS_PRUEBA, PUBLIC };

@@ -125,7 +125,8 @@ function headerPlan(a, c) {
   };
 }
 
-function paginaCompleta(a) {
+function paginaCompleta(a, opciones = {}) {
+  if (a.producto === 'sanidad') return require('./sanidad/pagina').paginaCompleta(a, opciones);
   const c = accesos.contenido(a.producto);
   const h = headerPlan(a, c);
   const drive = store.driveDe(a.producto);
@@ -174,4 +175,4 @@ function paginaNoValida(motivo, a) {
     <a class="cta" href="${waLink(motivo === 'vencido' ? `Quiero el pack completo${c ? ' de ' + c.titulo : ''}` : 'Hola, necesito mi enlace de descarga')}">💬 Escribir por WhatsApp</a>`);
 }
 
-module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida, waLink };
+module.exports = { paginaCompleta, paginaPrueba, paginaPublica, paginaNoValida, waLink, base, esc };

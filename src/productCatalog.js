@@ -61,6 +61,22 @@ const PRODUCTOS = {
     keywords: /(mueble|melamina|carpinter|ebanist|cl[oó]set|vestier|vestidor|alacena|cocinas? integral|escritorio|despiece|tablero|aglomerado|madecentro|zapater[oa]|tocador|repisa|cajonera|organizador de cubos|planos? (de|para) (mueble|cocina|cl[oó]set|cama|escritorio))/i
   },
 
+  // 📋 PLAN DE SANEAMIENTO BÁSICO Y PLANILLAS DE SANIDAD 2026-2027 (Res. 2674 de 2013)
+  // Dos planes (src/sanidad/planes.js): Personalizado $49.900 (seguimiento $39.900) y Llave en Mano $79.900 ($69.900)
+  sanidad: {
+    id: 'sanidad',
+    nombre: 'Plan de Saneamiento Básico y Planillas de Sanidad 2026-2027',
+    emoji: '📋',
+    etiqueta: 'Sanidad',
+    color: '#0f766e',
+    precioPropio: true,
+    precio: Number(process.env.PRECIO_SANIDAD) || 49900,
+    precioDescuento: Number(process.env.PRECIO_DESCUENTO_SANIDAD) || 39900,
+    // Agregar aquí los IDs de la campaña, los conjuntos y los anuncios de sanidad cuando se creen en Meta.
+    metaIds: [],
+    keywords: /(saneamiento|sanidad|secretar[ií]a de salud|planillas?|\bbpm\b|buenas pr[aá]cticas de manufactura|manipulaci[oó]n de alimentos|manipuladore?s? de alimentos|inspecci[oó]n sanitaria|inspector de salud|concepto sanitario|acta de (visita|inspecci)|\b2674\b|limpieza y desinfecci[oó]n|control de plagas|fumigaci[oó]n)/i
+  },
+
   // 🍰 UPSELL POST-COMPRA: EMPRENDE DULCE 2026 ($5.000 COP)
   upsell_helados: {
     id: 'upsell_helados',
@@ -91,6 +107,7 @@ const PRODUCTOS = {
 // Palabras que nombran el producto sin ambigüedad. Con ellas el cliente puede pasar de un producto a otro
 // aunque ya tuviera uno (por ejemplo, quien preguntó por moldes y ahora pide muebles).
 const PIDE = {
+  sanidad: /\b(saneamiento|sanidad|planillas?|bpm|secretaria de salud)\b/,
   muebles: /\b(muebles?|melamina|carpinter\w*|ebanister\w*)\b/,
   moldes: /\b(moldes?|costura|patron(es)? de costura|modister\w*)\b/,
   helados: /\b(helad\w*|postres?|reposter\w*)\b/,
@@ -105,7 +122,8 @@ function productoPedido(texto) {
 
 // Orden para las palabras clave: muebles antes que moldes ("pantalla" contiene "pantal"); los
 // productos sin palabras clave (upsell) no se detectan por texto.
-const ORDEN_PALABRAS = ['muebles', 'moldes', 'helados'];
+// Sanidad va primero: un restaurante que pregunta por planillas puede nombrar "postres" o "pantalla".
+const ORDEN_PALABRAS = ['sanidad', 'muebles', 'moldes', 'helados'];
 
 /**
  * Identifica el producto de una conversación entrante.

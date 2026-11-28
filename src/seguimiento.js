@@ -33,7 +33,7 @@ async function ejecutarSeguimientos() {
       // El descuento se ofrece desde el paso 1; quien ya tenía un precio menor (p. ej. $7.000) lo conserva
       if (paso === 1 || paso === 3) {
         // Moldes con planes y sin plan elegido: el descuento se muestra en los 3 planes; se acepta desde el del Básico
-        if (producto === 'moldes' && require('./planes').hayPlanes() && !actual.plan) store.saveLead(phone, { descuentoPlanes: true });
+        if (ventas.conPlanes(producto) && !actual.plan) store.saveLead(phone, { descuentoPlanes: true });
         if (!actual.precioOfrecido || ventas.precioDe(actual) >= ventas.precioNormal(producto, actual.plan)) store.setLeadPrecio(phone, ventas.precioDescuento(producto, actual.plan));
       }
       const precio = ventas.precioDe(store.getLead(phone));
@@ -51,6 +51,8 @@ async function ejecutarSeguimientos() {
         if (producto === 'moldes') {
           await enviarImagen(phone, img.portada);
           await enviarImagen(phone, img.mapa);
+        } else if (producto === 'sanidad') {
+          await enviarImagen(phone, img.planilla);
         } else if (producto === 'muebles') {
           await enviarImagen(phone, img.plano);
           await enviarImagen(phone, img.cortes);
@@ -64,7 +66,7 @@ async function ejecutarSeguimientos() {
       }
 
       let texto = ventas.textoSeguimiento(paso, producto, precio, store.getLead(phone) || {});
-      if (paso === 2 && actual.muestraEnviada) {
+      if (paso === 2 && actual.muestraEnviada && producto !== 'sanidad') {
         texto = texto.split('\n\n')[0] + `\n\nLa muestra gratis te la envié arriba. ¿Te paso los datos para el pack completo por *${ventas.cop(precio)}*?`;
       }
       await waService.sendTextMessage(phone, texto);

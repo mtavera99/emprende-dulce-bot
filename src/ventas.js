@@ -19,8 +19,25 @@ function preciosPropios(producto) {
   return p && p.precioPropio ? p : null;
 }
 
-// Moldes con planes (src/planes.js): Emprendedor y Taller Master tienen precio propio; el Básico usa el del panel
+// Módulo de planes de cada producto: moldes (src/planes.js) y sanidad (src/sanidad/planes.js)
+function planesDe(producto) {
+  if (producto === 'moldes') return require('./planes');
+  if (producto === 'sanidad') return require('./sanidad/planes');
+  return null;
+}
+// Hay planes para elegir en este producto (moldes solo cuando existe el contenido premium)
+function conPlanes(producto) {
+  const pl = planesDe(producto);
+  return !!pl && pl.hayPlanes();
+}
+
+// Moldes con planes (src/planes.js): Emprendedor y Taller Master tienen precio propio; el Básico usa el del panel.
+// Sanidad: siempre por plan; sin plan elegido vale lo del Plan Personalizado.
 function planMoldes(producto, plan) {
+  if (producto === 'sanidad') {
+    const S = require('./sanidad/planes');
+    return S.PLANES[plan] || S.PLANES.personalizado;
+  }
   if (producto !== 'moldes' || !plan || plan === 'basico') return null;
   const planes = require('./planes');
   return planes.activo(plan) ? planes.PLANES[plan] : null;
@@ -40,10 +57,10 @@ function precioDescuento(producto, plan) {
   return p ? p.precioDescuento : Number(store.getSettings().precioDescuento) || Number(process.env.PRECIO_DESCUENTO) || 8000;
 }
 
-// Precios de los planes de moldes que se pueden vender hoy (con o sin el descuento de seguimiento)
-function preciosPlanes(conDescuento = false) {
-  const planes = require('./planes');
-  return planes.disponibles().map((id) => ({ ...planes.info(id), valor: conDescuento ? precioDescuento('moldes', id) : precioNormal('moldes', id) }));
+// Precios de los planes que se pueden vender hoy (con o sin el descuento de seguimiento)
+function preciosPlanes(conDescuento = false, producto = 'moldes') {
+  const planes = planesDe(producto);
+  return planes.disponibles().map((id) => ({ ...planes.info(id), valor: conDescuento ? precioDescuento(producto, id) : precioNormal(producto, id) }));
 }
 
 // Precio que se le ofreció a este cliente (quien ya recibió $7.000 lo conserva).
@@ -82,7 +99,23 @@ function manifestMuebles() {
   return m && m.categorias ? { guias: [], bonos: [], ...m } : { categorias: [], guias: [], bonos: [], totales: {}, muestra: {} };
 }
 
+// Qué recibe cada plan de sanidad (para el mensaje de pago y la IA)
+const INCLUYE_SANIDAD = {
+  personalizado: 'el Plan de Saneamiento con los 4 programas, POES, cronogramas, carteles y las 10 planillas con los datos de tu negocio',
+  llave: 'el Plan de Saneamiento completo y las planillas de los 4 meses ya armadas con tus fechas, equipos y personal, listas para imprimir',
+};
+
 function infoPack(producto) {
+  if (producto === 'sanidad') {
+    return {
+      producto,
+      nombre: 'Plan de Saneamiento Básico y Planillas de Sanidad 2026-2027',
+      emoji: '📋',
+      queIncluye: INCLUYE_SANIDAD.personalizado,
+      incluye: INCLUYE_SANIDAD,
+      registros: require('./sanidad/contenido').REGISTROS,
+    };
+  }
   if (producto === 'muebles') {
     const m = manifestMuebles();
     const T = m.totales || {};
@@ -119,6 +152,16 @@ function infoPack(producto) {
 // Texto que se le da a la IA para que solo hable de lo que el pack trae de verdad
 function conocimiento(producto) {
   const p = infoPack(producto);
+  if (producto === 'sanidad') {
+    const S = require('./sanidad/planes').PLANES;
+    return `PRODUCTO: ${p.nombre}, para restaurantes, panaderías, cafeterías, comidas rápidas, charcuterías y otros negocios de alimentos en Colombia. Es digital: se entrega por este chat con un enlace personal; los documentos se generan con los datos del negocio (nombre, NIT o cédula, dirección, ciudad, encargado, manipuladores, neveras y congeladores) que el cliente llena en su enlace o responde por WhatsApp después de pagar.
+PLANES (pago único):
+- ${S.personalizado.nombre}: ${cop(S.personalizado.precio)}. Incluye ${INCLUYE_SANIDAD.personalizado}.
+- ${S.llave.nombre}: ${cop(S.llave.precio)}. Incluye todo lo anterior + las planillas de 4 meses (el tiempo entre visitas de la Secretaría de Salud) ya armadas: cada hoja trae la fecha de cada día o semana, el nombre de cada nevera, las áreas, los manipuladores, los rangos de temperatura y las tareas programadas. Quien compró el Personalizado puede pasar al Llave en Mano pagando la diferencia (${cop(S.llave.precio - S.personalizado.precio)}).
+CONTENIDO EXACTO: Plan de Saneamiento Básico según el artículo 26 de la Resolución 2674 de 2013 (en PDF y en Word para ajustarlo), con los 4 programas obligatorios: Limpieza y Desinfección (con POES por superficie y equipo y tabla para preparar las soluciones de hipoclorito), Manejo de Residuos Sólidos (bolsas blanca, verde y negra de la Resolución 2184 de 2019 y aceite usado), Control Integral de Plagas y Abastecimiento de Agua Potable. También trae salud y capacitación del personal (programa de 10 horas al año), cronograma de limpieza, cronograma de actividades de 12 meses, 6 carteles, la carpeta de la visita con la lista de certificados externos y estas planillas: ${p.registros.map((r) => `${r.codigo} ${r.titulo}`).join('; ')}.
+VISTA PREVIA GRATIS: antes de pagar, el cliente abre un enlace, escribe el nombre de su negocio y su NIT y descarga gratis la planilla de Recepción de Materias Primas con sus datos. El resto se ve con candado.
+NO INCLUYE (dilo con claridad si preguntan): el certificado de fumigación (lo da una empresa de control de plagas con concepto sanitario), el certificado de lavado del tanque, el certificado médico de los manipuladores ni el curso de manipulación de alimentos: el paquete trae la guía de qué certificados conseguir. Tampoco incluye visitas, asesoría presencial ni trámites ante la Secretaría. No garantiza el concepto favorable: la visita revisa que lo escrito se cumpla en el local. En el Llave en Mano las lecturas de temperatura, las marcas y las firmas NO vienen escritas: cada día se anotan las reales (escribir lecturas inventadas sería falsear un registro sanitario). Cada secretaría puede pedir formatos adicionales; por eso el plan viene también en Word.`;
+  }
   if (producto === 'muebles') {
     // Por diseño: cuántas medidas tiene y sus rangos (la lista completa de medidas no cabe en el mensaje a la IA)
     const r = (xs) => { const u = [...new Set(xs)].sort((a, b) => a - b); return u.length > 1 ? `${u[0]} a ${u[u.length - 1]}` : `${u[0]}`; };
@@ -159,6 +202,9 @@ function host() {
 
 function imagenes(producto) {
   const h = host();
+  if (producto === 'sanidad') {
+    return { catalogo: `${h}/descargas/muestras/img/sanidad_1_catalogo.jpg`, planilla: `${h}/descargas/muestras/img/sanidad_2_planillas.jpg` };
+  }
   if (producto === 'muebles') {
     return {
       catalogo: `${h}/descargas/muestras/img/muebles_1_catalogo.jpg`,
@@ -180,6 +226,7 @@ function imagenes(producto) {
 // PDF de muestra que se envían por WhatsApp (abren directo en el celular)
 function documentosMuestra(producto) {
   const h = host();
+  if (producto === 'sanidad') return []; // la muestra de sanidad es la vista previa interactiva (enlaceVistaPrevia)
   if (producto === 'muebles') {
     const m = infoPack('muebles').muestra;
     return [{ url: `${h}/muestra/Muestra_Muebles_Plano_Mesa_de_Noche.pdf`, nombre: 'Muestra_Muebles_Plano_Mesa_de_Noche.pdf', caption: `Plano completo: ${m.nombre || 'Mesa de noche de 2 cajones'} (${m.cod || 'DOR-MN1-450'}), despiece en mm` }];
@@ -202,7 +249,13 @@ function cuentas(settings) {
 }
 
 // Qué es la muestra gratis, en pocas palabras (para reenvíos y para la IA)
+// Vista previa gratis de sanidad: el cliente genera la planilla de recepción con el nombre y NIT de su negocio
+function enlaceVistaPrevia() {
+  return `${host()}/prueba-sanidad`;
+}
+
 function descripcionMuestra(producto) {
+  if (producto === 'sanidad') return `el enlace de la vista previa gratis (${enlaceVistaPrevia()}), donde escribes el nombre y el NIT de tu negocio y descargas tu planilla de recepción de materias primas`;
   if (producto === 'moldes') return '2 PDF: la ficha técnica y el molde de la talla M de la Falda Media Campana';
   if (producto === 'muebles') return `1 PDF: el plano completo de la ${(infoPack('muebles').muestra.nombre || 'mesa de noche de 2 cajones').toLowerCase()}`;
   return '1 PDF con 5 recetas de Postres en Vaso';
@@ -238,7 +291,16 @@ function textoPlanMaster() {
     `Toca un botón 👇 o responde *1* para comprar, *2* para recibir *gratis* un patrón de muestra o *3* para ver los planes desde ${cop(precioNormal('moldes', 'basico'))}.`;
 }
 
+function textoPitchSanidad(lead = {}) {
+  const [a, b] = preciosPlanes(!!lead.descuentoPlanes, 'sanidad');
+  return `📋 *Plan de Saneamiento Básico 2026-2027* para tu negocio de alimentos (Res. 2674 de 2013), con el nombre, NIT y dirección de tu local: los 4 programas, POES, cronogramas, carteles y las 10 planillas que revisa la Secretaría de Salud\n` +
+    `${a.emoji} *${a.nombre}* · *${cop(a.valor)}*: todo personalizado; tu equipo llena las planillas día a día\n` +
+    `${b.emoji} *${b.nombre}* · *${cop(b.valor)}*: *¿Tienes poco tiempo?* Adquiere nuestro *Servicio Plus*: ¡llenamos las planillas de *4 meses* por ti con tus fechas, neveras y personal, listas solo para imprimir!\n` +
+    `🎁 Antes de pagar, genera *gratis* una planilla con el nombre de tu negocio. Responde *1*, *2* o *PRUEBA* 👇`;
+}
+
 function textoPitch(producto, lead = {}) {
+  if (producto === 'sanidad') return textoPitchSanidad(lead);
   if (producto === 'moldes' && require('./planes').hayPlanes()) return lead.plan === 'master' && lead.enfoqueMaster ? textoPlanMaster() : textoPlanes(lead);
   if (producto === 'muebles') {
     const p = infoPack('muebles');
@@ -267,6 +329,10 @@ function textoPitch(producto, lead = {}) {
 
 // Botones del primer mensaje (título máximo 20 caracteres en WhatsApp)
 function botonesPitch(producto, lead = {}) {
+  if (producto === 'sanidad') {
+    const ps = preciosPlanes(!!lead.descuentoPlanes, 'sanidad');
+    return [...ps.map((p) => ({ id: `plan_${p.id}`, title: `${p.emoji} ${p.id === 'llave' ? 'Llave' : 'Plan'} ${cop(p.valor)}` })), { id: 'muestra', title: '🎁 Prueba gratis' }];
+  }
   if (producto === 'moldes' && require('./planes').hayPlanes()) {
     if (lead.plan === 'master' && lead.enfoqueMaster) {
       return [{ id: 'plan_master', title: `💳 Comprar ${cop(precioNormal('moldes', 'master'))}` }, { id: 'muestra', title: '🎁 Muestra gratis' }, { id: 'ver_planes', title: 'Ver los planes' }];
@@ -296,8 +362,14 @@ function textoPago(producto, settings, precio, opciones = {}) {
     // Todavía no eligió plan: se le dan las cuentas con los 3 valores; el plan se entrega según lo que transfiera
     return `¡Listo! 🙌 Estas son las cuentas:\n\n${cuentas(settings)}\n\n_Toca el número para copiarlo._\n\n` +
       `Transfiere el valor del plan que quieras:\n${opciones.planes.map((x) => `${x.emoji} ${x.nombre}: *${cop(x.valor)}*`).join('\n')}\n\n` +
-      `Envíame la captura del comprobante por este chat y te llega tu enlace personal con el plan que corresponde al valor 🧵` +
+      `Envíame la captura del comprobante por este chat y te llega tu enlace personal con el plan que corresponde al valor ${p.emoji}` +
       (opciones.ofrecerMuestra ? `\n\n_¿Prefieres ver antes una muestra gratis? Escribe *MUESTRA*._` : '');
+  }
+  if (producto === 'sanidad') {
+    const pl = require('./sanidad/planes').info(opciones.plan || 'personalizado');
+    return `¡Listo! 🙌 Estas son las cuentas para tu transferencia de *${cop(precio)}* (${pl.nombre}):\n\n${cuentas(settings)}\n\n_Toca el número para copiarlo._\n\n` +
+      `Cuando hagas la transferencia, *envíame la captura del comprobante por este chat*. Te llega tu enlace personal y te pido los datos del negocio para armar ${INCLUYE_SANIDAD[pl.id]} 📋` +
+      (opciones.ofrecerMuestra ? `\n\n_¿Quieres ver antes cómo queda? Escribe *PRUEBA* y generas gratis una planilla con el nombre de tu negocio._` : '');
   }
   const plan = opciones.plan && producto === 'moldes' ? require('./planes').info(opciones.plan) : null;
   return `¡Listo! 🙌 Estas son las cuentas para tu transferencia de *${cop(precio)}*${plan && plan.id !== 'basico' ? ` (${plan.nombre})` : ''}:\n\n` +
@@ -309,6 +381,11 @@ function textoPago(producto, settings, precio, opciones = {}) {
 
 function textoDespuesMuestra(producto, precio) {
   const p = infoPack(producto);
+  if (producto === 'sanidad') {
+    const [a, b] = preciosPlanes(precio < precioNormal('sanidad', 'personalizado'), 'sanidad');
+    return `Ahí puedes ver todos los documentos del paquete y generar gratis tu planilla de *Recepción de Materias Primas* con el nombre y NIT de tu negocio, lista para imprimir 🖨️\n\n` +
+      `Si te gusta, eliges:\n${a.emoji} ${a.nombre}: *${cop(a.valor)}*\n${b.emoji} ${b.nombre} (4 meses de planillas ya armadas): *${cop(b.valor)}*\n\nResponde *1* o *2* y te paso los datos de pago.`;
+  }
   if (producto === 'muebles') {
     return `Ahí te va 👆 el plano completo de la *${p.muestra.nombre || 'Mesa de noche de 2 cajones'}*: vista con medidas, despiece en mm con tapacanto, herrajes, láminas, plano de cortes y armado.\n\n` +
       `Así vienen los *${p.totales.planos.toLocaleString('es-CO')} planos* del pack. Si te gusta, el pack completo con ${p.queIncluye} vale *${cop(precio)}*. ¿Te paso los datos de pago?`;
@@ -320,6 +397,10 @@ function textoDespuesMuestra(producto, precio) {
 }
 
 function textoConfianza(producto) {
+  if (producto === 'sanidad') {
+    return `Te entiendo, hay mucho engaño en internet 🙏 Por eso no te pido que confíes: *pruébalo primero*.\n\n` +
+      `En este enlace escribes el nombre y el NIT de tu negocio y descargas gratis una planilla real, hecha para tu local. Ves la lista de todo lo que trae el paquete antes de pagar. Si te convence, compras; si no, no pierdes nada.`;
+  }
   if (producto === 'muebles') {
     return `Te entiendo, hay mucho engaño en internet 🙏 Por eso no te pido que confíes: *mira primero el material*.\n\n` +
       `Te mando gratis un plano completo con su despiece en mm para que lo abras y lo revises antes de pagar. Si te convence, compras el pack; si no, no pierdes nada.`;
@@ -332,7 +413,30 @@ function textoConfianza(producto) {
 }
 
 // Seguimientos: solo se envían dentro de las 24 h desde el último mensaje del cliente
+function textoSeguimientoSanidad(paso, precio, lead) {
+  const ps = preciosPlanes(true, 'sanidad');
+  const normal = (id) => precioNormal('sanidad', id);
+  const lista = ps.map((x) => `${x.emoji} ${x.nombre}: *${cop(x.valor)}* en lugar de ${cop(normal(x.id))}`).join('\n');
+  const elegido = lead.plan ? ps.find((x) => x.id === lead.plan) : null;
+  if (paso === 1) {
+    return elegido
+      ? `¿Pudiste revisar? 🙌 Si hoy te animas, te dejo el *${elegido.nombre}* en *${cop(precio)}* en lugar de ${cop(normal(elegido.id))}.\n\nSolo dime "sí" y te paso los datos 📋`
+      : `¿Pudiste revisar? 🙌 Si hoy te animas, te dejo los dos planes con descuento:\n${lista}\n\nResponde *1* o *2* y te paso los datos 📋`;
+  }
+  if (paso === 2) {
+    return `Así quedan las planillas con los datos de tu negocio 👆\n\n¿Quieres generar gratis la tuya? Escribe el nombre y el NIT de tu negocio aquí:\n${enlaceVistaPrevia()}`;
+  }
+  if (paso === 3) {
+    return `Un dato importante 📌 La Secretaría de Salud revisa el plan escrito *y* las planillas diligenciadas del día a día. El paquete trae los dos, más la guía de los certificados externos que debes anexar (fumigación, lavado de tanque, certificado médico y curso de manipulación).\n\n` +
+      (elegido ? `Tu precio con descuento sigue en *${cop(precio)}*. ¿Te paso los datos?` : `Tus precios con descuento siguen:\n${lista}\n\nResponde *1* o *2*.`);
+  }
+  return elegido
+    ? `Último mensaje, para no molestarte 🙏 El *${elegido.nombre}* en *${cop(precio)}* sigue disponible hoy. Si lo quieres, escríbeme "sí". Si no te interesa, no te vuelvo a escribir 📋`
+    : `Último mensaje, para no molestarte 🙏 Los precios con descuento siguen hoy:\n${lista}\n\nResponde con el número del plan. Si no te interesa, no te vuelvo a escribir 📋`;
+}
+
 function textoSeguimiento(paso, producto, precio, lead = {}) {
+  if (producto === 'sanidad') return textoSeguimientoSanidad(paso, precio, lead);
   const p = infoPack(producto);
   const e = p.emoji;
   const conPlanes = producto === 'moldes' && require('./planes').hayPlanes() && !lead.plan;
@@ -452,7 +556,7 @@ function esRechazo(texto) {
 function esPedidoDescuento(texto) {
   const n = normalizar(texto);
   if (n.includes('?') || /\b(sera|todavia|aun|hasta cuando|el lunes|manana|despues)\b/.test(n)) return false;
-  return /\b(quiero|dame|pasame|aprovechar|tomo|acepto|si)\b.*\b(descuento|promo|promocion|oferta|datos actualizados)\b/.test(n) || /^(7|8|12)\s?000$/.test(n.replace(/\s/g, ''));
+  return /\b(quiero|dame|pasame|aprovechar|tomo|acepto|si)\b.*\b(descuento|promo|promocion|oferta|datos actualizados)\b/.test(n) || /^(7|8|12)\s?000$|^(39|69)\s?900$/.test(n.replace(/\s/g, ''));
 }
 
 // Avisa que ya pagó o que manda el comprobante
@@ -535,7 +639,7 @@ function esSoporteDescarga(texto) {
 }
 
 module.exports = {
-  precioNormal, precioDescuento, precioDe, preciosPlanes, textoPlanes, cop, enHorarioSilencio, horaColombia,
+  precioNormal, precioDescuento, precioDe, preciosPlanes, textoPlanes, cop, planesDe, conPlanes, enlaceVistaPrevia, enHorarioSilencio, horaColombia,
   infoPack, conocimiento, imagenes, documentosMuestra, descripcionMuestra, host,
   textoPitch, botonesPitch, textoRescate, enlaceCalculadora, textoPago, textoDespuesMuestra, textoConfianza, textoSeguimiento, cuentas,
   normalizar, esAfirmacion, esPedidoPago, ofreceDatosPago, aceptaDatosPago, esPedidoMuestra, esDesconfianza, esRechazo, esPedidoDescuento, esAvisoPago, esSoporteDescarga,

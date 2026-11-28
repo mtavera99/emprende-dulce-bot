@@ -104,6 +104,8 @@ const store = {
   // Carpeta de Google Drive de respaldo de cada producto ('' si no hay)
   driveDe(producto) {
     const s = settings;
+    // Sanidad no tiene carpeta: sus documentos se generan para cada negocio
+    if (producto === 'sanidad') return '';
     const link = producto === 'moldes' ? s.driveLinkMoldes : producto === 'muebles' ? s.driveLinkMuebles : s.driveLink;
     return String(link || '').trim();
   },
@@ -306,7 +308,7 @@ const store = {
     }
 
     const id = `DULCE-${Date.now().toString().slice(-6)}`;
-    const nombreProd = { moldes: 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF', muebles: 'Mega Pack de Carpintería y Muebles en Melamina 2026', upsell_helados: 'Pack Emprende Dulce 2026 (upsell)' }[prodId]
+    const nombreProd = { moldes: 'Mega Pack +2.000 Moldes y Patrones de Costura en PDF', muebles: 'Mega Pack de Carpintería y Muebles en Melamina 2026', sanidad: 'Plan de Saneamiento Básico y Planillas de Sanidad 2026-2027', upsell_helados: 'Pack Emprende Dulce 2026 (upsell)' }[prodId]
       || 'Colección Completa Emprende Dulce 2026 (3 Libros + 3 Bonos)';
     const driveLink = store.driveDe(prodId);
 
